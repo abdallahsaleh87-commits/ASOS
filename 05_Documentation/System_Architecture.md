@@ -50,6 +50,22 @@ This layer represents the system's sensory inputs. ASOS does not own this data; 
 * Google Sheets & Excel (Legacy/Ad-hoc data structures)
 * *Future Integration Point:* Standardized OEM and third-party dealer APIs.
 
+### Data Ownership and Authority
+
+ASOS distinguishes between:
+
+- External Systems of Record.
+- ASOS Canonical Projections.
+- ASOS Authoritative Workflow States.
+- Derived Intelligence.
+- Authoritative Human Decisions.
+
+External authority is field-specific and deployment-specific. ASOS must not treat a normalized projection, AI recommendation, or pending outbound command as externally confirmed without authoritative evidence.
+
+The governing policy for source authority, field ownership, synchronization, conflict resolution, write permissions, and event provenance is:
+
+[ASOS Data Ownership and Systems of Record](./Data_Ownership_and_Systems_of_Record.md)
+
 ---
 
 ## Layer 2 — Knowledge Layer
