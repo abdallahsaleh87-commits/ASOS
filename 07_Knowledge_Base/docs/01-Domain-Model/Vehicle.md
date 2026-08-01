@@ -1,77 +1,111 @@
 # Vehicle
 
+**Version:** 1.1.0  
+**Status:** Approved Baseline  
+**Canonical Owner:** Vehicle Domain Service  
+**Primary Isolation Boundary:** `tenant_id`  
+**Last Updated:** 2026-08-01  
+
+---
+
 ## 1. Object Purpose
 
 ### Business Purpose
 
-The Vehicle object represents the canonical identity and technical characteristics of one physical or catalogued automotive asset within an authorized dealership context.
+The Vehicle Object represents the canonical identity and technical characteristics of a physical Vehicle or an approved catalogued Vehicle configuration within an ASOS Tenant.
 
-It describes what the Vehicle is, including:
+It defines what the Vehicle is, independently of how a dealership stocks, prices, reserves, allocates, sells, or delivers it.
+
+The Vehicle Object may describe:
 
 - Vehicle Identification Number.
 - Chassis and engine identifiers.
-- Manufacturer, make, model, trim, and model year.
-- Production and registration information.
-- Body, powertrain, drivetrain, and transmission specifications.
-- Exterior and interior configuration.
+- Manufacturer, make, model, trim, and variant.
+- Model year and production information.
+- Body and physical configuration.
+- Powertrain, transmission, and drivetrain.
+- Exterior and interior specifications.
 - Factory equipment and technical options.
-- Odometer information.
-- Authoritative identity-verification evidence.
+- Odometer observations and evidence.
+- Registration and identity-verification evidence.
 - Source-system provenance.
+- Identity conflicts, corrections, and merges.
 
-The Vehicle remains identifiable independently of:
+A Vehicle must remain identifiable independently of:
 
 - A dealership stock cycle.
-- A reservation.
 - A Customer.
+- A Lead.
 - An Opportunity.
+- An Appointment.
 - A Quotation.
-- A Deal.
 - A Trade-In appraisal.
-- A finance workflow.
-- A delivery workflow.
+- A Finance Application.
+- A Financial Contract.
+- A Deal.
+- A reservation.
+- An allocation.
+- A sale.
+- A delivery.
 
-A Vehicle may participate in multiple historical Inventory Records, Trade-In workflows, Appointments, Quotations, Deals, and ownership periods.
+A physical Vehicle may participate in multiple historical:
 
-The Vehicle object must not contain dealership-specific commercial stock information.
+- Inventory Records.
+- Trade-In workflows.
+- Appointments and test drives.
+- Quotations.
+- Deals.
+- Ownership periods.
+- Registration periods.
+- Inspection records.
+- Service or odometer observations.
 
-The following information belongs to the Inventory Record object and must not be owned by Vehicle:
+### Vehicle and Inventory Boundary
 
-- Stock number.
+The Vehicle Object must not own dealership-specific commercial Inventory state.
+
+The following information belongs to `InventoryRecord` or another appropriate workflow:
+
+- Dealership stock number.
 - Inventory status.
 - Commercial availability.
-- Branch or parking location.
+- Branch stock location.
+- Parking location.
+- Acquisition date.
 - Acquisition cost.
 - Landed cost.
+- Retail price.
 - Advertised price.
 - Minimum authorized price.
 - Discount limits.
 - Inventory aging.
+- Preparation status.
 - Reservation status.
-- Deal allocation.
-- Floor-plan financing.
+- Allocation status.
+- Current Deal assignment.
 - Publication status.
 - Sale status.
 - Delivery status.
-- Inventory transfer or retirement.
+- Inventory transfer.
+- Inventory retirement.
+
+Vehicle identity does not prove:
+
+- Availability for sale.
+- Legal ownership.
+- Dealership ownership.
+- Reservation.
+- Allocation.
+- Roadworthiness.
+- Insurance.
+- Registration validity.
+- Finance eligibility.
+- Sale completion.
+- Delivery completion.
 
 ### System Purpose
 
-The Vehicle object is the canonical ASOS representation of Vehicle identity and technical specification within a tenant-authorized context.
-
-It normalizes Vehicle data received from sources such as:
-
-- Dealer Management Systems.
-- OEM systems.
-- Vehicle build sheets.
-- Registration systems.
-- Inspection providers.
-- Trade-In systems.
-- Stock-transfer workflows.
-- Authorized manual verification.
-- External Vehicle-data providers.
-
-The Vehicle object provides stable identity and specification context to:
+The Vehicle Object provides stable identity and specification context to:
 
 - Inventory Records.
 - Vehicle matching.
@@ -87,2035 +121,1793 @@ The Vehicle object provides stable identity and specification context to:
 - AI Agents.
 - Analytics and reporting.
 
-The Vehicle object is an ASOS canonical projection.
+The Vehicle Object is normally an ASOS Canonical Projection.
 
-It does not automatically replace the external legal or operational System of Record for:
+It does not automatically replace an external legal or operational System of Record for:
 
 - Vehicle registration.
 - Legal ownership.
 - Manufacturer certification.
+- Inspection status.
 - Service history.
-- Insurance status.
-- Vehicle inspection.
-- Dealership inventory.
-- Accounting records.
+- Insurance.
+- Physical stock.
+- Accounting.
+- Vehicle delivery.
 
-Each authoritative field must preserve its source, verification status, and synchronization timestamp.
+Every externally authoritative field must preserve:
 
-### Canonical Ownership Boundary
+- Source system.
+- Source record.
+- Authority category.
+- Source timestamp.
+- Verification status.
+- Evidence reference.
+- Synchronization status.
+- Record version.
 
-| Information | Canonical Domain Owner |
+### Canonical Ownership Matrix
+
+| Information | Canonical Owner |
 | :--- | :--- |
 | VIN and chassis identity | Vehicle |
-| Make, model, trim, and model year | Vehicle |
-| Engine, battery, transmission, and drivetrain | Vehicle |
+| Make, model, trim, variant, and model year | Vehicle |
+| Engine, battery, transmission, and drivetrain specifications | Vehicle |
 | Body type, dimensions, seats, and doors | Vehicle |
 | Factory colors and factory options | Vehicle |
-| Odometer reading and evidence | Vehicle |
+| Odometer observations and evidence | Vehicle |
+| Registration identity projection | Vehicle |
 | Stock number | Inventory Record |
-| Inventory availability | Inventory Record |
-| Branch and physical stock location | Inventory Record |
+| Commercial availability | Inventory Record |
+| Branch and stock location | Inventory Record |
 | Acquisition and landed cost | Inventory Record |
 | Retail and advertised pricing | Inventory Record |
 | Reservation and allocation | Inventory Record |
 | Inventory aging | Inventory Record |
-| Deal commercial terms | Deal |
-| Customer-specific quotation price | Quotation |
-| Trade-In appraisal and valuation | Trade-In |
-| Finance terms | Finance Application or Financial Contract |
-| Delivery confirmation | Vehicle Delivery workflow |
+| Customer-specific commercial offer | Quotation |
+| Trade-In appraisal and acquisition workflow | Trade-In |
+| Final commercial terms | Deal |
+| Finance terms and decisions | Finance Application or Financial Contract |
+| Delivery confirmation | Delivery workflow and configured external authority |
+
+---
 
 ## 2. Canonical Schema
 
-### Identifiers
+### Primary Identifiers
 
-- **Primary Key:** `vehicle_id` (UUIDv4)
-- **Tenant ID:** `dealership_id` (UUIDv4)
-- **Foreign Keys:**
-  - `vehicle_model_id` (UUIDv4 — optional)
-  - `manufacturer_id` (UUIDv4 — optional)
-  - `supersedes_vehicle_id` (UUIDv4 — optional)
-  - `merged_into_vehicle_id` (UUIDv4 — optional)
+- `vehicle_id` — UUIDv4, required and immutable.
+- `tenant_id` — UUIDv4, required and immutable.
+- `record_version` — Integer used for optimistic concurrency.
+
+### Optional Organizational Context
+
+- `dealer_group_id`.
+- `originating_dealership_id`.
+- `originating_branch_id`.
+
+These fields provide organizational context inside the Tenant.
+
+They do not replace `tenant_id` as the primary isolation boundary.
+
+### Record Classification
+
+- `vehicle_record_type`.
+- `identity_status`.
+- `verification_status`.
+- `data_quality_status`.
+- `conflict_status`.
 
 ### Vehicle Identity
 
-- `vin`
-- `chassis_number`
-- `engine_number`
-- `registration_number`
-- `license_plate_number`
-- `country_of_registration`
-- `identity_status`
-- `verification_status`
-- `verification_method`
-- `verified_at`
-- `verified_by`
+- `vin`.
+- `chassis_number`.
+- `engine_number`.
+- `manufacturer_serial_number`.
+- `registration_number`.
+- `license_plate_number`.
+- `country_of_registration`.
+- `registration_effective_from`.
+- `registration_effective_until`.
 
 ### Manufacturer and Model
 
-- `manufacturer_id`
-- `make`
-- `model`
-- `trim`
-- `variant`
-- `model_year`
-- `production_date`
-- `vehicle_model_id`
-- `manufacturer_model_code`
-- `market_region`
+- `manufacturer_id`.
+- `vehicle_model_id`.
+- `make`.
+- `model`.
+- `trim`.
+- `variant`.
+- `model_year`.
+- `production_date`.
+- `manufacturer_model_code`.
+- `market_region`.
 
 ### Physical Configuration
 
-- `body_type`
-- `vehicle_category`
-- `number_of_doors`
-- `seating_capacity`
-- `steering_position`
-- `exterior_color`
-- `exterior_color_code`
-- `interior_color`
-- `interior_material`
+- `vehicle_category`.
+- `body_type`.
+- `number_of_doors`.
+- `seating_capacity`.
+- `steering_position`.
+- `exterior_color`.
+- `exterior_color_code`.
+- `interior_color`.
+- `interior_material`.
 
 ### Powertrain and Performance
 
-- `fuel_type`
-- `transmission`
-- `drivetrain`
-- `engine_displacement_cc`
-- `engine_cylinder_count`
-- `engine_power_kw`
-- `engine_power_hp`
-- `engine_torque_nm`
-- `battery_capacity_kwh`
-- `electric_range_km`
-- `combined_fuel_consumption`
-- `emission_standard`
+- `fuel_type`.
+- `transmission`.
+- `drivetrain`.
+- `engine_displacement_cc`.
+- `engine_cylinder_count`.
+- `engine_power_kw`.
+- `engine_power_hp`.
+- `engine_torque_nm`.
+- `battery_capacity_kwh`.
+- `electric_range_km`.
+- `combined_fuel_consumption`.
+- `emission_standard`.
 
 ### Dimensions and Capacity
 
-- `length_mm`
-- `width_mm`
-- `height_mm`
-- `wheelbase_mm`
-- `curb_weight_kg`
-- `gross_vehicle_weight_kg`
-- `cargo_capacity_liters`
-- `fuel_tank_capacity_liters`
+- `length_mm`.
+- `width_mm`.
+- `height_mm`.
+- `wheelbase_mm`.
+- `curb_weight_kg`.
+- `gross_vehicle_weight_kg`.
+- `cargo_capacity_liters`.
+- `fuel_tank_capacity_liters`.
 
 ### Equipment and Features
 
-- `factory_options`
-- `safety_features`
-- `comfort_features`
-- `infotainment_features`
-- `driver_assistance_features`
-- `accessibility_features`
-- `equipment_snapshot`
+- `factory_options`.
+- `safety_features`.
+- `comfort_features`.
+- `infotainment_features`.
+- `driver_assistance_features`.
+- `accessibility_features`.
+- `equipment_snapshot`.
 
-### Odometer Information
+### Odometer Projection
 
-- `odometer_value`
-- `odometer_unit`
-- `odometer_status`
-- `odometer_recorded_at`
-- `odometer_source`
-- `odometer_evidence_reference`
+- `latest_odometer_value`.
+- `latest_odometer_unit`.
+- `latest_odometer_status`.
+- `latest_odometer_recorded_at`.
+- `latest_odometer_source`.
+- `latest_odometer_evidence_reference`.
 
-### Source and Provenance
+The latest odometer fields are a projection.
 
-- `source_system`
-- `source_record_id`
-- `source_authority`
-- `source_updated_at`
-- `last_synced_at`
-- `field_authority_map`
-- `identity_evidence_hashes`
-- `vehicle_snapshot`
-- `source_metadata`
+Historical odometer observations must remain in governed child records.
 
-### Governance and Lifecycle
+### Verification and Authority
 
-- `record_version`
-- `vehicle_version`
-- `is_current_record`
-- `supersedes_vehicle_id`
-- `merged_into_vehicle_id`
+- `verification_method`.
+- `verified_at`.
+- `verified_by_actor_type`.
+- `verified_by_actor_id`.
+- `source_system`.
+- `source_record_id`.
+- `source_authority`.
+- `source_updated_at`.
+- `last_synced_at`.
+- `last_sync_status`.
+- `field_authority_map`.
+- `identity_evidence_references`.
+
+### Merge and Supersession
+
+- `supersedes_vehicle_id`.
+- `merged_into_vehicle_id`.
+- `merged_at`.
+- `merged_by_actor_id`.
+- `retired_at`.
+- `archived_at`.
 
 ### Audit Fields
 
-- `created_by`
-- `updated_by`
-- `verified_by`
-- `merged_by`
-- `retired_by`
-- `last_processed_by_agent`
-
-### Soft Delete
-
-- `is_deleted`
-- `deleted_at`
-- `deleted_by`
-- `deletion_reason`
-
-### Timestamps
-
-- `created_at`
-- `updated_at`
-- `verified_at`
-- `activated_at`
-- `identity_conflict_detected_at`
-- `merged_at`
-- `retired_at`
-- `archived_at`
-- `last_synced_at`
+- `created_at`.
+- `created_by_actor_type`.
+- `created_by_actor_id`.
+- `updated_at`.
+- `updated_by_actor_type`.
+- `updated_by_actor_id`.
 
 ### Explicitly Excluded Fields
 
-The following fields must not be stored as authoritative Vehicle fields:
+The following must not be stored as authoritative Vehicle fields:
 
-- `stock_number`
-- `inventory_number`
-- `inventory_status`
-- `availability_status`
-- `branch_id`
-- `location_id`
-- `arrival_date`
-- `days_in_stock`
-- `days_in_inventory`
-- `base_cost`
-- `purchase_price_amount`
-- `landed_cost_amount`
-- `retail_price`
-- `advertised_price_amount`
-- `minimum_allowed_price`
-- `minimum_authorized_price_amount`
-- `maximum_discount_amount`
-- `current_deal_id`
-- `reservation_id`
-- `allocated_deal_id`
-- `sold_deal_id`
-- `ready_for_sale`
-- `ready_for_delivery`
+- `stock_number`.
+- `inventory_number`.
+- `inventory_status`.
+- `availability_status`.
+- `current_stock_location`.
+- `parking_location`.
+- `arrival_date`.
+- `days_in_stock`.
+- `days_in_inventory`.
+- `acquisition_cost_amount`.
+- `landed_cost_amount`.
+- `retail_price_amount`.
+- `advertised_price_amount`.
+- `minimum_authorized_price_amount`.
+- `maximum_discount_amount`.
+- `reservation_id`.
+- `allocated_deal_id`.
+- `sold_deal_id`.
+- `ready_for_sale`.
+- `ready_for_delivery`.
+- `delivery_status`.
+- `sale_status`.
 
-These fields belong to Inventory Record, Quotation, Deal, or another applicable canonical object.
+These fields belong to Inventory Record, Quotation, Deal, or another applicable canonical workflow.
+
+---
 
 ## 3. Field Definitions
 
-| Name | Type | Description | Required | Default | Validation Rule | Example | Confidence Required |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| vehicle_id | UUID | Unique canonical identifier for the Vehicle within ASOS. | Yes | Auto-generated | Must use a valid UUIDv4 format | 550e8400-e29b-41d4-a716-446655440000 | N/A |
-| dealership_id | UUID | Tenant context authorized to access and manage the Vehicle projection. | Yes | Active context | Must match the authenticated tenant | 987f6543-a21b-43d2-b123-426614174000 | N/A |
-| vehicle_model_id | UUID | Canonical Vehicle Model reference when available. | No | Null | Must match the make, model, trim, year, and market region | 111e2222-e33b-44d5-a666-426614174000 | System-controlled |
-| manufacturer_id | UUID | Canonical manufacturer or OEM reference. | No | Null | Must match the approved manufacturer dictionary | 222e3333-e44b-55d6-a777-426614174000 | System-controlled |
-| vin | String | Vehicle Identification Number assigned to the physical Vehicle. | Conditional | Null | Must contain exactly 17 valid characters when applicable | 1HGCM82664A123456 | At least 0.995 |
-| chassis_number | String | Chassis identifier used where VIN is unavailable or supplemented. | Conditional | Null | At least one authoritative Vehicle identity must exist | CHS-2026-009821 | At least 0.995 |
-| engine_number | String | Manufacturer or authority-issued engine identifier. | No | Null | Must preserve exact source formatting | ENG-K20C1-456781 | At least 0.99 |
-| registration_number | String | Vehicle registration identifier issued by an authorized body. | No | Null | Must match the registration evidence | REG-2026-145892 | Authoritative source |
-| license_plate_number | String | Current registered license-plate identifier. | No | Null | Must be normalized without losing the original representation | ABC-1234 | Authoritative source |
-| country_of_registration | String | ISO country associated with the current registration. | No | Null | Must use an approved ISO 3166 country code | EGY | Authoritative source |
-| identity_status | Enum | Current Vehicle identity lifecycle state. | Yes | DRAFT | Must match VehicleIdentityStatus ENUM | VERIFIED | System-controlled |
-| verification_status | Enum | Result of the latest identity-verification process. | Yes | NOT_VERIFIED | Must match VehicleVerificationStatus ENUM | VERIFIED | System-controlled |
-| verification_method | Enum | Method used to verify Vehicle identity. | No | Null | Required when verification status is VERIFIED | VIN_DOCUMENT_MATCH | Authoritative evidence |
-| make | String | Vehicle manufacturer brand. | Yes | N/A | Must match the approved manufacturer dictionary | Honda | At least 0.95 |
-| model | String | Manufacturer-defined Vehicle model. | Yes | N/A | Must belong to the selected make | Civic | At least 0.95 |
-| trim | String | Manufacturer-defined Vehicle trim or grade. | No | Null | Must be valid for model, year, and market when known | Touring | At least 0.90 |
-| variant | String | More specific manufacturer configuration or derivative. | No | Null | Must preserve the source-system value | 1.5T CVT | At least 0.90 |
-| model_year | Integer | Manufacturer or registration-defined model year. | Yes | N/A | Must fall within the approved historical and future range | 2026 | At least 0.99 |
-| production_date | Date | Date or approximate date on which the Vehicle was manufactured. | No | Null | Cannot be materially later than the model year without evidence | 2025-11-18 | Authoritative source |
-| body_type | Enum | Physical body configuration. | No | UNKNOWN | Must match VehicleBodyType ENUM | SUV | At least 0.95 |
-| fuel_type | Enum | Primary propulsion-energy type. | No | UNKNOWN | Must match VehicleFuelType ENUM | HYBRID | At least 0.99 |
-| transmission | Enum | Transmission configuration. | No | UNKNOWN | Must match VehicleTransmission ENUM | CVT | At least 0.95 |
-| drivetrain | Enum | Driven-wheel or propulsion configuration. | No | UNKNOWN | Must match VehicleDrivetrain ENUM | FRONT_WHEEL_DRIVE | At least 0.95 |
-| exterior_color | String | Manufacturer or observed exterior color. | No | Null | Must distinguish source value from normalized value | Platinum White Pearl | At least 0.90 |
-| interior_color | String | Manufacturer or observed interior color. | No | Null | Must distinguish source value from normalized value | Black | At least 0.90 |
-| seating_capacity | Integer | Number of approved seating positions. | No | Null | Must be between 1 and 100 | 5 | At least 0.99 |
-| odometer_value | Decimal | Latest authoritative odometer reading. | No | Null | Must be zero or greater | 12500 | At least 0.99 |
-| odometer_unit | Enum | Unit used by the odometer reading. | No | KILOMETERS | Must match OdometerUnit ENUM | KILOMETERS | At least 0.99 |
-| odometer_status | Enum | Trust or exception status of the odometer reading. | No | UNVERIFIED | Must match OdometerStatus ENUM | VERIFIED | Authorized evidence |
-| source_system | String | System from which the current canonical record originated. | Yes | MANUAL | Must identify an approved integration or workflow | DMS | System-controlled |
-| source_record_id | String | Vehicle identifier in the source system. | No | Null | Must be unique with source system and tenant when populated | DMS-VEH-987456 | System-controlled |
-| source_authority | Enum | Authority level of the source for identity and specification data. | Yes | DEALERSHIP_REPORTED | Must match VehicleSourceAuthority ENUM | OEM_VERIFIED | System-controlled |
-| field_authority_map | JSONB | Per-field mapping of the authoritative source and timestamp. | Yes | Empty object | Must use approved field names and source identifiers | {"vin":{"source":"OEM","verified":true}} | System-controlled |
-| record_version | Integer | Optimistic-concurrency version for the current record. | Yes | 1 | Must increase after every permitted update | 8 | System-controlled |
+### Identity and Governance Fields
+
+| Field | Type | Required | Authority | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `vehicle_id` | UUID | Yes | ASOS | Immutable Canonical Vehicle identifier. |
+| `tenant_id` | UUID | Yes | Security Context | Primary Tenant-isolation identifier. |
+| `vehicle_record_type` | Enum | Yes | ASOS | Distinguishes a physical Vehicle from an approved catalog configuration. |
+| `identity_status` | Enum | Yes | ASOS Workflow State | Canonical identity lifecycle state. |
+| `verification_status` | Enum | Yes | ASOS Workflow State | Result of the latest identity-verification workflow. |
+| `data_quality_status` | Enum | Yes | ASOS Workflow State | Completeness, freshness, conflict, or quarantine state. |
+| `conflict_status` | Enum | Yes | ASOS Workflow State | Indicates whether material identity conflicts exist. |
+| `record_version` | Integer | Yes | ASOS | Optimistic-concurrency version. |
+| `dealer_group_id` | UUID | No | Canonical Projection | Optional dealer-group context inside the Tenant. |
+| `originating_dealership_id` | UUID | No | Canonical Projection | Dealership where the Vehicle was first observed. |
+| `originating_branch_id` | UUID | No | Canonical Projection | Branch where the Vehicle was first observed. |
+
+### Physical Identity Fields
+
+| Field | Type | Required | Authority | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `vin` | String | Conditional | Verified external evidence | Vehicle Identification Number for a physical Vehicle. |
+| `chassis_number` | String | Conditional | Verified external evidence | Chassis identifier where VIN is unavailable or supplemented. |
+| `engine_number` | String | No | Verified external evidence | Manufacturer or authority-issued engine identifier. |
+| `manufacturer_serial_number` | String | No | Manufacturer source | Manufacturer-issued serial identifier where applicable. |
+| `registration_number` | String | No | Registration authority | Current registration identifier. |
+| `license_plate_number` | String | No | Registration authority | Current licence-plate identifier. |
+| `country_of_registration` | String | No | Registration authority | ISO country code of the registration authority. |
+| `registration_effective_from` | Date | No | Registration authority | Start of the registration period. |
+| `registration_effective_until` | Date | No | Registration authority | End of the registration period. |
+
+### Manufacturer and Model Fields
+
+| Field | Type | Required | Authority | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `manufacturer_id` | UUID | No | Approved dictionary | Canonical manufacturer reference. |
+| `vehicle_model_id` | UUID | No | Approved catalogue | Canonical model or configuration reference. |
+| `make` | String | Yes | Approved source | Manufacturer or brand name. |
+| `model` | String | Yes | Approved source | Manufacturer-defined model. |
+| `trim` | String | No | Approved source | Manufacturer-defined grade or trim. |
+| `variant` | String | No | Approved source | More specific derivative or configuration. |
+| `model_year` | Integer | Yes | Approved source | Manufacturer or market-defined model year. |
+| `production_date` | Date | No | Manufacturer or evidence | Vehicle production date where known. |
+| `manufacturer_model_code` | String | No | Manufacturer source | Manufacturer configuration or model code. |
+| `market_region` | String | No | Approved source | Market for which the configuration was produced. |
+
+### Physical Configuration Fields
+
+| Field | Type | Required | Authority | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `vehicle_category` | Enum | No | Approved source | Passenger, commercial, motorcycle, or special-purpose category. |
+| `body_type` | Enum | No | Approved source | Physical body configuration. |
+| `number_of_doors` | Integer | No | Approved source | Number of passenger or cargo doors according to approved convention. |
+| `seating_capacity` | Integer | No | Approved source | Approved seating capacity. |
+| `steering_position` | Enum | No | Approved source | Left-, right-, or centre-hand steering position. |
+| `exterior_color` | String | No | Approved source | Normalized exterior colour. |
+| `exterior_color_code` | String | No | Manufacturer source | Manufacturer exterior-colour code. |
+| `interior_color` | String | No | Approved source | Normalized interior colour. |
+| `interior_material` | String | No | Approved source | Interior upholstery or material description. |
+
+### Powertrain Fields
+
+| Field | Type | Required | Authority | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `fuel_type` | Enum | No | Approved source | Primary propulsion-energy type. |
+| `transmission` | Enum | No | Approved source | Transmission configuration. |
+| `drivetrain` | Enum | No | Approved source | Driven-wheel or propulsion configuration. |
+| `engine_displacement_cc` | Integer | No | Manufacturer or evidence | Engine displacement in cubic centimetres. |
+| `engine_cylinder_count` | Integer | No | Manufacturer or evidence | Number of combustion-engine cylinders. |
+| `engine_power_kw` | Decimal | No | Manufacturer or evidence | Engine or system power in kilowatts. |
+| `engine_power_hp` | Decimal | No | Manufacturer or evidence | Engine or system power in horsepower. |
+| `engine_torque_nm` | Decimal | No | Manufacturer or evidence | Maximum torque in Newton metres. |
+| `battery_capacity_kwh` | Decimal | No | Manufacturer or evidence | Gross or approved battery capacity. |
+| `electric_range_km` | Decimal | No | Approved test standard | Electric driving range with test-cycle metadata. |
+| `combined_fuel_consumption` | Decimal | No | Approved test standard | Combined consumption with unit and test-cycle metadata. |
+| `emission_standard` | String | No | Manufacturer or authority | Applicable emissions standard. |
+
+### Odometer Fields
+
+| Field | Type | Required | Authority | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `latest_odometer_value` | Decimal | No | Accepted projection | Latest accepted odometer reading. |
+| `latest_odometer_unit` | Enum | No | Evidence | Kilometres or miles. |
+| `latest_odometer_status` | Enum | No | Verification workflow | Current trust or exception status. |
+| `latest_odometer_recorded_at` | Timestamp | No | Evidence | Time the reading was observed. |
+| `latest_odometer_source` | String | No | Provenance | Source of the accepted reading. |
+| `latest_odometer_evidence_reference` | String | No | Evidence | Reference to inspection, document, source record, or image evidence. |
+
+### Provenance Fields
+
+| Field | Type | Required | Authority | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `source_system` | String | Yes | Integration Context | Source from which the canonical projection originated. |
+| `source_record_id` | String | No | External source | Identifier in the source system. |
+| `source_authority` | Enum | Yes | Governance | Authority classification of the source. |
+| `source_updated_at` | Timestamp | No | External source | Source-system update timestamp. |
+| `last_synced_at` | Timestamp | No | ASOS | Latest successful synchronization time. |
+| `last_sync_status` | Enum | Yes | ASOS | Current synchronization state. |
+| `field_authority_map` | JSON Object | Yes | Governance | Field-level source and authority metadata. |
+| `identity_evidence_references` | Array | No | Evidence repository | References supporting identity and verification. |
+
+---
 
 ## 4. Enumerations
 
+### VehicleRecordType
+
+- `PHYSICAL_VEHICLE`
+- `CATALOG_CONFIGURATION`
+
+An `InventoryRecord` must reference a `PHYSICAL_VEHICLE`.
+
+A `CATALOG_CONFIGURATION` may support:
+
+- Factory-order exploration.
+- Vehicle matching.
+- Quotation preparation.
+- Market Intelligence.
+- Customer preference modelling.
+
+It must not be represented as a physical available unit.
+
 ### VehicleIdentityStatus
 
-- **DRAFT:** Vehicle data exists but minimum identity requirements are incomplete.
-- **IDENTIFIED:** A probable Vehicle identity exists but has not completed authoritative verification.
-- **VERIFIED:** Vehicle identity was confirmed using approved evidence.
-- **ACTIVE:** The verified Vehicle is available for use by authorized domain workflows.
-- **IDENTITY_CONFLICT:** Two or more authoritative sources disagree about Vehicle identity.
-- **MERGED:** The record was identified as a duplicate and merged into another Vehicle.
-- **RETIRED:** The Vehicle projection is no longer active in the tenant context.
-- **ARCHIVED:** The historical record moved to long-term retention.
+- `DRAFT`
+- `IDENTIFIED`
+- `VERIFIED`
+- `ACTIVE`
+- `IDENTITY_CONFLICT`
+- `MERGED`
+- `RETIRED`
+- `ARCHIVED`
+
+`ACTIVE` means that the identity is permitted for use by approved downstream workflows.
+
+It does not mean commercially available for sale.
 
 ### VehicleVerificationStatus
 
-- NOT_VERIFIED
-- VERIFICATION_PENDING
-- VERIFIED
-- FAILED
-- CONFLICT_DETECTED
-- MANUAL_REVIEW_REQUIRED
-- EXPIRED
+- `NOT_VERIFIED`
+- `VERIFICATION_PENDING`
+- `VERIFIED`
+- `FAILED`
+- `CONFLICT_DETECTED`
+- `MANUAL_REVIEW_REQUIRED`
+- `EXPIRED`
 
 ### VehicleVerificationMethod
 
-- OEM_BUILD_SHEET
-- VIN_DOCUMENT_MATCH
-- REGISTRATION_DOCUMENT
-- PHYSICAL_INSPECTION
-- DMS_VERIFIED
-- AUTHORIZED_PROVIDER
-- STOCK_TRANSFER_EVIDENCE
-- TRADE_IN_EVIDENCE
-- MANUAL_SPECIALIST_REVIEW
-- MULTI_SOURCE_MATCH
-- OTHER
-
-### VehicleFuelType
-
-- GASOLINE
-- DIESEL
-- HYBRID
-- PLUG_IN_HYBRID
-- BATTERY_ELECTRIC
-- HYDROGEN
-- LPG
-- CNG
-- FLEX_FUEL
-- OTHER
-- UNKNOWN
-
-### VehicleTransmission
-
-- AUTOMATIC
-- MANUAL
-- CVT
-- DCT
-- SINGLE_SPEED
-- SEMI_AUTOMATIC
-- OTHER
-- UNKNOWN
-
-### VehicleDrivetrain
-
-- FRONT_WHEEL_DRIVE
-- REAR_WHEEL_DRIVE
-- ALL_WHEEL_DRIVE
-- FOUR_WHEEL_DRIVE
-- OTHER
-- UNKNOWN
-
-### VehicleBodyType
-
-- SEDAN
-- HATCHBACK
-- SUV
-- CROSSOVER
-- COUPE
-- CONVERTIBLE
-- WAGON
-- PICKUP
-- VAN
-- MINIVAN
-- BUS
-- TRUCK
-- MOTORCYCLE
-- OTHER
-- UNKNOWN
+- `OEM_BUILD_SHEET`
+- `VIN_DOCUMENT_MATCH`
+- `REGISTRATION_DOCUMENT`
+- `PHYSICAL_INSPECTION`
+- `DMS_VERIFIED`
+- `AUTHORIZED_PROVIDER`
+- `STOCK_TRANSFER_EVIDENCE`
+- `TRADE_IN_EVIDENCE`
+- `MANUAL_SPECIALIST_REVIEW`
+- `MULTI_SOURCE_MATCH`
+- `OTHER`
 
 ### VehicleCategory
 
-- PASSENGER
-- LIGHT_COMMERCIAL
-- HEAVY_COMMERCIAL
-- MOTORCYCLE
-- SPECIAL_PURPOSE
-- OTHER
+- `PASSENGER`
+- `LIGHT_COMMERCIAL`
+- `HEAVY_COMMERCIAL`
+- `MOTORCYCLE`
+- `SPECIAL_PURPOSE`
+- `OTHER`
+- `UNKNOWN`
+
+### VehicleBodyType
+
+- `SEDAN`
+- `HATCHBACK`
+- `SUV`
+- `CROSSOVER`
+- `COUPE`
+- `CONVERTIBLE`
+- `WAGON`
+- `PICKUP`
+- `VAN`
+- `MINIVAN`
+- `BUS`
+- `TRUCK`
+- `MOTORCYCLE`
+- `OTHER`
+- `UNKNOWN`
+
+### VehicleFuelType
+
+- `GASOLINE`
+- `DIESEL`
+- `HYBRID`
+- `PLUG_IN_HYBRID`
+- `BATTERY_ELECTRIC`
+- `HYDROGEN`
+- `LPG`
+- `CNG`
+- `FLEX_FUEL`
+- `OTHER`
+- `UNKNOWN`
+
+### VehicleTransmission
+
+- `AUTOMATIC`
+- `MANUAL`
+- `CVT`
+- `DCT`
+- `SINGLE_SPEED`
+- `SEMI_AUTOMATIC`
+- `OTHER`
+- `UNKNOWN`
+
+### VehicleDrivetrain
+
+- `FRONT_WHEEL_DRIVE`
+- `REAR_WHEEL_DRIVE`
+- `ALL_WHEEL_DRIVE`
+- `FOUR_WHEEL_DRIVE`
+- `OTHER`
+- `UNKNOWN`
+
+### SteeringPosition
+
+- `LEFT_HAND_DRIVE`
+- `RIGHT_HAND_DRIVE`
+- `CENTRE`
+- `UNKNOWN`
 
 ### OdometerUnit
 
-- KILOMETERS
-- MILES
+- `KILOMETERS`
+- `MILES`
 
 ### OdometerStatus
 
-- UNVERIFIED
-- VERIFIED
-- EXEMPT
-- NOT_ACTUAL
-- DISCREPANCY_DETECTED
-- ROLLOVER_DETECTED
-- REPLACED
-- MANUAL_REVIEW_REQUIRED
+- `UNVERIFIED`
+- `VERIFIED`
+- `EXEMPT`
+- `NOT_ACTUAL`
+- `DISCREPANCY_DETECTED`
+- `ROLLOVER_DETECTED`
+- `REPLACED`
+- `MANUAL_REVIEW_REQUIRED`
 
 ### VehicleSourceAuthority
 
-- OEM_VERIFIED
-- GOVERNMENT_VERIFIED
-- INSPECTION_VERIFIED
-- DMS_VERIFIED
-- AUTHORIZED_PROVIDER
-- DEALERSHIP_REPORTED
-- CUSTOMER_REPORTED
-- AI_EXTRACTED
-- MANUAL_ENTRY
-- UNKNOWN
+- `OEM_VERIFIED`
+- `GOVERNMENT_VERIFIED`
+- `INSPECTION_VERIFIED`
+- `DMS_VERIFIED`
+- `AUTHORIZED_PROVIDER`
+- `DEALERSHIP_REPORTED`
+- `CUSTOMER_REPORTED`
+- `AI_EXTRACTED`
+- `MANUAL_ENTRY`
+- `UNKNOWN`
+
+### DataQualityStatus
+
+- `COMPLETE`
+- `INCOMPLETE`
+- `STALE`
+- `CONFLICTED`
+- `QUARANTINED`
+
+### ConflictStatus
+
+- `NONE`
+- `POTENTIAL`
+- `CONFIRMED`
+- `UNDER_REVIEW`
+- `RESOLVED`
+
+### SynchronizationStatus
+
+- `NOT_SYNCED`
+- `PENDING`
+- `SYNCED`
+- `FAILED`
+- `CONFLICTED`
+- `RECONCILIATION_REQUIRED`
+
+---
 
 ## 5. Validation Rules
 
-### Business Rules
+### Tenant Rules
 
-- Every Vehicle must belong to an authorized tenant context.
-- Every Vehicle must have at least one authoritative identity:
-  - VIN.
-  - Chassis number.
-  - Another jurisdiction-approved physical identifier.
+- `tenant_id` is required and immutable.
+- Every Vehicle child record must use the same `tenant_id` as its parent Vehicle.
+- `dealer_group_id`, `originating_dealership_id`, and `originating_branch_id` must belong to the authenticated Tenant.
+- Cross-Tenant Vehicle access is prohibited unless an approved and auditable sharing or transfer mechanism exists.
+- Tenant context must come from the authenticated security context.
 
-- A VIN must not be created from AI inference alone.
-- Vehicle identity must remain independent of dealership inventory status.
-- A Vehicle may exist without an active Inventory Record.
-- A Vehicle may reference multiple historical Inventory Records within permitted tenant and transfer rules.
-- Vehicle fields must not be used as the authoritative source for:
-  - Stock availability.
-  - Inventory location.
-  - Pricing.
-  - Reservation.
-  - Deal allocation.
-  - Inventory aging.
-  - Sale.
-  - Delivery.
+### Identity Rules
 
-- Customer-visible availability and price must be obtained from an active Inventory Record and applicable Quotation or Deal.
-- A Vehicle must not be marked sold, reserved, available, in transit, or delivered through its identity state.
-- Vehicle identity verification does not prove:
-  - Legal ownership.
-  - Inventory availability.
-  - Sale eligibility.
-  - Roadworthiness.
-  - Insurance.
-  - Registration validity.
-  - Delivery completion.
+For `PHYSICAL_VEHICLE`:
 
-- A duplicate Vehicle must be merged through a governed process and not silently deleted.
-- Historical source identifiers and verification evidence must remain traceable.
+- At least one approved physical identity must exist before entering `IDENTIFIED`.
+- The preferred physical identity is VIN where the market uses a standard VIN.
+- Chassis number may be used where VIN is unavailable or supplemented.
+- A VIN must not be created from AI inference.
+- A verified VIN must not be changed through an ordinary update.
+- Registration and licence-plate identifiers must not replace VIN or chassis identity.
 
-### Technical Rules
+For `CATALOG_CONFIGURATION`:
 
-- Vehicle creation and source ingestion must support idempotency.
-- Updates must use `record_version` for optimistic concurrency.
-- Source synchronization must preserve:
-  - Source system.
-  - Source record ID.
-  - Source timestamp.
-  - Retrieval timestamp.
-  - Processing result.
-  - Payload hash when applicable.
+- VIN and chassis number must be null.
+- Make, model, model year, and configuration reference must be present.
+- The record must not be linked to an active Inventory Record.
+- The record must not be presented as a physically available unit.
 
-- Field conflicts must be resolved using the approved source-authority policy.
+### VIN Rules
+
+When VIN is populated:
+
+- It must contain exactly 17 characters unless an approved market-specific exception exists.
+- It must be normalized to uppercase.
+- It must exclude the letters `I`, `O`, and `Q`.
+- Check-digit validation must be applied where required.
+- Original source formatting and evidence must remain traceable.
+- A verified VIN must be unique among active physical Vehicles inside the Tenant.
+
+### Chassis and Engine Rules
+
+- Chassis number must preserve source formatting and normalized formatting.
+- An active verified chassis number should be unique inside the Tenant.
+- Engine number must not be treated as the sole universal Vehicle identity.
+- Engine replacement must use a governed historical update rather than silently rewriting evidence.
+
+### Manufacturer and Specification Rules
+
+- `make` and `model` are required.
+- `model_year` is required.
+- `model_year` must fall within an approved historical and future range.
+- A future model year normally must not exceed the current year plus two without evidence.
+- `production_date` must not be materially inconsistent with the model year.
+- Trim and variant must be valid for the make, model, model year, and market where authoritative data exists.
+- Technical measurements must not be negative.
+- Seating capacity must be greater than zero when populated.
+- Door count must not be negative.
+- Battery capacity must be populated only for applicable propulsion types.
+- Engine displacement must not be required for battery-electric Vehicles.
+
+### Odometer Rules
+
+- Odometer value must be zero or greater.
+- Every odometer observation must preserve source, time, unit, evidence, and verification status.
+- A later verified reading must not be lower than an earlier verified reading without:
+  - Approved discrepancy classification.
+  - Odometer replacement evidence.
+  - Rollover evidence.
+  - Authoritative correction.
+- Unit conversion must preserve the original reading and unit.
+- AI extraction may suggest an odometer value but cannot verify it independently.
+
+### Authority and Conflict Rules
+
 - Lower-authority sources must not silently overwrite higher-authority verified values.
-- Every authoritative-field change must create immutable history.
-- Vehicle merge operations must be transactional.
-- Search indexes must be rebuilt or updated after identity corrections or merges.
-- AI-extracted fields must preserve:
-  - Model reference.
-  - Confidence.
-  - Input evidence.
-  - Extraction timestamp.
-  - Human-review status.
+- Material identity conflicts must create a controlled review workflow.
+- Conflicting VIN, chassis, registration, manufacturer, or odometer evidence must be preserved.
+- `field_authority_map` must identify authority for material fields.
+- Missing or stale evidence must reduce verification status.
+- A synchronization failure must not silently clear an existing authoritative value.
+- Every accepted authoritative change must preserve immutable history.
 
-### Data Constraints
+### Duplicate and Merge Rules
 
-- `vin` must contain exactly 17 characters when populated.
-- VIN values must exclude the letters `I`, `O`, and `Q`.
-- VIN checksum validation must be applied where required by the applicable market.
-- VIN values must be normalized to uppercase.
-- At least one of `vin` or `chassis_number` must be populated before entering `IDENTIFIED`.
-- `model_year` must fall within the approved historical range and normally not exceed the current year plus two.
-- `production_date` must not be unreasonably later than the model year.
-- `odometer_value` cannot be negative.
-- A later odometer reading should not be lower than a prior verified reading without an approved correction or replacement event.
-- `seating_capacity` and `number_of_doors` cannot be negative.
-- Technical dimensions and capacities cannot be negative.
-- `merged_into_vehicle_id` is required when identity status is `MERGED`.
-- `verified_at`, `verified_by`, and `verification_method` are required when verification status is `VERIFIED`.
-- `identity_conflict_detected_at` is required when identity status is `IDENTITY_CONFLICT`.
+- Duplicate detection may create a candidate match.
+- Similarity alone must not merge Vehicles.
+- A Vehicle merge requires an Authoritative Human Decision.
+- The surviving Vehicle must be identified.
+- All dependent records must be reconciled.
+- Source identifiers and evidence from the merged Vehicle must remain traceable.
+- Circular merge relationships are prohibited.
+- A merged Vehicle must not remain active.
+- A merged Vehicle must not return to active use through a normal update.
 
-### Uniqueness Rules
+### Inventory Boundary Rules
 
-- An active VIN must be unique within the authorized tenant Vehicle context.
-- An active chassis number must be unique within the authorized tenant Vehicle context when populated.
-- `source_system + source_record_id + dealership_id` must be unique when `source_record_id` exists.
-- A merged Vehicle cannot remain the current active record.
-- Circular merge and supersession relationships are prohibited.
+Vehicle fields must not be used as the authoritative source for:
 
-### Referential Integrity
+- Stock availability.
+- Stock location.
+- Pricing.
+- Reservation.
+- Allocation.
+- Inventory aging.
+- Sale.
+- Delivery.
 
-- `vehicle_model_id` must match the Vehicle’s make, model, trim, model year, and market region.
-- `manufacturer_id` must match the Vehicle make.
-- `supersedes_vehicle_id` must reference an earlier Vehicle version or controlled replacement.
-- `merged_into_vehicle_id` must reference a different Vehicle.
-- Inventory Records referencing a merged Vehicle must be redirected through an authorized reconciliation workflow.
-- Cross-tenant Vehicle relationships are prohibited unless created through an explicit governed stock-transfer or data-sharing process.
-- A Vehicle referenced by an Inventory Record, Trade-In, Quotation, Deal, Financial Contract, or audit record cannot be hard-deleted.
+Customer-visible availability must come from an active Inventory Record and its configured authoritative source.
+
+Customer-visible pricing must come from an approved Inventory pricing context, Quotation, or Deal workflow.
+
+### Concurrency and Idempotency
+
+- Every mutating update must validate `record_version`.
+- Stale updates must be rejected or routed to conflict resolution.
+- Retryable creation operations must support idempotency.
+- External write Commands must use an approved `idempotency_key`.
+- Event Consumers must prevent duplicate effects using `event_id`.
+- Duplicate source observations must not create duplicate Vehicles.
 
 ### Human Approval Requirements
 
-- Conflicting VIN, chassis, engine, registration, or manufacturer evidence requires Human Review.
-- Changing a verified VIN requires specialist approval and immutable correction evidence.
-- Merging duplicate Vehicles requires an authorized Data Steward or equivalent role.
-- Correcting a verified odometer discrepancy requires supporting evidence and authorized review.
-- Cross-tenant Vehicle reconciliation requires explicit security and data-governance approval.
-- AI Agents cannot:
-  - Verify Vehicle identity independently.
-  - Change a verified VIN.
-  - Merge Vehicle records.
-  - Resolve an identity conflict.
-  - Delete authoritative evidence.
-  - Mark a Vehicle sold, reserved, available, or delivered.
+Authorized Human Review is required for:
+
+- Changing a verified VIN.
+- Resolving a material identity conflict.
+- Merging duplicate Vehicles.
+- Correcting a verified odometer discrepancy.
+- Approving cross-Tenant Vehicle reconciliation.
+- Restoring an incorrectly retired or archived identity.
+- Overriding verified manufacturer or registration evidence.
+
+---
 
 ## 6. State Machine
 
 ### Allowed States
 
-- DRAFT
-- IDENTIFIED
-- VERIFIED
-- ACTIVE
-- IDENTITY_CONFLICT
-- MERGED
-- RETIRED
-- ARCHIVED
+```text
+DRAFT
+IDENTIFIED
+VERIFIED
+ACTIVE
+IDENTITY_CONFLICT
+MERGED
+RETIRED
+ARCHIVED
+```
 
 ### Allowed Transitions
 
-- DRAFT → IDENTIFIED
-- DRAFT → RETIRED
-- IDENTIFIED → VERIFIED
-- IDENTIFIED → IDENTITY_CONFLICT
-- IDENTIFIED → RETIRED
-- VERIFIED → ACTIVE
-- VERIFIED → IDENTITY_CONFLICT
-- VERIFIED → RETIRED
-- ACTIVE → IDENTITY_CONFLICT
-- ACTIVE → MERGED
-- ACTIVE → RETIRED
-- IDENTITY_CONFLICT → VERIFIED
-- IDENTITY_CONFLICT → MERGED
-- IDENTITY_CONFLICT → RETIRED
-- MERGED → ARCHIVED
-- RETIRED → ARCHIVED
+```text
+DRAFT → IDENTIFIED
+DRAFT → RETIRED
 
-### Forbidden Transitions
+IDENTIFIED → VERIFIED
+IDENTIFIED → IDENTITY_CONFLICT
+IDENTIFIED → RETIRED
 
-- DRAFT → ACTIVE
-- DRAFT → VERIFIED
-- DRAFT → MERGED
-- IDENTIFIED → ACTIVE
-- IDENTIFIED → MERGED without duplicate evidence
-- VERIFIED → DRAFT
-- ACTIVE → DRAFT
-- ACTIVE → IDENTIFIED
-- MERGED → ACTIVE
-- MERGED → VERIFIED
-- RETIRED → ACTIVE
-- ARCHIVED → ACTIVE
-- ARCHIVED → IDENTIFIED
-- ARCHIVED → VERIFIED
+VERIFIED → ACTIVE
+VERIFIED → IDENTITY_CONFLICT
+VERIFIED → RETIRED
 
-### Entry Conditions
+ACTIVE → IDENTITY_CONFLICT
+ACTIVE → MERGED
+ACTIVE → RETIRED
 
-- To enter `IDENTIFIED`:
-  - At least one valid identity identifier must exist.
-  - Make, model, and model year must be populated.
-  - The source system and source authority must be known.
-  - Initial duplicate checks must complete.
+IDENTITY_CONFLICT → VERIFIED
+IDENTITY_CONFLICT → MERGED
+IDENTITY_CONFLICT → RETIRED
 
-- To enter `VERIFIED`:
-  - Approved identity evidence must exist.
-  - VIN or chassis evidence must match the Vehicle.
-  - Source conflicts must be resolved.
-  - `verification_method`, `verified_at`, and `verified_by` must be recorded.
+MERGED → ARCHIVED
+RETIRED → ARCHIVED
+```
 
-- To enter `ACTIVE`:
-  - Identity status must be verified.
-  - No unresolved identity conflict may exist.
-  - Required canonical specifications must pass validation.
-  - The Vehicle must be permitted for use by downstream workflows.
+### Forbidden Ordinary Transitions
 
-- To enter `IDENTITY_CONFLICT`:
-  - Two or more material identity sources must disagree.
-  - The conflict type and affected fields must be recorded.
-  - Downstream high-risk operations must be restricted where necessary.
-  - A Human Review Task must be created.
+```text
+DRAFT → ACTIVE
+DRAFT → VERIFIED
+DRAFT → MERGED
 
-- To enter `MERGED`:
-  - The Vehicle must be confirmed as a duplicate.
-  - A valid `merged_into_vehicle_id` must exist.
-  - All downstream references must be reconciled or queued for reconciliation.
-  - Merge evidence and approving authority must be stored.
+IDENTIFIED → ACTIVE
+IDENTIFIED → MERGED without approved duplicate evidence
 
-- To enter `RETIRED`:
-  - The Vehicle projection must no longer be active within the tenant context.
-  - Retirement must not be used to represent a sale or delivery.
-  - The retirement reason and authority must be recorded.
+VERIFIED → DRAFT
+ACTIVE → DRAFT
+ACTIVE → IDENTIFIED
 
-- To enter `ARCHIVED`:
-  - The Vehicle must already be `MERGED` or `RETIRED`.
-  - Retention, dependency, audit, and legal-hold checks must pass.
+MERGED → ACTIVE
+MERGED → VERIFIED
 
-### Exit Conditions
+RETIRED → ACTIVE
 
-- A Vehicle cannot exit `DRAFT` until minimum identity requirements are satisfied.
-- A Vehicle cannot exit `IDENTIFIED` toward `VERIFIED` without authoritative evidence.
-- A Vehicle cannot exit `VERIFIED` toward `ACTIVE` while a material conflict remains.
-- A Vehicle cannot exit `IDENTITY_CONFLICT` without an authorized resolution.
-- A merged Vehicle cannot return to active use.
-- A retired Vehicle cannot return to active use through a normal transition.
-- Reactivation after an incorrect retirement requires a controlled correction or replacement workflow.
-- Archival must not break active Inventory Record, Trade-In, Deal, Contract, or audit references.
+ARCHIVED → ACTIVE
+ARCHIVED → IDENTIFIED
+ARCHIVED → VERIFIED
+```
+
+Corrections to an incorrect terminal transition require a separate governed correction or restoration workflow.
+
+### Entering IDENTIFIED
+
+Requires:
+
+- Valid Tenant context.
+- Minimum identity data.
+- Make, model, and model year.
+- Known source and source authority.
+- Initial duplicate checks.
+- No blocking validation errors.
+
+For a physical Vehicle, a VIN, chassis number, or approved jurisdictional identifier must exist.
+
+For a catalog configuration, an approved model or configuration reference must exist.
+
+### Entering VERIFIED
+
+Requires:
+
+- Approved identity evidence.
+- Satisfied verification policy.
+- Resolved material conflicts.
+- Recorded verification method.
+- Recorded verifier.
+- Recorded verification timestamp.
+- Verified source provenance.
+
+### Entering ACTIVE
+
+Requires:
+
+- Verified identity.
+- No unresolved identity conflict.
+- Required specifications passing validation.
+- Permitted use by downstream workflows.
+
+`ACTIVE` does not mean:
+
+- Available.
+- Reserved.
+- Allocated.
+- Sold.
+- Delivered.
+
+### Entering IDENTITY_CONFLICT
+
+Requires:
+
+- Material disagreement between identity or specification sources.
+- Recorded affected fields.
+- Recorded competing evidence.
+- Workflow restrictions where required.
+- Human Review Task where required.
+
+### Entering MERGED
+
+Requires:
+
+- Confirmed duplicate identity.
+- Surviving `merged_into_vehicle_id`.
+- Authorized Human Decision.
+- Reconciliation of dependent references.
+- Preserved evidence.
+- Immutable audit record.
+
+### Entering RETIRED
+
+Requires:
+
+- Approved retirement reason.
+- Confirmation that retirement is not being used to represent a sale or delivery.
+- Dependency and retention checks.
+- Recorded authority.
+
+### Entering ARCHIVED
+
+Requires:
+
+- Existing `MERGED` or `RETIRED` state.
+- Retention checks.
+- Dependency checks.
+- Legal-hold checks.
+- Audit-preservation checks.
 
 ### Terminal States
 
-- **MERGED:** The record was permanently consolidated into another canonical Vehicle.
-- **ARCHIVED:** The inactive historical Vehicle record moved to long-term retention.
+- `MERGED`
+- `ARCHIVED`
+
+A terminal Vehicle may be restored only through an approved correction process, not through an ordinary lifecycle update.
+
+### Transition Evidence
+
+Every transition must preserve:
+
+- Previous state.
+- New state.
+- Transition reason.
+- Actor.
+- Authority.
+- Applicable policy.
+- Record version.
+- Evidence references.
+- Timestamp.
+- Related Event.
+- Related review or Decision.
+
+---
 
 ## 7. Relationships
 
-### Depends On
+### Tenant Relationship
 
-- Dealership tenant identified by `dealership_id`.
-- Approved Vehicle-manufacturer dictionaries.
-- Approved Vehicle Model catalogues where available.
-- Authorized external identity and specification sources.
-- Source-authority and conflict-resolution policies.
-- Identity-verification and duplicate-detection services.
+- Every Vehicle belongs to exactly one `tenant_id`.
+- A Vehicle may be associated with multiple dealerships or branches inside the same Tenant.
+- Organizational association does not change Vehicle identity.
 
-### Consumes
+### Inventory Record
 
-- OEM build-sheet data.
-- Dealer Management System Vehicle records.
-- Registration and licensing data.
-- Physical Vehicle inspection results.
-- Trade-In Vehicle identity information.
-- Authorized Vehicle-data-provider responses.
-- Stock-transfer identity evidence.
-- Odometer readings and supporting evidence.
-- Manual specialist verification.
-- Vehicle correction and merge decisions.
-
-### Produces
-
-- Stable canonical Vehicle identity.
-- Normalized technical specifications.
-- Verified VIN and chassis context.
-- Vehicle source and provenance information.
-- Odometer history and confidence status.
-- Identity-conflict alerts.
-- Duplicate-Vehicle candidates.
-- Vehicle context for downstream inventory and sales workflows.
-
-### One-to-Many Relationships
-
-A Vehicle may be referenced by multiple:
-
-- Inventory Records.
-- Trade-In records.
-- Appointments.
-- Test-drive records.
-- Quotations.
-- Deals.
-- Finance Applications.
-- Financial Contracts.
-- Vehicle-delivery records.
-- Inspection records.
-- Interactions.
-- Market Intelligence observations.
-- AI Agent Runs.
-- Audit records.
-
-### Inventory Relationship
-
-- A Vehicle may exist without an active Inventory Record.
-- A Vehicle may have multiple historical Inventory Records.
-- Only an active Inventory Record may define current dealership:
+- A physical Vehicle may exist without an active Inventory Record.
+- A physical Vehicle may have multiple historical Inventory Records.
+- Only Inventory Record may define current dealership:
   - Stock number.
   - Availability.
   - Location.
-  - Pricing.
+  - Pricing context.
+  - Preparation status.
   - Reservation.
-  - Deal allocation.
-  - Sale state.
-  - Delivery state.
+  - Allocation.
+  - Sale context.
+  - Delivery context.
   - Inventory aging.
+- A catalog configuration must not have an active physical Inventory Record.
 
-- Vehicle identity must remain stable when an Inventory Record is:
-  - Sold.
-  - Delivered.
-  - Transferred.
-  - Returned.
-  - Retired.
-  - Archived.
+### Trade-In
 
-### Trade-In Relationship
+- A physical Vehicle may participate in multiple historical Trade-In workflows.
+- Trade-In owns:
+  - Appraisal.
+  - Customer ownership claim.
+  - Lien and payoff workflow.
+  - Acquisition Recommendation.
+  - Trade-In commercial approval.
+- Vehicle owns the underlying identity and specifications.
 
-- A Trade-In references the Vehicle being evaluated or acquired.
-- Trade-In valuation, appraisal, ownership, payoff, and acquisition information must remain owned by the Trade-In object.
-- Completion of a Trade-In acquisition may create a new Inventory Record for the same Vehicle.
-- The Vehicle record must not treat a Trade-In appraisal value as a Vehicle attribute.
+### Appointment and Test Drive
 
-### Deal and Quotation Relationships
+- A physical Vehicle may be associated with multiple Appointments or test-drive records.
+- Appointment status does not modify Vehicle identity or Inventory availability.
 
-- Quotations and Deals may reference a Vehicle directly and its active Inventory Record.
-- Vehicle defines identity and specifications.
-- Inventory Record defines current availability and approved commercial stock context.
-- Quotation defines Customer-specific commercial terms.
-- Deal defines the governed transaction.
-- Vehicle must not duplicate quotation price, Deal price, discount, tax, or payment information.
+### Quotation
 
-### Finance Relationships
+- A Quotation may reference:
+  - A physical Vehicle.
+  - An Inventory Record.
+  - An approved catalog configuration.
+- Customer-specific price belongs to Quotation, not Vehicle.
 
-- Finance Applications and Financial Contracts may reference the Vehicle.
-- Vehicle may provide:
-  - VIN.
+### Opportunity
+
+- An Opportunity may contain one or more Vehicle preferences or matches.
+- Vehicle matching does not reserve or allocate a Vehicle.
+
+### Finance Application
+
+- A Finance Application may reference the selected Vehicle or configuration.
+- Finance eligibility and lender decisions do not belong to Vehicle.
+
+### Financial Contract
+
+- A Financial Contract may reference the financed Vehicle.
+- Contract status does not modify Vehicle identity state.
+
+### Deal
+
+- A Deal may reference a Vehicle and Inventory Record.
+- Sale and delivery outcomes belong to Deal, Inventory Record, and the relevant external authority.
+- Deal completion must not change Vehicle identity to a sale status.
+
+### Interaction
+
+- Interactions may reference a Vehicle discussed with a Customer.
+- Interaction content is not authoritative Vehicle evidence unless accepted through a governed workflow.
+
+### Market Intelligence
+
+- Market Intelligence may reference:
   - Make.
   - Model.
-  - Model year.
-  - Technical specifications.
-  - Permitted valuation context.
+  - Trim.
+  - Configuration.
+  - Physical Vehicle.
+- Market evidence must not silently overwrite verified Vehicle specifications.
 
-- Vehicle must not store:
-  - Finance approval.
-  - Lender decision.
-  - Interest rate.
-  - Deposit.
-  - Instalment.
-  - Contract status.
-  - Funding confirmation.
+### Vehicle Child Records
 
-### Market Intelligence Relationship
+A Vehicle may own or govern:
 
-Market Intelligence may reference:
+- External references.
+- Identity evidence references.
+- Registration-history projections.
+- Odometer observations.
+- Specification-source records.
+- Feature records.
+- Verification records.
+- Conflict records.
+- Merge history.
+- Audit records.
 
-- Vehicle make.
-- Vehicle model.
-- Trim.
-- Model year.
-- Fuel type.
-- Body type.
-- Technical configuration.
+### Merge Relationship
 
-Market Intelligence does not alter authoritative Vehicle identity without approved verification evidence.
+A merged Vehicle must contain:
 
-### Source-System Relationship
+```text
+merged_into_vehicle_id
+```
 
-Every externally sourced Vehicle record must preserve:
+The surviving Vehicle must preserve a merge-history record for every merged Vehicle.
 
-- Source system.
-- Source record identifier.
-- Source authority.
-- Source timestamp.
-- Last synchronization timestamp.
-- Field-level ownership where applicable.
-- Conflict-resolution result.
-- Processing and audit evidence.
-
-### Merge and Supersession Relationships
-
-- `supersedes_vehicle_id` represents a controlled replacement or corrected canonical projection.
-- `merged_into_vehicle_id` represents duplicate consolidation.
-- A merged Vehicle must reference exactly one surviving canonical Vehicle.
-- Circular merges are prohibited.
-- Downstream references must be reconciled before merge completion.
-- Historical Vehicle records must remain discoverable for audit purposes.
-
-### Owned By
-
-- Tenant access and operational governance are owned by the Dealership identified by `dealership_id`.
-- Identity verification is owned by authorized Data Steward, Inventory, Compliance, or specialist roles.
-- Legal ownership is not inferred from tenant access or Vehicle creation.
-
-### Supports but Does Not Replace
-
-The Vehicle object supports but does not replace:
-
-- Government registration records.
-- OEM certification.
-- Legal ownership documentation.
-- Service-history systems.
-- Insurance records.
-- Roadworthiness inspection.
-- Inventory management.
-- Accounting records.
-- Deal and contract evidence.
-- Vehicle-delivery confirmation.
+---
 
 ## 8. Domain Events
 
-### Emitted Events
-
-#### VehicleCreated
-
-Emitted when a new Vehicle canonical projection is created.
-
-Payload:
-
-- `event_id`
-- `event_version`
-- `dealership_id`
-- `vehicle_id`
-- `source_system`
-- `source_record_id`
-- `identity_status`
-- `created_at`
-- `correlation_id`
-- `causation_id`
-
-#### VehicleIdentified
-
-Emitted when minimum Vehicle identity requirements are satisfied.
-
-Payload:
-
-- `vehicle_id`
-- `vin`
-- `chassis_number`
-- `make`
-- `model`
-- `model_year`
-- `identity_status`
-- `identified_at`
-
-#### VehicleVerificationRequested
-
-Emitted when Vehicle identity requires formal verification.
-
-Payload:
-
-- `vehicle_id`
-- `verification_method`
-- `required_evidence`
-- `requested_by`
-- `requested_at`
-- `priority`
-
-#### VehicleVerified
-
-Emitted when Vehicle identity is authoritatively verified.
-
-Payload:
-
-- `vehicle_id`
-- `verification_method`
-- `source_authority`
-- `verified_fields`
-- `verified_by`
-- `verified_at`
-- `evidence_hashes`
-
-#### VehicleActivated
-
-Emitted when a verified Vehicle becomes available to downstream workflows.
-
-Payload:
-
-- `vehicle_id`
-- `dealership_id`
-- `vehicle_model_id`
-- `activated_by`
-- `activated_at`
-
-#### VehicleIdentityConflictDetected
-
-Emitted when material Vehicle identity sources disagree.
-
-Payload:
-
-- `vehicle_id`
-- `conflicting_fields`
-- `source_references`
-- `previous_identity_status`
-- `detected_at`
-- `review_priority`
-
-#### VehicleIdentityConflictResolved
-
-Emitted after an authorized Human Review resolves the identity conflict.
-
-Payload:
-
-- `vehicle_id`
-- `resolved_fields`
-- `authoritative_sources`
-- `resolution_type`
-- `resolved_by`
-- `resolved_at`
-
-#### VehicleSpecificationUpdated
-
-Emitted when an approved technical specification changes.
-
-Payload:
-
-- `vehicle_id`
-- `changed_fields`
-- `previous_values_hash`
-- `new_values_hash`
-- `source_authority`
-- `updated_by`
-- `updated_at`
-
-#### VehicleOdometerRecorded
-
-Emitted when a new odometer reading is accepted.
-
-Payload:
-
-- `vehicle_id`
-- `odometer_value`
-- `odometer_unit`
-- `odometer_status`
-- `odometer_source`
-- `recorded_at`
-- `evidence_reference`
-
-#### VehicleOdometerDiscrepancyDetected
-
-Emitted when an odometer reading conflicts with historical evidence.
-
-Payload:
-
-- `vehicle_id`
-- `previous_verified_value`
-- `submitted_value`
-- `odometer_unit`
-- `source_reference`
-- `detected_at`
-- `review_priority`
-
-#### VehicleDuplicateDetected
-
-Emitted when one or more probable duplicate Vehicle records are found.
-
-Payload:
-
-- `vehicle_id`
-- `candidate_vehicle_ids`
-- `matching_fields`
-- `confidence`
-- `detected_at`
-
-#### VehicleMerged
-
-Emitted after a duplicate Vehicle is merged into the surviving canonical Vehicle.
-
-Payload:
-
-- `source_vehicle_id`
-- `surviving_vehicle_id`
-- `reconciled_reference_count`
-- `merged_by`
-- `merged_at`
-
-#### VehicleRetired
-
-Emitted when a Vehicle projection is retired from active tenant use.
-
-Payload:
-
-- `vehicle_id`
-- `retirement_reason`
-- `retired_by`
-- `retired_at`
-
-#### VehicleArchived
-
-Emitted when an inactive Vehicle record moves to long-term retention.
-
-Payload:
-
-- `vehicle_id`
-- `previous_identity_status`
-- `archived_by`
-- `archived_at`
-
-#### VehicleHumanReviewRequired
-
-Emitted when a Vehicle decision exceeds automation authority.
-
-Payload:
-
-- `vehicle_id`
-- `review_reason`
-- `affected_fields`
-- `source_references`
-- `priority`
-- `created_at`
-
-### Consumed Events
-
-#### OEMVehicleDataReceived
-
-Used to create or enrich Vehicle identity and specifications.
-
-#### DMSVehicleRecordReceived
-
-Used to create or synchronize a canonical Vehicle projection.
-
-#### RegistrationDocumentVerified
-
-Used to verify registration-related Vehicle identity fields.
-
-#### PhysicalVehicleInspectionCompleted
-
-Used to validate VIN, chassis, engine, odometer, and physical specifications.
-
-#### TradeInVehicleIdentified
-
-Used to create or match the Customer Vehicle involved in a Trade-In workflow.
-
-#### InventoryVehicleReceived
-
-Used to confirm that the received inventory unit references the correct Vehicle.
-
-#### StockTransferVehicleReceived
-
-Used to match a transferred Vehicle with its canonical identity.
-
-#### VehicleDataProviderResponseReceived
-
-Used to enrich Vehicle specifications subject to source authority.
-
-#### VehicleCorrectionApproved
-
-Used to apply an authorized identity or specification correction.
-
-#### LegalHoldApplied
-
-Used to restrict merge, deletion, archival, or sensitive updates.
-
-#### LegalHoldReleased
-
-Used to resume permitted governance operations.
+The Canonical Event Catalog is the authoritative source for final:
+
+- Event names.
+- Event versions.
+- Event envelopes.
+- Payload Schemas.
+- Producers.
+- Consumers.
+- Compatibility rules.
+- Correction and reversal behaviour.
+
+The following are required Vehicle Event concepts and do not replace the Event Catalog.
+
+### Vehicle Identity Event Concepts
+
+- Vehicle record created.
+- Vehicle identified.
+- Vehicle verification requested.
+- Vehicle identity verified.
+- Vehicle verification failed.
+- Vehicle identity conflict detected.
+- Vehicle identity conflict resolved.
+- Vehicle identity corrected.
+- Vehicle merged.
+- Vehicle retired.
+- Vehicle archived.
+
+### Specification Event Concepts
+
+- Vehicle specifications updated.
+- Manufacturer information corrected.
+- Vehicle configuration updated.
+- Factory equipment updated.
+- Registration projection updated.
+- Registration conflict detected.
+
+### Odometer Event Concepts
+
+- Odometer observation recorded.
+- Odometer observation verified.
+- Odometer discrepancy detected.
+- Odometer discrepancy resolved.
+- Odometer replacement recorded.
+
+### Source and Synchronization Event Concepts
+
+- External Vehicle reference linked.
+- Vehicle source observation received.
+- Vehicle synchronization completed.
+- Vehicle synchronization failed.
+- Vehicle reconciliation required.
+- Vehicle reconciliation completed.
+
+### Derived Intelligence Event Concepts
+
+- Vehicle duplicate candidate detected.
+- Vehicle specification extraction completed.
+- Vehicle match attributes generated.
+- Vehicle data-quality issue detected.
+
+Derived Intelligence Events must not imply authoritative verification.
+
+### Producer Rules
+
+- Vehicle Domain Service publishes accepted Vehicle canonical and workflow-state changes.
+- Integration services may publish source-observation Events.
+- AI Agents may publish Agent-run, extraction, or Recommendation Events.
+- AI Agents must not publish authoritative identity-verification, merge, registration-confirmation, sale, availability, or delivery Events merely because they suggested a change.
 
 ### Event Requirements
 
-Every Vehicle event must:
+Every material Vehicle Event must preserve, where applicable:
 
-- Include a unique `event_id`.
-- Include `dealership_id`.
-- Include `vehicle_id`.
-- Include an event version.
-- Include authoritative timestamps.
-- Include correlation and causation identifiers.
-- Be idempotent.
-- Preserve source authority where relevant.
-- Avoid exposing restricted evidence unnecessarily.
-- Support replay without creating duplicate Vehicle records.
-- Preserve ordering for identity-state transitions.
-- Be recorded in immutable event or audit history.
+- `event_id`.
+- `event_type`.
+- `event_version`.
+- `tenant_id`.
+- `vehicle_id`.
+- Aggregate type.
+- Occurrence timestamp.
+- Recording timestamp.
+- Producer.
+- Actor.
+- Authority category.
+- Record version.
+- Correlation identifier.
+- Causation identifier.
+- Evidence references.
+- Security classification.
+
+Events are immutable.
+
+Corrections, reversals, and cancellations must use new Events linked to the original Event.
+
+The Event Backbone may deliver an Event more than once.
+
+Consumers must safely prevent duplicate business effects using `event_id`.
+
+---
 
 ## 9. AI Considerations
 
-### Permitted AI Uses
+### Permitted AI Assistance
 
 AI Agents may assist with:
 
-- Extracting Vehicle details from documents.
-- Normalizing make, model, trim, and variant names.
-- Matching Vehicle records across approved sources.
-- Suggesting possible duplicate Vehicle records.
-- Summarizing technical specifications.
-- Detecting missing Vehicle information.
-- Detecting inconsistent odometer data.
+- Extracting Vehicle data from approved documents.
+- Normalizing make, model, trim, and variant.
+- Identifying possible VIN or chassis patterns.
+- Suggesting duplicate candidates.
+- Detecting identity conflicts.
+- Detecting specification inconsistencies.
+- Classifying body type and powertrain.
 - Comparing source records.
-- Recommending Human Review.
-- Supporting Vehicle matching for Customer preferences.
-- Generating Customer-friendly Vehicle descriptions from approved fields.
+- Detecting odometer anomalies.
+- Summarizing Vehicle evidence.
+- Generating Vehicle-match attributes.
+- Identifying missing specifications.
+- Preparing Human Review context.
+- Supporting Vehicle matching.
 
-### Prohibited Autonomous AI Actions
+### Prohibited Independent AI Actions
 
 AI Agents must not independently:
 
-- Create a verified VIN.
-- Confirm Vehicle legal identity.
-- Resolve a VIN conflict.
+- Create a VIN from inference.
+- Verify Vehicle identity.
 - Change a verified VIN.
-- Merge duplicate Vehicle records.
-- Delete identity evidence.
+- Resolve a material identity conflict.
+- Merge Vehicle records.
 - Confirm legal ownership.
 - Confirm registration validity.
 - Confirm roadworthiness.
-- Confirm insurance status.
-- Mark a Vehicle available.
-- Set Vehicle price.
-- Reserve a Vehicle.
-- Allocate a Vehicle to a Deal.
+- Confirm physical Inventory availability.
+- Reserve or allocate a Vehicle.
+- Set Customer-visible pricing.
 - Mark a Vehicle sold.
 - Confirm Vehicle delivery.
+- Delete authoritative evidence.
+- Bypass deterministic validation.
+- Access Vehicle data outside the authorized Tenant.
 
-### Fields Eligible for Vector Embeddings
+### AI Extraction Requirements
 
-Permitted fields may include:
+Every material AI extraction must preserve:
 
-- Make.
-- Model.
-- Trim.
-- Variant.
-- Model year.
-- Body type.
-- Fuel type.
-- Transmission.
-- Drivetrain.
-- Exterior color.
-- Interior color.
-- Factory options.
-- Safety features.
-- Comfort features.
-- Infotainment features.
-- Driver-assistance features.
-- Approved technical summaries.
-- Approved Customer-visible Vehicle descriptions.
+- Extracted field.
+- Suggested value.
+- Source reference.
+- Source timestamp.
+- Evidence location.
+- Model version.
+- Prompt version.
+- Confidence where meaningful.
+- Authority classification.
+- Review requirement.
+- Generation timestamp.
+- Expiration or freshness metadata.
 
-### Fields Excluded from Vector Embeddings
+### Acceptance of Extracted Fields
 
-The following must not be embedded unless an explicitly approved use case requires it:
+A configured policy may determine whether an extracted field:
 
-- Full VIN.
-- Chassis number.
-- Engine number.
-- Registration number.
-- License-plate number.
-- Government document identifiers.
-- Identity-evidence documents.
-- Evidence hashes.
-- Source credentials.
-- Secure provider metadata.
-- Internal audit comments.
-- User identifiers.
-- Legal-hold information.
-- Customer-linked Vehicle information.
-- Exact restricted source payloads.
+- Is rejected.
+- Creates a Human Review Task.
+- Is stored as unverified Derived Intelligence.
+- Is accepted as a low-risk Canonical Projection.
+- Requires authoritative external evidence.
 
-Where Vehicle matching requires a VIN, it must use authorized structured lookup rather than semantic vector retrieval.
+AI confidence alone must not establish:
 
-### Structured AI Context
+- VIN.
+- Legal ownership.
+- Registration.
+- Odometer verification.
+- Inspection status.
+- Availability.
+- Price.
+- Reservation.
+- Sale.
+- Delivery.
 
-Authorized AI Agents may receive:
+### Human Approval Requirements
 
-- `vehicle_id`
-- `make`
-- `model`
-- `trim`
-- `variant`
-- `model_year`
-- `body_type`
-- `fuel_type`
-- `transmission`
-- `drivetrain`
-- `exterior_color`
-- `interior_color`
-- `seating_capacity`
-- `factory_options`
-- `safety_features`
-- `comfort_features`
-- `driver_assistance_features`
-- `verification_status`
-- `source_authority`
+Authorized Human Approval is required for:
 
-Restricted identity fields may be provided only when:
+- Verified VIN correction.
+- Chassis-identity conflict resolution.
+- Duplicate Vehicle merge.
+- Verified odometer-discrepancy resolution.
+- Cross-Tenant reconciliation.
+- Restoration after incorrect retirement or archival.
+- Material override of verified manufacturer evidence.
 
-- The Agent has an approved business purpose.
-- Tenant scope is enforced.
-- Field-level authorization passes.
-- Access is audited.
-- The output does not expose the restricted value unnecessarily.
+### AI Context
 
-### Metadata Filters for Retrieval
+Vehicle context supplied to AI should distinguish:
 
-Every Vehicle retrieval must support:
+- Verified identity.
+- Unverified source data.
+- Conflicting data.
+- Canonical Projection.
+- Derived Intelligence.
+- Inventory context.
+- Commercial pricing context.
+- External Confirmation.
 
-- `dealership_id` — mandatory.
-- `vehicle_id`
-- `vehicle_model_id`
-- `manufacturer_id`
-- `make`
-- `model`
-- `trim`
-- `model_year`
-- `body_type`
-- `fuel_type`
-- `transmission`
-- `drivetrain`
-- `identity_status`
-- `verification_status`
-- `source_authority`
-- `is_current_record`
+Vehicle identity must not be combined with stale Inventory availability in a way that implies current stock availability.
 
-### Confidence Thresholds
+### Explainability
 
-- VIN extraction: minimum `0.995`.
-- Chassis-number extraction: minimum `0.995`.
-- Registration-number extraction: minimum `0.995`.
-- Make and model identification: minimum `0.95`.
-- Trim and variant identification: minimum `0.90`.
-- Model-year identification: minimum `0.99`.
-- Odometer extraction: minimum `0.99`.
-- Technical-option extraction: minimum `0.90`.
-- Duplicate recommendation: minimum composite confidence `0.95`.
-- Customer-facing technical summary: minimum source-grounding confidence `0.90`.
+Material AI Vehicle outputs must explain:
 
-Meeting a confidence threshold does not replace authoritative verification.
+- Evidence used.
+- Source authority.
+- Data freshness.
+- Material conflicts.
+- Assumptions.
+- Confidence where meaningful.
+- Recommended review.
+- Prohibited conclusions.
 
-### Human Review Triggers
-
-Human Review is mandatory when:
-
-- VIN sources disagree.
-- VIN fails validation.
-- Chassis and VIN refer to different Vehicles.
-- Verified source data is being changed.
-- Odometer decreases unexpectedly.
-- Duplicate matching affects active Inventory Records or Deals.
-- Vehicle identity crosses tenant boundaries.
-- Registration or ownership evidence is inconsistent.
-- A lower-authority source conflicts with a higher-authority source.
-- AI confidence is below the required threshold for a material field.
-- Legal, compliance, fraud, or safety concerns exist.
-
-### AI Output Requirements
-
-Every material AI output must include:
-
-- Vehicle record version.
-- Source references.
-- Extracted or compared fields.
-- Confidence score.
-- Model reference.
-- Prompt or extraction version.
-- Timestamp.
-- Whether Human Review is required.
-
-AI-generated descriptions must not include:
-
-- Unsupported performance claims.
-- Unverified ownership claims.
-- Unverified warranty claims.
-- Unverified accident-history claims.
-- Restricted identifiers.
-- Inventory availability or price unless retrieved from the active Inventory Record.
+---
 
 ## 10. API Contract
 
-### REST Resource
+Detailed API Schemas and errors will become authoritative in the API Contracts Catalog.
 
-**Base Path:**
+This section defines required Vehicle API behaviour.
+
+### REST Resources
 
 ```text
-/api/v1/dealerships/{dealership_id}/vehicles
+GET    /api/v1/vehicles
+POST   /api/v1/vehicles
+GET    /api/v1/vehicles/{vehicle_id}
+PATCH  /api/v1/vehicles/{vehicle_id}
+
+POST   /api/v1/vehicles/{vehicle_id}/external-references
+POST   /api/v1/vehicles/{vehicle_id}/identity-evidence
+POST   /api/v1/vehicles/{vehicle_id}/verification-requests
+POST   /api/v1/vehicles/{vehicle_id}/odometer-observations
+POST   /api/v1/vehicles/{vehicle_id}/conflicts
+POST   /api/v1/vehicles/{vehicle_id}/conflicts/{conflict_id}/resolution
+POST   /api/v1/vehicles/{vehicle_id}/merge
+POST   /api/v1/vehicles/{vehicle_id}/retirement
+GET    /api/v1/vehicles/{vehicle_id}/history
 ```
 
-### Supported Methods
+### Tenant Context
 
-- `GET` — list and search permitted Vehicle records.
-- `POST` — create a new Vehicle projection.
-- `GET /{vehicle_id}` — retrieve one Vehicle.
-- `PATCH /{vehicle_id}` — update permitted identity or specification fields.
-- `POST /{vehicle_id}/request-verification` — start Vehicle identity verification.
-- `POST /{vehicle_id}/verify` — record an authorized verification decision.
-- `POST /{vehicle_id}/report-conflict` — create an identity-conflict workflow.
-- `POST /{vehicle_id}/resolve-conflict` — record an authorized conflict resolution.
-- `POST /{vehicle_id}/record-odometer` — add an odometer reading.
-- `GET /{vehicle_id}/odometer-history` — retrieve permitted odometer history.
-- `POST /{vehicle_id}/detect-duplicates` — run duplicate detection.
-- `POST /{vehicle_id}/merge` — merge an approved duplicate into a surviving Vehicle.
-- `GET /{vehicle_id}/source-history` — retrieve permitted source and synchronization history.
-- `GET /{vehicle_id}/inventory-records` — retrieve related Inventory Records.
-- `POST /{vehicle_id}/retire` — retire the Vehicle projection.
-- `POST /{vehicle_id}/archive` — archive an eligible inactive Vehicle.
-- `DELETE /{vehicle_id}` — soft delete only when legally and operationally permitted.
+- `tenant_id` must come from the authenticated security context.
+- A client must not be allowed to override `tenant_id` in a request body.
+- Dealership and branch context must be validated against authorized Tenant scope.
+- Cross-Tenant retrieval must be blocked by default.
 
-### API Restrictions
-
-The Vehicle API must not expose commands for:
-
-- Setting stock number.
-- Changing inventory availability.
-- Setting Vehicle price.
-- Creating a reservation.
-- Allocating a Deal.
-- Marking the Vehicle sold.
-- Confirming delivery.
-
-Those operations belong to their applicable canonical objects and workflows.
-
-### Required Headers
-
-- `Authorization`
-- `X-Dealership-Id`
-- `Idempotency-Key` for mutating operations.
-- `If-Match` or equivalent record-version header for updates.
-- `X-Correlation-Id`
-- `X-Causation-Id` where applicable.
-
-### Suggested JSON Schema — Create Vehicle
+### Example Create Request
 
 ```json
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "CreateVehicleRequest",
-  "type": "object",
-  "properties": {
-    "vin": {
-      "type": ["string", "null"],
-      "pattern": "^[A-HJ-NPR-Z0-9]{17}$"
-    },
-    "chassis_number": {
-      "type": ["string", "null"],
-      "minLength": 3,
-      "maxLength": 100
-    },
-    "engine_number": {
-      "type": ["string", "null"],
-      "maxLength": 100
-    },
-    "registration_number": {
-      "type": ["string", "null"],
-      "maxLength": 100
-    },
-    "license_plate_number": {
-      "type": ["string", "null"],
-      "maxLength": 50
-    },
-    "country_of_registration": {
-      "type": ["string", "null"],
-      "pattern": "^[A-Z]{3}$"
-    },
-    "manufacturer_id": {
-      "type": ["string", "null"],
-      "format": "uuid"
-    },
-    "vehicle_model_id": {
-      "type": ["string", "null"],
-      "format": "uuid"
-    },
-    "make": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 100
-    },
-    "model": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 100
-    },
-    "trim": {
-      "type": ["string", "null"],
-      "maxLength": 100
-    },
-    "variant": {
-      "type": ["string", "null"],
-      "maxLength": 150
-    },
-    "model_year": {
-      "type": "integer",
-      "minimum": 1886,
-      "maximum": 2100
-    },
-    "production_date": {
-      "type": ["string", "null"],
-      "format": "date"
-    },
-    "body_type": {
-      "type": "string",
-      "enum": [
-        "SEDAN",
-        "HATCHBACK",
-        "SUV",
-        "CROSSOVER",
-        "COUPE",
-        "CONVERTIBLE",
-        "WAGON",
-        "PICKUP",
-        "VAN",
-        "MINIVAN",
-        "BUS",
-        "TRUCK",
-        "MOTORCYCLE",
-        "OTHER",
-        "UNKNOWN"
-      ]
-    },
-    "fuel_type": {
-      "type": "string",
-      "enum": [
-        "GASOLINE",
-        "DIESEL",
-        "HYBRID",
-        "PLUG_IN_HYBRID",
-        "BATTERY_ELECTRIC",
-        "HYDROGEN",
-        "LPG",
-        "CNG",
-        "FLEX_FUEL",
-        "OTHER",
-        "UNKNOWN"
-      ]
-    },
-    "transmission": {
-      "type": "string",
-      "enum": [
-        "AUTOMATIC",
-        "MANUAL",
-        "CVT",
-        "DCT",
-        "SINGLE_SPEED",
-        "SEMI_AUTOMATIC",
-        "OTHER",
-        "UNKNOWN"
-      ]
-    },
-    "drivetrain": {
-      "type": "string",
-      "enum": [
-        "FRONT_WHEEL_DRIVE",
-        "REAR_WHEEL_DRIVE",
-        "ALL_WHEEL_DRIVE",
-        "FOUR_WHEEL_DRIVE",
-        "OTHER",
-        "UNKNOWN"
-      ]
-    },
-    "exterior_color": {
-      "type": ["string", "null"],
-      "maxLength": 100
-    },
-    "interior_color": {
-      "type": ["string", "null"],
-      "maxLength": 100
-    },
-    "seating_capacity": {
-      "type": ["integer", "null"],
-      "minimum": 1,
-      "maximum": 100
-    },
-    "odometer_value": {
-      "type": ["number", "null"],
-      "minimum": 0
-    },
-    "odometer_unit": {
-      "type": ["string", "null"],
-      "enum": [
-        "KILOMETERS",
-        "MILES"
-      ]
-    },
-    "source_system": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 100
-    },
-    "source_record_id": {
-      "type": ["string", "null"],
-      "maxLength": 255
-    },
-    "source_authority": {
-      "type": "string",
-      "enum": [
-        "OEM_VERIFIED",
-        "GOVERNMENT_VERIFIED",
-        "INSPECTION_VERIFIED",
-        "DMS_VERIFIED",
-        "AUTHORIZED_PROVIDER",
-        "DEALERSHIP_REPORTED",
-        "CUSTOMER_REPORTED",
-        "AI_EXTRACTED",
-        "MANUAL_ENTRY",
-        "UNKNOWN"
-      ]
-    }
+  "vehicle_record_type": "PHYSICAL_VEHICLE",
+  "vin": "1HGCM82664A123456",
+  "make": "Honda",
+  "model": "Civic",
+  "trim": "Touring",
+  "variant": "1.5T CVT",
+  "model_year": 2026,
+  "market_region": "EGY",
+  "body_type": "SEDAN",
+  "fuel_type": "GASOLINE",
+  "transmission": "CVT",
+  "drivetrain": "FRONT_WHEEL_DRIVE",
+  "exterior_color": "Platinum White Pearl",
+  "interior_color": "Black",
+  "source": {
+    "source_system": "DMS",
+    "source_record_id": "DMS-VEH-987456",
+    "source_authority": "DMS_VERIFIED"
   },
-  "required": [
-    "make",
-    "model",
-    "model_year",
-    "source_system",
-    "source_authority"
-  ],
-  "anyOf": [
-    {
-      "required": ["vin"]
-    },
-    {
-      "required": ["chassis_number"]
-    }
-  ],
-  "additionalProperties": false
+  "origin": {
+    "dealership_id": "2dc50e3c-392a-44d7-9dc4-8fd7e586ff03",
+    "branch_id": "6835ea02-a8df-4d3d-a1ec-4e309ea9ac38"
+  }
 }
 ```
 
-### Suggested JSON Schema — Record Odometer
+### Example Response
 
 ```json
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "RecordVehicleOdometerRequest",
-  "type": "object",
-  "properties": {
-    "odometer_value": {
-      "type": "number",
-      "minimum": 0
-    },
-    "odometer_unit": {
-      "type": "string",
-      "enum": [
-        "KILOMETERS",
-        "MILES"
-      ]
-    },
-    "odometer_source": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 100
-    },
-    "recorded_at": {
-      "type": "string",
-      "format": "date-time"
-    },
-    "evidence_reference": {
-      "type": ["string", "null"],
-      "maxLength": 500
-    }
-  },
-  "required": [
-    "odometer_value",
-    "odometer_unit",
-    "odometer_source",
-    "recorded_at"
-  ],
-  "additionalProperties": false
+  "vehicle_id": "550e8400-e29b-41d4-a716-446655440000",
+  "vehicle_record_type": "PHYSICAL_VEHICLE",
+  "vin": "1HGCM82664A123456",
+  "make": "Honda",
+  "model": "Civic",
+  "trim": "Touring",
+  "model_year": 2026,
+  "identity_status": "IDENTIFIED",
+  "verification_status": "VERIFICATION_PENDING",
+  "data_quality_status": "INCOMPLETE",
+  "conflict_status": "NONE",
+  "record_version": 1,
+  "created_at": "2026-08-01T17:00:00Z"
 }
 ```
 
-### GraphQL Type
+### Mutation Requirements
 
-```graphql
-type Vehicle {
-  id: ID!
-  dealershipId: ID!
-  vehicleModelId: ID
-  manufacturerId: ID
-  supersedesVehicleId: ID
-  mergedIntoVehicleId: ID
+Every mutation must enforce:
 
-  vin: String
-  chassisNumber: String
-  engineNumber: String
-  registrationNumber: String
-  licensePlateNumber: String
-  countryOfRegistration: String
+- Authentication.
+- Tenant scope.
+- Authorization.
+- Record-version validation.
+- Field-authority validation.
+- Evidence requirements.
+- Lifecycle validation.
+- Conflict checks.
+- Human Approval where required.
+- Audit recording.
+- Event publication after accepted change.
 
-  identityStatus: VehicleIdentityStatus!
-  verificationStatus: VehicleVerificationStatus!
-  verificationMethod: VehicleVerificationMethod
-  verifiedAt: DateTime
+### Optimistic Concurrency
 
-  make: String!
-  model: String!
-  trim: String
-  variant: String
-  modelYear: Int!
-  productionDate: Date
-  manufacturerModelCode: String
-  marketRegion: String
+Updates must use an approved concurrency mechanism such as:
 
-  bodyType: VehicleBodyType
-  vehicleCategory: VehicleCategory
-  numberOfDoors: Int
-  seatingCapacity: Int
-  steeringPosition: String
-  exteriorColor: String
-  exteriorColorCode: String
-  interiorColor: String
-  interiorMaterial: String
-
-  fuelType: VehicleFuelType
-  transmission: VehicleTransmission
-  drivetrain: VehicleDrivetrain
-  engineDisplacementCc: Int
-  engineCylinderCount: Int
-  enginePowerKw: Float
-  enginePowerHp: Float
-  engineTorqueNm: Float
-  batteryCapacityKwh: Float
-  electricRangeKm: Float
-  combinedFuelConsumption: Float
-  emissionStandard: String
-
-  lengthMm: Float
-  widthMm: Float
-  heightMm: Float
-  wheelbaseMm: Float
-  curbWeightKg: Float
-  grossVehicleWeightKg: Float
-  cargoCapacityLiters: Float
-  fuelTankCapacityLiters: Float
-
-  factoryOptions: [String!]!
-  safetyFeatures: [String!]!
-  comfortFeatures: [String!]!
-  infotainmentFeatures: [String!]!
-  driverAssistanceFeatures: [String!]!
-  accessibilityFeatures: [String!]!
-
-  odometerValue: Float
-  odometerUnit: OdometerUnit
-  odometerStatus: OdometerStatus
-  odometerRecordedAt: DateTime
-  odometerSource: String
-
-  sourceSystem: String!
-  sourceRecordId: String
-  sourceAuthority: VehicleSourceAuthority!
-  sourceUpdatedAt: DateTime
-  lastSyncedAt: DateTime
-
-  recordVersion: Int!
-  vehicleVersion: Int!
-  isCurrentRecord: Boolean!
-  isDeleted: Boolean!
-
-  inventoryRecords: [InventoryRecord!]!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-}
+```text
+If-Match: <record_version>
 ```
 
-### Error Responses
+A stale version must return a conflict response.
 
-Common API error codes:
+### Idempotency
 
-- `VEHICLE_NOT_FOUND`
-- `VEHICLE_IDENTITY_INCOMPLETE`
-- `VEHICLE_VIN_INVALID`
-- `VEHICLE_VIN_CONFLICT`
-- `VEHICLE_DUPLICATE_DETECTED`
-- `VEHICLE_VERIFICATION_REQUIRED`
-- `VEHICLE_IDENTITY_CONFLICT`
-- `VEHICLE_MERGE_NOT_ALLOWED`
-- `VEHICLE_REFERENCED_BY_ACTIVE_WORKFLOW`
-- `VEHICLE_RECORD_VERSION_CONFLICT`
-- `VEHICLE_SOURCE_AUTHORITY_INSUFFICIENT`
-- `VEHICLE_CROSS_TENANT_ACCESS_DENIED`
-- `VEHICLE_LEGAL_HOLD_ACTIVE`
+Retryable creation and command operations must support:
+
+```text
+Idempotency-Key
+```
+
+The same key and request intent must not create duplicate:
+
+- Vehicles.
+- Odometer observations.
+- Verification requests.
+- Merge operations.
+- External updates.
+
+### Merge Request Requirements
+
+A Vehicle merge request must include:
+
+- Surviving Vehicle.
+- Vehicle to be merged.
+- Duplicate evidence.
+- Conflict summary.
+- Authorized Human Decision.
+- Record versions.
+- Dependent-record impact.
+- Audit reason.
+
+### Error Categories
+
+The API must distinguish at least:
+
+- `UNAUTHENTICATED`
+- `UNAUTHORIZED`
+- `TENANT_SCOPE_VIOLATION`
+- `VALIDATION_FAILED`
+- `VERSION_CONFLICT`
+- `DUPLICATE_VEHICLE_CANDIDATE`
+- `VIN_CONFLICT`
+- `CHASSIS_CONFLICT`
+- `IDENTITY_EVIDENCE_REQUIRED`
+- `HUMAN_APPROVAL_REQUIRED`
+- `FIELD_AUTHORITY_VIOLATION`
+- `INVALID_LIFECYCLE_TRANSITION`
+- `RECORD_MERGED`
+- `RECORD_ARCHIVED`
+- `EXTERNAL_CONFIRMATION_PENDING`
+- `RECONCILIATION_REQUIRED`
+
+### GraphQL Requirements
+
+A GraphQL implementation must enforce the same:
+
+- Tenant isolation.
+- Field authority.
+- Concurrency.
+- Evidence.
+- lifecycle.
+- approval.
+- audit.
+
+GraphQL resolvers must not bypass Vehicle Domain Service or deterministic policy controls.
+
+---
 
 ## 11. Database Design
 
-### Recommended SQL Tables
+### Recommended Tables
 
-- **Primary Table:** `vehicles`
-- **Identity Table:** `vehicle_identifiers`
-- **Specification Table:** `vehicle_specifications`
-- **Equipment Table:** `vehicle_equipment`
-- **Odometer Table:** `vehicle_odometer_history`
-- **Source Table:** `vehicle_source_records`
-- **Field Authority Table:** `vehicle_field_authority`
-- **Verification Table:** `vehicle_verifications`
-- **Conflict Table:** `vehicle_identity_conflicts`
-- **Merge Table:** `vehicle_merges`
-- **Version-History Table:** `vehicle_versions`
-- **Status-History Table:** `vehicle_status_history`
-- **Audit Table:** `vehicle_audit_log`
+```text
+vehicles
+vehicle_external_references
+vehicle_identity_evidence
+vehicle_registrations
+vehicle_odometer_observations
+vehicle_specification_sources
+vehicle_features
+vehicle_conflicts
+vehicle_verification_records
+vehicle_merge_history
+vehicle_derived_attributes
+vehicle_data_quality_issues
+vehicle_audit_log
+```
 
-### Primary Table Responsibilities
+### Vehicles Table
 
-The `vehicles` table should store:
+The `vehicles` table should contain:
 
-- Canonical Vehicle identifier.
-- Tenant scope.
-- Current identity state.
-- Current verified identity summary.
-- Current normalized technical specification.
-- Current source and verification status.
-- Version and lifecycle fields.
+- Canonical identifiers.
+- Tenant context.
+- Record classification.
+- Current canonical identity.
+- Current accepted specifications.
+- Current lifecycle state.
+- Current verification status.
+- Current data-quality status.
+- Current conflict status.
+- Latest odometer projection.
+- Current source and synchronization status.
+- Record version.
+- Audit timestamps.
 
-It must not store authoritative:
+Historical observations must remain in child or history tables.
 
-- Inventory pricing.
-- Inventory availability.
-- Stock number.
-- Reservation.
-- Deal allocation.
-- Sale state.
-- Delivery state.
+### Primary Key
+
+```text
+PRIMARY KEY (vehicle_id)
+```
+
+### Tenant Protection
+
+Every Vehicle-related table must include:
+
+```text
+tenant_id
+```
+
+Tenant consistency must be enforced through:
+
+- Composite Tenant-aware foreign keys; or
+- Equivalent database and service controls.
+
+Row-Level Security should be used where supported.
 
 ### Recommended Indexes
 
-- `idx_vehicle_tenant_status (dealership_id, identity_status)`
-- `idx_vehicle_tenant_vin (dealership_id, vin)`
-- `idx_vehicle_tenant_chassis (dealership_id, chassis_number)`
-- `idx_vehicle_make_model_year (dealership_id, make, model, model_year)`
-- `idx_vehicle_model_reference (dealership_id, vehicle_model_id)`
-- `idx_vehicle_verification (dealership_id, verification_status)`
-- `idx_vehicle_source_record (dealership_id, source_system, source_record_id)`
-- `idx_vehicle_merge_target (dealership_id, merged_into_vehicle_id)`
-- `idx_vehicle_current_record (dealership_id, is_current_record)`
-- `idx_vehicle_odometer_latest (dealership_id, vehicle_id, odometer_recorded_at DESC)`
-- `idx_vehicle_conflict_queue (dealership_id, identity_status, identity_conflict_detected_at)`
-- `idx_vehicle_updated_at (dealership_id, updated_at DESC)`
+```text
+idx_vehicles_tenant_identity_status
+  (tenant_id, identity_status)
+
+idx_vehicles_tenant_make_model_year
+  (tenant_id, make, model, model_year)
+
+idx_vehicles_tenant_vin
+  (tenant_id, vin)
+
+idx_vehicles_tenant_chassis
+  (tenant_id, chassis_number)
+
+idx_vehicle_external_refs
+  (tenant_id, source_system, source_record_id)
+
+idx_vehicle_odometer_history
+  (tenant_id, vehicle_id, recorded_at)
+
+idx_vehicle_conflicts_open
+  (tenant_id, vehicle_id, conflict_status)
+
+idx_vehicle_updated_at
+  (tenant_id, updated_at)
+```
 
 ### Unique Constraints
 
-- `UQ_vehicle_active_vin (dealership_id, vin) WHERE vin IS NOT NULL AND is_current_record = true AND is_deleted = false`
-- `UQ_vehicle_active_chassis (dealership_id, chassis_number) WHERE chassis_number IS NOT NULL AND is_current_record = true AND is_deleted = false`
-- `UQ_vehicle_source_record (dealership_id, source_system, source_record_id) WHERE source_record_id IS NOT NULL`
-- `UQ_vehicle_version (dealership_id, vehicle_id, vehicle_version)`
-- `UQ_vehicle_merge_source (dealership_id, source_vehicle_id)`
+Recommended active-record constraints include:
 
-### Foreign Keys
+```text
+UNIQUE (tenant_id, vin)
+```
 
-- `dealership_id` → `dealerships(id)`
-- `manufacturer_id` → `manufacturers(id)` — nullable
-- `vehicle_model_id` → `vehicle_models(id)` — nullable
-- `supersedes_vehicle_id` → `vehicles(id)` — nullable
-- `merged_into_vehicle_id` → `vehicles(id)` — nullable
-- `created_by` → `users(id)`
-- `updated_by` → `users(id)`
-- `verified_by` → `users(id)` — nullable
-- `merged_by` → `users(id)` — nullable
-- `retired_by` → `users(id)` — nullable
-- `deleted_by` → `users(id)` — nullable
+when VIN is populated and the record is not merged or archived.
 
-### Check Constraints
+```text
+UNIQUE (tenant_id, source_system, source_record_id)
+```
 
-- `record_version >= 1`
-- `vehicle_version >= 1`
-- `model_year >= 1886`
-- `odometer_value >= 0`
-- `number_of_doors >= 0`
-- `seating_capacity >= 1`
-- Physical dimensions and capacities must be zero or greater.
-- `merged_into_vehicle_id <> vehicle_id`
-- `supersedes_vehicle_id <> vehicle_id`
-- `verification_method IS NOT NULL` when verification status is `VERIFIED`.
-- `verified_at IS NOT NULL` when verification status is `VERIFIED`.
-- `verified_by IS NOT NULL` when verification status is `VERIFIED`.
-- `merged_into_vehicle_id IS NOT NULL` when identity status is `MERGED`.
-- `identity_conflict_detected_at IS NOT NULL` when identity status is `IDENTITY_CONFLICT`.
+when the external source guarantees identifier uniqueness.
 
-### VIN Constraints
+Chassis uniqueness must be configured according to the applicable jurisdiction and source quality.
 
-VIN normalization should:
+### Physical and Catalog Constraints
 
-- Convert to uppercase.
-- Remove unauthorized separators and whitespace.
-- Preserve the original source value separately when required.
-- Reject `I`, `O`, and `Q`.
-- Require 17 characters where the jurisdiction uses standard VINs.
-- Apply checksum validation where applicable.
-- Avoid accepting AI-generated VINs without source evidence.
+- A physical Vehicle may have VIN or chassis identity.
+- A catalog configuration must not have a VIN.
+- An active Inventory Record must not reference a catalog configuration.
+- Database constraints or Domain validation must enforce these rules.
 
-### Odometer Storage
+### Odometer History
 
-Odometer readings should be append-only in `vehicle_odometer_history`.
+`vehicle_odometer_observations` should preserve:
 
-Each reading should preserve:
-
-- Vehicle.
+- Observation identifier.
+- `tenant_id`.
+- `vehicle_id`.
 - Value.
 - Unit.
+- Status.
+- Recorded timestamp.
+- Source.
+- Evidence reference.
+- Actor.
+- Verification state.
+- Supersession or correction reference.
+
+Odometer history must be append-only except for governed redaction requirements.
+
+### Registration History
+
+`vehicle_registrations` should preserve:
+
+- Registration identifier.
+- Plate identifier.
+- Country or authority.
+- Effective period.
 - Source.
 - Evidence.
 - Verification status.
-- Actor.
-- Timestamp.
-- Previous verified reading.
-- Discrepancy result.
+- Supersession history.
 
-The current Vehicle table may cache the latest accepted odometer value but must not overwrite historical evidence.
+A current registration projection must not erase historical registrations.
 
-### Source Authority Storage
+### Merge History
 
-`vehicle_field_authority` should record for each governed field:
+`vehicle_merge_history` should preserve:
 
-- Field name.
-- Current authoritative source.
-- Source record.
-- Authority level.
-- Verification state.
-- Effective timestamp.
-- Last synchronization timestamp.
-- Previous authority.
-- Conflict status.
-
-### Merge Storage
-
-A Vehicle merge must preserve:
-
-- Source Vehicle.
+- `merge_id`.
+- `tenant_id`.
 - Surviving Vehicle.
-- Duplicate evidence.
-- Matching fields.
-- Downstream references checked.
-- References reconciled.
-- Approved by.
-- Merge timestamp.
-- Rollback or correction reference where permitted.
+- Merged Vehicle.
+- Evidence.
+- Authorized Human Decision.
+- Record versions.
+- Dependent-record reconciliation status.
+- Timestamp.
+- Related Events.
+- Reversal status where applicable.
 
-Merged records must remain queryable for audit but excluded from normal active searches.
+### Derived Attributes
 
-### Storage Strategy
+Derived Vehicle attributes should remain separate from verified identity fields.
 
-- Use relational storage for canonical identity and normalized specifications.
-- Use append-only tables for:
-  - Odometer history.
-  - Identity-state history.
-  - Source history.
-  - Verification evidence metadata.
-  - Merge history.
-  - Audit history.
+Each derived record should preserve:
 
-- Store large documents and images in an encrypted Document Vault.
-- Store document hashes and references in relational tables.
-- Store flexible OEM or provider specifications in validated JSONB where relational modelling is impractical.
-- Do not use JSONB to bypass authoritative-field validation.
-- Public search indexes must exclude restricted Vehicle identifiers.
-- Vector stores must contain only approved non-sensitive Vehicle descriptions.
+- Output type.
+- Output value.
+- Model or algorithm version.
+- Prompt version where applicable.
+- Input versions.
+- Evidence references.
+- Confidence.
+- Generation timestamp.
+- Expiration timestamp.
+
+### Audit Storage
+
+Vehicle audit records must be append-only or protected through an equivalent immutable-audit mechanism.
+
+Audit storage must preserve secure hashes instead of raw sensitive evidence where full retention is unnecessary.
 
 ### Partitioning
 
-- Partition high-volume tables by `dealership_id`.
-- Historical and audit tables may be sub-partitioned by creation year.
-- All partitions must preserve tenant isolation.
-- Cross-tenant analytics must use governed anonymized or aggregated datasets.
+Large deployments may partition by:
+
+- `tenant_id`.
+- Region.
+- Retention class.
+- Event or audit time.
+
+Partitioning must not weaken Tenant isolation.
+
+### Hard Deletion
+
+A Vehicle referenced by any of the following must not be hard-deleted:
+
+- Inventory Record.
+- Trade-In.
+- Appointment.
+- Quotation.
+- Finance Application.
+- Financial Contract.
+- Deal.
+- Delivery record.
+- Audit evidence.
+- External Confirmation.
+
+Retirement, merge, archival, or lawful controlled redaction must be used instead.
+
+---
 
 ## 12. Security
 
-### RBAC — Role-Based Access Control
+### Security Classification
 
-- **Sales Consultant:** Read approved Vehicle specifications for assigned Customer and Opportunity contexts.
-- **Sales Manager:** Read Vehicle specifications and verification summary; no unrestricted identity-edit authority.
-- **Inventory User:** Create and update permitted Vehicle identity and specification data during acquisition or receipt workflows.
-- **Inventory Manager:** Review Vehicle identity, duplicates, and source conflicts.
-- **Trade-In Appraiser:** Create or match Customer Vehicles during Trade-In workflows.
-- **Data Steward:** Approve identity corrections and Vehicle merges.
-- **Compliance User:** Review registration, ownership, fraud, legal, and identity conflicts.
-- **Finance User:** Read permitted Vehicle identity fields required for finance processing.
-- **Delivery Coordinator:** Read verified Vehicle identity required for delivery.
-- **Marketing User:** Read approved Customer-visible Vehicle specifications only.
-- **Customer Self-Service User:** Read Customer-visible Vehicle attributes only.
-- **AI Vehicle Agent:** Limited extraction, matching, summarization, and recommendation access.
-- **Integration Service:** Restricted source-specific create and synchronization access.
-- **Audit Service:** Read-only access to immutable Vehicle history and evidence metadata.
+Recommended Vehicle classifications include:
 
-### Data Classification
+| Classification | Example Fields |
+| :--- | :--- |
+| `VEHICLE_IDENTIFIER` | VIN, chassis number |
+| `SENSITIVE_ASSET_IDENTIFIER` | Engine number, registration number, licence plate |
+| `TECHNICAL_SPECIFICATION` | Make, model, dimensions, engine, battery |
+| `EVIDENCE` | Registration, inspection, build sheet, odometer evidence |
+| `COMMERCIAL_REFERENCE` | Relationship to Inventory Records, Quotations, and Deals |
+| `DERIVED_INTELLIGENCE` | Match attributes, duplicate candidates, anomaly scores |
+| `AUDIT_EVIDENCE` | Actor, authority, corrections, merges, source history |
 
-- **General Vehicle Specifications:** `INTERNAL` or approved `PUBLIC`.
-- **Vehicle Identifiers:** `CONFIDENTIAL`.
-- **Registration and Ownership Evidence:** `RESTRICTED`.
-- **Odometer Evidence:** `CONFIDENTIAL`.
-- **Source Credentials and Provider Payloads:** `RESTRICTED`.
-- **Legal, Fraud, and Compliance Flags:** `RESTRICTED`.
+### Authentication
 
-### Restricted Fields
+Every Vehicle operation requires an authenticated User or service identity.
 
-Restricted fields include:
+Anonymous access to Tenant Vehicle records is prohibited.
 
-- Full VIN.
-- Chassis number.
-- Engine number.
-- Registration number.
-- License-plate number.
-- Government document references.
-- Identity evidence.
-- Evidence hashes.
-- Source payloads.
-- Legal-hold details.
-- Fraud-review details.
-- Internal verification notes.
-- User and reviewer identifiers where protected.
+### Authorization
 
-### Encryption Requirements
+Authorization must consider:
 
-- **In Transit:** TLS 1.3 minimum.
-- **At Rest:** AES-256 or approved equivalent.
-- Full VIN, chassis, registration, engine, evidence references, and restricted source metadata require field-level protection where risk policy requires it.
-- Vehicle documents and images must be stored in an encrypted Document Vault.
-- Encryption keys must be:
-  - Environment-separated.
-  - Access-controlled.
-  - Rotated.
-  - Audited.
-  - Recoverable through approved key-management procedures.
+- `tenant_id`.
+- Dealer group.
+- Dealership.
+- Branch.
+- Role.
+- Resource.
+- Requested action.
+- Field classification.
+- Workflow state.
+- Related Inventory Record.
+- Related Trade-In or Deal.
+- Business purpose.
+- Delegated authority.
 
-### Masking Requirements
+### Example Role Boundaries
 
-Users without full identity permission should see masked values such as:
+#### Sales Consultant
+
+May access Vehicle specifications required for:
+
+- Customer consultation.
+- Vehicle matching.
+- Assigned Opportunities.
+- Approved Quotations.
+- Appointments and test drives.
+
+A Sales Consultant must not independently:
+
+- Change verified VIN.
+- Resolve identity conflicts.
+- Merge Vehicles.
+- Change registration evidence.
+- Confirm Inventory availability through Vehicle.
+
+#### Sales Manager
+
+May access Vehicles inside approved organizational scope.
+
+Manager access does not automatically authorize:
+
+- Verified identity override.
+- Cross-Tenant reconciliation.
+- Evidence deletion.
+- Registration correction.
+- Vehicle merge.
+
+#### Inventory Specialist
+
+May access Vehicle identity required for Inventory workflows.
+
+Inventory Specialists must change stock state through Inventory Record, not Vehicle.
+
+#### Trade-In Specialist
+
+May access identity and technical evidence required for an approved Trade-In appraisal.
+
+#### Data Steward
+
+May review:
+
+- Duplicate candidates.
+- Source conflicts.
+- Identity quality.
+- Merge evidence.
+
+Final merge and verified identity correction require configured authority.
+
+#### Compliance or Legal Reviewer
+
+May access restricted Vehicle evidence required for an assigned review.
+
+#### AI Agent
+
+May access only the minimum Vehicle context required for its approved task.
+
+AI access must be:
+
+- Tenant-scoped.
+- Purpose-limited.
+- Logged.
+- Time-limited where appropriate.
+- Restricted by field classification.
+- Prevented from retrieving cross-Tenant data.
+
+### Encryption
+
+- Vehicle data in transit must use approved encryption.
+- Vehicle data at rest must use approved encryption.
+- Sensitive identifiers and evidence may require field-level encryption or tokenization.
+- Encryption keys must not be stored in source code or Prompts.
+- Evidence repositories must use approved access controls.
+
+### Masking
+
+Interfaces, Logs, analytics, and AI context should mask sensitive identifiers where full values are unnecessary.
+
+Examples:
 
 ```text
 VIN: *************3456
 Chassis: ********9821
 Registration: ******5892
+Plate: ***-1234
 ```
 
-Customer-facing outputs must not expose full restricted identifiers unless legally and operationally required.
+Authorized operational interfaces may display full values only where required.
 
 ### Tenant Isolation
 
-- Every Vehicle query must enforce `dealership_id`.
-- Cross-tenant Vehicle lookup must be prohibited by default.
-- Shared Vehicle identity resolution must use an explicitly governed service.
-- Stock transfers between tenants must not grant unrestricted access to historical tenant data.
-- AI retrieval, analytics, exports, Jobs, integrations, and search indexes must retain tenant scope.
-- Cache keys must include tenant identity.
-- Event consumers must reject mismatched tenant context.
+Tenant isolation must apply to:
 
-### Write Authorization
+- Database queries.
+- APIs.
+- Search.
+- Vector retrieval.
+- Events.
+- Caches.
+- Analytics.
+- Exports.
+- Logs.
+- Backups.
+- AI context.
+- Support access.
 
-The system must verify:
+Every query and Event Consumer must validate `tenant_id`.
 
-- User role.
-- Tenant.
-- Business purpose.
-- Current Vehicle state.
-- Source authority.
-- Record version.
-- Required Human Approval.
-- Legal-hold status.
+### Evidence Protection
 
-A lower-authority source must not overwrite a verified higher-authority field.
+Identity, registration, inspection, and odometer evidence must:
 
-### Merge Security
-
-Vehicle merge operations require:
-
-- Authorized Data Steward or equivalent role.
-- Duplicate evidence.
-- Conflict review.
-- Downstream-reference analysis.
-- Immutable approval record.
-- Transactional update.
-- Audit event.
-- Protection against cross-tenant merge.
-- Protection against merging Vehicles involved in conflicting active transactions without reconciliation.
+- Use controlled storage.
+- Preserve integrity hashes where required.
+- Restrict access.
+- Preserve provenance.
+- Prevent unauthorized deletion.
+- Follow retention and legal-hold requirements.
 
 ### Audit Requirements
 
-Every Vehicle create or update operation must preserve:
+Material Vehicle actions must record:
 
-- Tenant.
-- Vehicle.
-- Actor or service.
-- Changed fields.
-- Previous values or hashes.
-- New values or hashes.
+- `tenant_id`.
+- `vehicle_id`.
+- Actor.
+- Role and permission.
+- Action.
+- Business purpose.
+- Previous value or secure hash.
+- New value or secure hash.
+- Record version.
 - Source.
-- Source authority.
-- Business reason.
+- Authority category.
+- Evidence.
+- Human Decision.
 - Timestamp.
 - Correlation identifier.
-- Record version.
+- Causation identifier.
+- Related Event.
+- Related Command.
+- External Confirmation where applicable.
 
-Every verification operation must preserve:
+### Security Events
 
-- Verification method.
-- Evidence references and hashes.
-- Fields verified.
-- Reviewer.
-- Result.
-- Timestamp.
+ASOS must detect and record:
 
-Every AI operation must preserve:
+- Cross-Tenant Vehicle access attempts.
+- Unauthorized VIN changes.
+- Unauthorized merge attempts.
+- Evidence tampering.
+- Suspicious bulk Vehicle export.
+- AI retrieval outside approved scope.
+- Repeated identity-conflict overrides.
+- Odometer evidence manipulation.
+- Tenant-scope bypass attempts.
+- Audit-log tampering attempts.
 
-- Model reference.
-- Prompt or extraction version.
-- Input evidence.
-- Extracted fields.
-- Confidence.
-- Human-review status.
-- Final accepted values.
-- Timestamp.
+### Availability and Pricing Protection
 
-Every merge operation must preserve:
+Vehicle identity APIs must not be used as the authoritative source for:
 
-- Source Vehicle.
-- Surviving Vehicle.
-- Duplicate evidence.
-- Downstream references.
-- Approving User.
-- Timestamp.
+- Availability.
+- Pricing.
+- Reservation.
+- Allocation.
+- Sale.
+- Delivery.
 
-### Legal Hold
+Any Customer-facing claim about these matters must use the appropriate Inventory Record, Quotation, Deal, or External Confirmation.
 
-When legal hold is active:
+---
 
-- Vehicle evidence must not be deleted.
-- Merge may be restricted.
-- Archival may be restricted.
-- Source history must remain available.
-- Audit history must remain immutable.
-- Approved corrections must preserve previous values.
+## Governing Documents
 
-### Retention
+- [ASOS Constitution](../../../00_Constitution/Constitution.md)
+- [ASOS System Architecture](../../../05_Documentation/System_Architecture.md)
+- [ASOS Data Ownership and Systems of Record](../../../05_Documentation/Data_Ownership_and_Systems_of_Record.md)
+- [ASOS Canonical Domain Model](./README.md)
+- [ASOS Inventory Record](./InventoryRecord.md)
 
-Vehicle retention must follow:
+---
 
-- Automotive regulations.
-- Registration requirements.
-- Tax and accounting requirements.
-- Contractual requirements.
-- Warranty and service requirements.
-- Privacy regulations.
-- Fraud and compliance requirements.
-- Legal-hold instructions.
+## Current Status
 
-### Deletion Rules
+This document is the approved Canonical Vehicle baseline.
 
-Hard deletion is prohibited while the Vehicle is referenced by:
+Vehicle identity and specifications remain separate from dealership Inventory and commercial state.
 
-- Inventory Record.
-- Trade-In.
-- Appointment or test drive.
-- Quotation.
-- Deal.
-- Finance Application.
-- Financial Contract.
-- Vehicle Delivery.
-- Market Intelligence evidence.
-- Legal hold.
-- Audit record.
+Detailed Event names and Schemas will be governed by the Canonical Event Catalog.
 
-Soft deletion may be permitted only when:
+Detailed API Schemas will be governed by the API Contracts Catalog.
 
-- The Vehicle was created in error.
-- No authoritative workflow relied on it.
-- No legal retention applies.
-- Required approvals exist.
-- Deletion evidence is retained.
-
-### Anonymization and Redaction
-
-Where privacy or policy permits:
-
-- Registration and license-plate data may be redacted.
-- Restricted source documents may be removed after retention expiry.
-- Full VIN may remain where legally required for transaction history.
-- Redaction must not destroy required commercial or legal traceability.
-- Vector embeddings and search indexes must be updated after approved redaction.
-
-### Public Repository Restrictions
-
-A public documentation repository must never contain:
-
-- Real Customer Vehicle records.
-- Real VIN lists.
-- Registration documents.
-- License-plate datasets.
-- Source-system credentials.
-- OEM or provider secrets.
-- Real access tokens.
-- Unredacted internal evidence.
-- Restricted production payloads.
+Machine-readable storage and validation Schemas will be governed by the Data Schemas Catalog.
