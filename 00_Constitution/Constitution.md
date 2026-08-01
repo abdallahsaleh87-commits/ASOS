@@ -1,10 +1,12 @@
 # ASOS Constitution
 
-**Version:** 0.1.0
+**Version:** 1.0.0
 
-**Status:** Draft
+**Status:** Approved Baseline
 
-**Last Updated:** 2026-07-31
+**Document Owner:** ASOS Governance
+
+**Last Updated:** 2026-08-01
 
 ---
 
