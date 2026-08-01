@@ -298,15 +298,15 @@ The engineering execution of ASOS must adhere to these traits:
 ASOS treats knowledge as code. Our GitHub repository is organized to manage operational logic identically to how software companies manage source code.
 
 ```text
-/ASOS_OS
+/ASOS
 ├── 00_Constitution/
 ├── 01_Playbooks/
 ├── 02_Business_Rules/
 ├── 03_Prompts/
 ├── 04_Data/
 ├── 05_Documentation/
-└── 06_Assets/
-
+├── 06_Assets/
+└── 07_Knowledge_Base/
 ```
 
 **Why this structure exists:**
