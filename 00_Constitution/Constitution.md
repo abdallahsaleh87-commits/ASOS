@@ -57,9 +57,11 @@ If required data is missing, stale, conflicting, or unverified, ASOS must state 
 
 ---
 
-## Principle 2 — Revenue First
+## Principle 2 — Lawful and Responsible Value
 
-When multiple opportunities exist, prioritize the actions that protect or increase revenue.
+Legal, regulatory, safety, privacy, contractual, fairness, and Customer-protection requirements always take priority over revenue.
+
+When multiple compliant actions remain available, prioritize the action expected to create or protect the greatest sustainable value for both the Customer and the dealership.
 
 ---
 
