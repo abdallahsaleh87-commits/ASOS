@@ -23,18 +23,19 @@ Implementations must not introduce conflicting meanings, lifecycle states, relat
 | Order | Domain Object | Purpose |
 | :---: | :--- | :--- |
 | 1 | [Customer](./Customer.md) | Represents the canonical individual or organization interacting with the dealership. |
-| 2 | [Vehicle](./Vehicle.md) | Represents the canonical Vehicle, its identity, commercial status, and inventory context. |
-| 3 | [Lead](./Lead.md) | Represents an initial Customer inquiry or potential sales interest. |
-| 4 | [Qualified Lead](./QualifiedLead.md) | Represents a Lead that has passed the required qualification criteria. |
-| 5 | [Opportunity](./Opportunity.md) | Represents an active and commercially meaningful sales opportunity. |
-| 6 | [Appointment](./Appointment.md) | Represents a scheduled Customer engagement, consultation, showroom visit, or test drive. |
-| 7 | [Quotation](./Quotation.md) | Represents the governed commercial offer presented to a Customer. |
-| 8 | [Trade-In](./TradeIn.md) | Represents the appraisal, valuation, payoff, and acquisition workflow for a Customer Vehicle. |
-| 9 | [Finance Application](./FinanceApplication.md) | Represents a Customer request for Vehicle financing and its lender-underwriting lifecycle. |
-| 10 | [Financial Contract](./FinancialContract.md) | Represents the legally governed financial agreement created from an approved finance offer. |
-| 11 | [Deal](./Deal.md) | Represents the governed commercial transaction between the Customer and dealership. |
-| 12 | [Interaction](./Interaction.md) | Represents an omnichannel communication or meaningful Customer engagement. |
-| 13 | [Market Intelligence](./MarketIntelligence.md) | Represents verified market observations, evidence-backed analysis, risks, and opportunities. |
+| 2 | [Vehicle](./Vehicle.md) | Represents the canonical Vehicle, its identity, specifications, ownership context, and operational attributes. |
+| 3 | [Inventory Record](./InventoryRecord.md) | Represents the dealership stock, availability, location, pricing, reservation, allocation, and inventory lifecycle of a Vehicle. |
+| 4 | [Lead](./Lead.md) | Represents an initial Customer inquiry or potential sales interest. |
+| 5 | [Qualified Lead](./QualifiedLead.md) | Represents a Lead that has passed the required qualification criteria. |
+| 6 | [Opportunity](./Opportunity.md) | Represents an active and commercially meaningful sales opportunity. |
+| 7 | [Appointment](./Appointment.md) | Represents a scheduled Customer engagement, consultation, showroom visit, or test drive. |
+| 8 | [Quotation](./Quotation.md) | Represents the governed commercial offer presented to a Customer. |
+| 9 | [Trade-In](./TradeIn.md) | Represents the appraisal, valuation, payoff, and acquisition workflow for a Customer Vehicle. |
+| 10 | [Finance Application](./FinanceApplication.md) | Represents a Customer request for Vehicle financing and its lender-underwriting lifecycle. |
+| 11 | [Financial Contract](./FinancialContract.md) | Represents the legally governed financial agreement created from an approved finance offer. |
+| 12 | [Deal](./Deal.md) | Represents the governed commercial transaction between the Customer and dealership. |
+| 13 | [Interaction](./Interaction.md) | Represents an omnichannel communication or meaningful Customer engagement. |
+| 14 | [Market Intelligence](./MarketIntelligence.md) | Represents verified market observations, evidence-backed analysis, commercial risks, and opportunities. |
 
 ## Core Sales Lifecycle
 
@@ -49,6 +50,8 @@ Opportunity
    ├── Appointment
    ├── Interaction
    ├── Vehicle
+   │      ↓
+   │  Inventory Record
    ├── Trade-In
    └── Quotation
           ↓
@@ -119,7 +122,7 @@ Relationships between Domain Objects must:
 
 ### Immutable Evidence
 
-Commercial, financial, legal, consent, signature, funding, provider, and compliance evidence must remain immutable after becoming authoritative.
+Commercial, financial, legal, consent, signature, funding, inventory, provider, and compliance evidence must remain immutable after becoming authoritative.
 
 Corrections must use:
 
@@ -130,6 +133,16 @@ Corrections must use:
 - Governed redaction.
 
 Authoritative historical records must not be silently overwritten.
+
+### Inventory Consistency
+
+Vehicle identity and dealership inventory context must remain separate.
+
+- `Vehicle` defines the canonical physical or catalogued asset.
+- `Inventory Record` defines how that Vehicle is held, located, priced, prepared, reserved, allocated, sold, transferred, or retired by a dealership.
+- Vehicle availability must come from the authoritative Inventory Record.
+- Reservations and allocations must use concurrency-safe operations.
+- Sold, delivered, transferred, returned, and retired inventory records must remain historically traceable.
 
 ### Event-Driven Architecture
 
@@ -161,15 +174,18 @@ AI Agents must not independently create binding:
 - Customer consent.
 - Pricing commitments.
 - Discounts.
+- Vehicle reservations outside approved authority.
+- Deal allocations.
 - Finance approvals.
 - Legal signatures.
 - Contracts.
 - Payments.
 - Funding confirmation.
 - Compliance clearance.
+- Vehicle sale confirmation.
 - Vehicle-delivery confirmation.
 
-High-risk, conflicting, low-confidence, legal, financial, identity, fraud, or compliance decisions require authorized Human Review.
+High-risk, conflicting, low-confidence, legal, financial, identity, inventory, fraud, or compliance decisions require authorized Human Review.
 
 ### Security by Design
 
@@ -215,6 +231,6 @@ Breaking changes must not be introduced silently.
 
 ## Completion Status
 
-The initial ASOS Canonical Domain Model contains 13 completed objects.
+The initial ASOS Canonical Domain Model contains 14 completed objects.
 
 All listed objects include the standard 12-section specification and are ready for architectural review, implementation planning, and controlled future expansion.
