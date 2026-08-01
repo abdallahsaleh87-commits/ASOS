@@ -1696,21 +1696,35 @@ A sent acquisition Command does not prove acquisition.
 
 Inventory intake may begin only after valid acquisition.
 
-The intake workflow must:
+Trade-In Domain Service may initiate and track an Inventory intake request.
+
+Inventory Domain Service owns authoritative Inventory Record creation, activation, and stock-cycle state.
+
+The Inventory intake request must:
 
 - Reference the canonical Vehicle.
+- Reference the originating Trade-In.
 - Validate VIN consistency.
 - Validate physical possession.
-- Record receiving branch and location.
-- Record acquisition source as Trade-In.
-- Record approved acquisition cost.
-- Create or activate an Inventory Record.
-- Preserve Trade-In relationship.
+- Identify the receiving dealership, branch, and location.
+- Identify the acquisition source as Trade-In.
+- Include the approved acquisition-cost projection.
 - Prevent duplicate active Inventory Records.
-- Use an idempotent operation.
-- Await external Confirmation where another system is authoritative.
+- Use an idempotency key.
+- Remain pending until Inventory Domain Service accepts or rejects the request.
+- Await External Confirmation where another Inventory or DMS system is authoritative.
 
-Trade-In `COMPLETED` requires successful Inventory and accounting reconciliation according to policy.
+Trade-In must store only:
+
+- Inventory intake request state.
+- Inventory Record reference after Confirmation.
+- Confirmation evidence.
+- Failure evidence.
+- Reconciliation state.
+
+Trade-In must not create, activate, or directly update the authoritative Inventory Record.
+
+Trade-In `COMPLETED` requires authoritative Inventory intake Confirmation and accounting reconciliation according to policy.
 
 ### External Authority Rules
 
@@ -2260,7 +2274,9 @@ Every material transition must preserve:
 ### Inventory Record
 
 - Inventory Record must not exist as active dealership stock before valid acquisition unless an approved expected-stock projection is used.
-- Trade-In may create or activate one Inventory Record after acquisition.
+- Trade-In may request creation or activation of one Inventory Record after acquisition.
+- Inventory Domain Service owns authoritative Inventory Record creation, activation, and stock-cycle state.
+- Trade-In stores only the intake request, Confirmation, relationship, and reconciliation projections.
 - Inventory Record owns dealership stock context.
 - Inventory availability must not be stored as Trade-In status.
 
@@ -2362,7 +2378,7 @@ Trade-In may own or govern:
 - Customer offers.
 - Acceptance records.
 - Acquisition records.
-- Inventory intake records.
+- Inventory intake request, Confirmation, and reconciliation projections.
 - Settlement records.
 - Derived Intelligence.
 - Data-quality issues.
@@ -2471,11 +2487,16 @@ The following are required Trade-In Event concepts and do not replace the Event 
 
 - Trade-In Inventory intake requested.
 - Inventory Record creation requested.
-- Inventory Record created.
-- Inventory intake confirmed.
+- Inventory Record creation or activation pending.
+- Inventory Record creation or activation observed.
+- Inventory intake Confirmation received.
 - Inventory intake failed.
 - Inventory intake reconciliation required.
 - Trade-In completed.
+
+Trade-In Domain Service must not publish the authoritative Inventory Record-created or Inventory Record-activated Event.
+
+Inventory Domain Service publishes accepted Inventory Record creation, activation, and lifecycle facts.
 
 ### Derived Intelligence Event Concepts
 
@@ -4050,6 +4071,8 @@ Emergency suspension must be deterministic, auditable, and reversible only by au
 This document is the approved Canonical Trade-In baseline.
 
 Trade-In remains separate from Vehicle identity, Quotation, Deal, Payment, and Inventory Record.
+
+Trade-In requests and tracks Inventory intake; Inventory Domain Service owns authoritative Inventory Record creation, activation, and lifecycle.
 
 Customer acceptance of a Trade-In offer does not transfer legal ownership.
 
