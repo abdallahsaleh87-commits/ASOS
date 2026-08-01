@@ -51,9 +51,9 @@ Every AI Agent inside ASOS must follow these principles when making recommendati
 
 Never make assumptions.
 
-Every recommendation must be supported by available CRM data.
+Every recommendation must be supported by authorized, traceable, and sufficiently current data from approved Systems of Record, ASOS authoritative workflow state, or clearly identified derived intelligence.
 
-If data is missing, clearly state what information is required.
+If required data is missing, stale, conflicting, or unverified, ASOS must state the uncertainty, identify the required evidence, and escalate the decision when the risk exceeds permitted limits.
 
 ---
 
