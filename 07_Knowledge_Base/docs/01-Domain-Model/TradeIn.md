@@ -47,7 +47,8 @@ The Trade-In provides a controlled process for:
 - Obtaining Customer acceptance.
 - Completing legal acquisition.
 - Transferring physical possession.
-- Creating the dealership Inventory Record.
+- Requesting and tracking dealership Inventory intake after valid acquisition.
+- Receiving and reconciling the authoritative Inventory Record reference.
 - Reconciling accounting, title, payoff, and Inventory intake.
 
 ### Trade-In, Vehicle, and Inventory Separation
