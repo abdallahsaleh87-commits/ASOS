@@ -1,1937 +1,5019 @@
 # Interaction
 
+**Version:** 1.1.0  
+**Status:** Approved Baseline  
+**Canonical Owner:** Interaction Domain Service  
+**Primary Isolation Boundary:** `tenant_id`  
+**Last Updated:** 2026-08-01  
+
+---
+
 ## 1. Object Purpose
 
 ### Business Purpose
 
-The Interaction object represents a single recorded communication, engagement, or meaningful contact between the dealership and a Customer, prospect, participant, external party, User, or authorized AI Agent.
+The Interaction Object represents one governed communication, contact, communication attempt, communication session, internal note, or meaningful engagement record involving the dealership and one or more participants.
 
-It provides the dealership with a complete chronological history of activities such as:
+Interactions may include:
 
-- Incoming and outgoing phone calls.
-- WhatsApp and SMS messages.
+- Incoming and outgoing messages.
+- Phone calls.
 - Emails.
-- Website and marketplace conversations.
-- Social-media messages.
-- Showroom conversations.
-- Video consultations.
+- SMS messages.
+- WhatsApp messages.
+- Website chat.
+- Mobile application chat.
+- Marketplace communication.
+- Social-media communication.
+- Video calls.
+- In-person conversations.
+- Voice notes.
+- Document exchanges.
 - Appointment discussions.
 - Test-drive feedback.
-- Quotation presentations.
-- Finance and document discussions.
-- Deal and delivery updates.
-- Customer complaints and objections.
-- AI-assisted or automated responses.
-- Internal notes that materially affect the Customer Journey.
+- Quotation presentation.
+- Trade-In discussion.
+- Finance and contract communication.
+- Payment reminders.
+- Delivery coordination.
+- Customer complaints.
+- Customer feedback.
+- Customer opt-out requests.
+- Authorized internal notes.
+- Authorized automated communication.
+- AI-assisted communication.
 
-The Interaction object allows the dealership to:
+The Interaction provides a governed chronological record that supports:
 
-- Preserve communication history.
-- Understand Customer intent and sentiment.
-- Track promises and commitments.
-- Identify unanswered messages.
-- Enforce consent and communication policies.
-- Maintain continuity when ownership changes.
-- Trigger follow-up Tasks and escalation.
-- Support Lead, Opportunity, Deal, and Customer Journey analytics.
-- Provide governed context to authorized AI Agents.
+- Communication continuity.
+- Omnichannel inboxes.
+- Contact-center workflows.
+- Customer Journey timelines.
+- Response-SLA monitoring.
+- Follow-up orchestration.
+- Identity-resolution workflows.
+- Consent and communication-policy enforcement.
+- Complaint and dispute investigation.
+- Evidence preservation.
+- Customer intent and sentiment analysis.
+- Human and AI collaboration.
+- Sales, service, and operational analytics.
 
-An Interaction is not a Customer, Lead, Opportunity, Appointment, Quotation, Finance Application, or Deal. It records the communication or activity that may create, update, support, or close those objects.
+### Interaction as Evidence
+
+An Interaction records what was:
+
+- Received.
+- Sent.
+- Said.
+- Written.
+- Presented.
+- Requested.
+- Attempted.
+- Delivered.
+- Read where supported.
+- Recorded.
+- Observed.
+- Confirmed by a provider.
+- Entered as an internal note.
+
+An Interaction may contain evidence that supports another Domain Object.
+
+It does not independently make the resulting business outcome authoritative.
+
+Examples:
+
+```text
+Customer asks for an Appointment
+  ≠ Appointment created
+
+Customer asks for a Quotation
+  ≠ Quotation issued
+
+Customer says an offer looks acceptable
+  ≠ Quotation authoritatively accepted
+
+Customer discusses finance
+  ≠ Finance Application submitted
+
+Customer says payment was sent
+  ≠ Payment cleared
+
+Customer asks when the Vehicle will arrive
+  ≠ Vehicle delivered
+
+Salesperson records a commitment
+  ≠ Binding contractual commitment
+```
+
+A controlled downstream workflow must validate the evidence and create or update the responsible Domain Object.
+
+### Observation, Evidence, and Derived Intelligence Separation
+
+Interaction data must preserve explicit separation between:
+
+```text
+Original Communication Evidence
+  = provider payload, recording, document, message, or Human-entered note
+
+Normalized Interaction Content
+  = governed representation of the original evidence
+
+Derived Intelligence
+  = AI-generated intent, sentiment, summary, entity extraction,
+    risk detection, or Recommendation
+
+Authoritative Human Decision
+  = approved interpretation or operational Decision where required
+
+External Confirmation
+  = authoritative provider or external-system completion evidence
+```
+
+Derived Intelligence must not overwrite original evidence.
+
+### Interaction and Conversation Separation
+
+An Interaction represents one communication unit or governed session.
+
+A Conversation Thread represents the ordered relationship among multiple Interactions.
+
+Examples:
+
+```text
+One inbound WhatsApp message
+  = one Interaction
+
+One outbound reply
+  = another Interaction
+
+The related message history
+  = one Conversation Thread
+
+One completed phone call
+  = one Interaction session
+
+Call recording and transcript
+  = evidence and derived records associated with that Interaction
+```
+
+The Interaction Object may reference a Conversation Thread.
+
+Thread identity, sequence, and participant continuity must remain governed and auditable.
+
+### Interaction and Communication Command Separation
+
+The following concepts must remain separate:
+
+```text
+Outbound Draft
+  = prepared but not yet authorized or sent
+
+Recommendation
+  = proposed content or proposed next action
+
+Human Decision or Approved Automation Policy
+  = authority to continue
+
+Command
+  = request sent to a communication provider
+
+Provider Acknowledgement
+  = provider accepted or received the technical request
+
+Delivery Confirmation
+  = provider reports delivery where supported
+
+Read Confirmation
+  = provider reports opening or acknowledgement where supported
+
+Customer Understanding or Acceptance
+  = separate evidence and business interpretation
+```
+
+A successful communication API request does not prove delivery.
+
+Delivery does not prove that the Customer read, understood, agreed with, or accepted the content.
+
+### Inbound and Outbound Separation
+
+Inbound Interactions represent communication received from an external or internal participant.
+
+Outbound Interactions represent communication initiated by an authorized dealership User, approved system workflow, or authorized AI-assisted process.
+
+Inbound receipt does not automatically establish:
+
+- Customer identity.
+- Customer ownership of a phone number or email address.
+- Marketing Consent.
+- Authority to disclose sensitive data.
+- Authority to create a binding commercial outcome.
+- Authenticity of an attached document.
+
+Outbound communication requires applicable:
+
+- Identity and recipient checks.
+- Purpose.
+- Communication permission.
+- Channel permission.
+- Quiet-hours checks.
+- Frequency controls.
+- Content controls.
+- Human Approval or approved automation policy.
+- Provider Command.
+- Audit evidence.
+
+### Internal Note Separation
+
+An internal note is an Interaction with restricted visibility.
+
+Internal notes must remain separate from Customer-visible communication.
+
+An internal note:
+
+- Must identify its author.
+- Must preserve the business purpose.
+- Must not be delivered to the Customer.
+- Must not impersonate Customer communication.
+- Must not be presented as external evidence.
+- Must not silently change another Domain Object.
+- May require enhanced access restrictions.
+- May be corrected only through governed correction or supersession.
+
+### Interaction and Customer Separation
+
+The Customer Domain Service owns canonical Customer identity and contact points.
+
+The Interaction may initially contain unresolved participant information such as:
+
+- Phone number.
+- Email address.
+- Provider user identifier.
+- Social-media account.
+- Marketplace account.
+- Display name.
+- Submitted name.
+
+These are communication observations.
+
+They are not automatically verified Customer identity.
+
+Identity resolution must remain a separate governed process.
+
+### Interaction and Consent Separation
+
+The Customer Domain Service and applicable Consent authority own canonical Consent and communication permissions.
+
+The Interaction preserves the exact permission and policy snapshot applied to an outbound communication.
+
+An inbound message does not automatically create:
+
+- Marketing Consent.
+- Cross-channel Consent.
+- Consent for unrelated follow-up.
+- Consent to record a call.
+- Consent to share data with a third party.
+
+An opt-out request is Customer evidence that must trigger deterministic permission processing.
+
+AI may detect a possible opt-out.
+
+AI detection alone must not be the final Consent record without the governed opt-out workflow.
+
+### Interaction and Appointment Separation
+
+An Interaction may contain evidence that a Customer:
+
+- Requested an Appointment.
+- Confirmed an Appointment.
+- Requested rescheduling.
+- Requested cancellation.
+- Reported late arrival.
+- Reported non-attendance.
+
+The Appointment Domain Service owns authoritative scheduling and attendance state.
+
+An Interaction outcome such as `APPOINTMENT_REQUESTED` does not itself create or confirm an Appointment.
+
+### Interaction and Quotation Separation
+
+An Interaction may record:
+
+- Quotation request.
+- Quotation presentation.
+- Customer questions.
+- Negotiation.
+- Customer response.
+- Possible acceptance signal.
+- Possible rejection signal.
+
+The Quotation Domain Service owns:
+
+- Quotation version.
+- Issuance.
+- Presentation evidence.
+- Customer acceptance.
+- Decline.
+- Expiration.
+- Supersession.
+- Conversion.
+
+Free text alone must not silently set an authoritative Quotation outcome.
+
+### Interaction and Finance Separation
+
+Finance-related Interactions may contain highly sensitive information.
+
+The Interaction must not become the unrestricted storage location for:
+
+- Identity documents.
+- National identifiers.
+- Credit reports.
+- Bank statements.
+- Lender Decisions.
+- Funding instructions.
+- Signed Financial Contracts.
+
+Controlled document or finance services must store the authoritative records.
+
+The Interaction may preserve secure references and permitted summaries.
+
+### Interaction and Deal Separation
+
+Interactions may support:
+
+- Customer commitment.
+- Deal updates.
+- Document coordination.
+- Payment follow-up.
+- Funding updates.
+- Delivery coordination.
+- Cancellation requests.
+- Dispute evidence.
+
+The Deal Domain Service owns authoritative transaction state.
+
+An Interaction must not independently mark a Deal:
+
+- Approved.
+- Funded.
+- Delivered.
+- Completed.
+- Cancelled.
+- Unwound.
+
+### Interaction Immutability
+
+Original inbound evidence and finalized outbound content must be immutable.
+
+Material corrections require:
+
+- A correction record.
+- A superseding Interaction.
+- A governed redaction.
+- An annotation.
+- A provider correction where supported.
+- Preserved original hashes and lineage.
+
+Redaction must not rewrite history without preserving the required audit evidence.
 
 ### System Purpose
 
-The Interaction object is the canonical omnichannel communication and engagement record within the ASOS domain.
+The Interaction Object provides governed communication context to:
 
-It connects:
+- Customer workflows.
+- Lead workflows.
+- Qualified Lead workflows.
+- Opportunity workflows.
+- Appointment workflows.
+- Quotation workflows.
+- Vehicle and Inventory workflows.
+- Trade-In workflows.
+- Finance Application workflows.
+- Financial Contract workflows.
+- Deal workflows.
+- Complaint workflows.
+- Task and follow-up workflows.
+- Communication providers.
+- AI Agents.
+- Analytics.
+- Audit and compliance services.
 
-- Customer
-- Lead
-- Qualified Lead
-- Opportunity
-- Appointment
-- Quotation
-- Trade-In
-- Finance Application
-- Deal
-- Vehicle
-- User
-- AI Agent
-- Campaign
-- Communication Provider
-- Conversation Thread
-- Task
-- Customer Journey
+The Interaction may contain:
 
-The Interaction provides the authoritative record used by:
+- External Authoritative Data.
+- ASOS Canonical Projections.
+- ASOS Authoritative Workflow State.
+- Derived Intelligence.
+- Authoritative Human Decisions.
+- External Confirmations.
 
-- Omnichannel inboxes.
-- Contact-center workflows.
-- Sales Consultant work queues.
-- Conversation threading.
-- Customer sentiment and intent analysis.
-- Follow-up generation.
-- SLA monitoring.
-- Communication consent enforcement.
-- AI conversation memory.
-- Customer Journey timelines.
-- Compliance and dispute investigation.
-- Engagement and conversion analytics.
+### Authority Boundaries
 
-Every Interaction must be:
+| Information | Default Authority |
+| :--- | :--- |
+| Original inbound provider message | Communication Provider |
+| Original call or meeting recording | Approved recording source |
+| Human-entered internal note | Authorized Human author |
+| Canonical Interaction record | Interaction Domain Service |
+| Customer identity | Customer Domain Service |
+| Communication Consent | Customer Domain Service or configured Consent authority |
+| Provider delivery and read status | Communication Provider |
+| Appointment state | Appointment Domain Service |
+| Quotation state and acceptance | Quotation Domain Service |
+| Finance Application state | Finance Application Domain Service |
+| Financial Contract and signatures | Financial Contract Domain Service |
+| Deal state | Deal Domain Service |
+| Payment outcome | Payment authority |
+| Delivery outcome | Delivery authority |
+| Transcript and translation | Approved provider or Derived Intelligence |
+| Intent, sentiment, summary, and Recommendation | Derived Intelligence |
+| Operational interpretation | Authorized Human or approved deterministic workflow |
+| External communication completion | Configured External Confirmation authority |
 
-- Tenant-scoped.
-- Time-stamped.
-- Traceable to its source.
-- Associated with known participants when possible.
-- Protected according to its data classification.
-- Immutable after final completion except through controlled correction or redaction workflows.
-
-Inbound provider events and outbound delivery events must be idempotent and deduplicated using trusted provider identifiers.
+---
 
 ## 2. Canonical Schema
 
-### Identifiers
+### Primary Identifiers
 
-- **Primary Key:** `interaction_id` (UUIDv4)
-- **Tenant ID:** `dealership_id` (UUIDv4)
-- **Foreign Keys:**
-  - `customer_id` (UUIDv4 — optional until identity resolution)
-  - `lead_id` (UUIDv4 — optional)
-  - `qualified_lead_id` (UUIDv4 — optional)
-  - `opportunity_id` (UUIDv4 — optional)
-  - `appointment_id` (UUIDv4 — optional)
-  - `quotation_id` (UUIDv4 — optional)
-  - `trade_in_id` (UUIDv4 — optional)
-  - `finance_application_id` (UUIDv4 — optional)
-  - `deal_id` (UUIDv4 — optional)
-  - `vehicle_id` (UUIDv4 — optional)
-  - `owner_id` (UUIDv4 — optional)
-  - `assigned_user_id` (UUIDv4 — optional)
-  - `agent_id` (UUIDv4 — optional)
-  - `campaign_id` (UUIDv4 — optional)
-  - `conversation_thread_id` (UUIDv4 — optional)
-  - `parent_interaction_id` (UUIDv4 — optional)
-  - `task_id` (UUIDv4 — optional)
-  - `supersedes_interaction_id` (UUIDv4 — optional)
+- `interaction_id` — UUIDv4, required and immutable.
+- `tenant_id` — UUIDv4, required and immutable.
+- `interaction_version` — Integer for governed content versions where applicable.
+- `record_version` — Integer used for optimistic concurrency.
 
-### Interaction Classification
+### Organizational Context
 
-- `interaction_type`
-- `direction`
-- `channel`
-- `status`
-- `purpose`
-- `priority`
-- `source`
-- `visibility`
-- `communication_category`
-- `customer_journey_stage`
+- `dealer_group_id`.
+- `dealership_id`.
+- `branch_id`.
+- `department_id`.
+- `team_id`.
+- `responsible_user_id`.
+- `assigned_user_id`.
+- `supervisor_user_id`.
+- `queue_id`.
 
-### Participant Fields
+`tenant_id` is the primary isolation boundary.
 
-- `sender_type`
-- `sender_id`
-- `sender_display_name`
-- `sender_address`
-- `recipient_type`
-- `recipient_ids`
-- `recipient_addresses`
-- `participant_snapshot`
-- `external_participants`
-- `authenticated_customer`
-- `identity_resolution_status`
-- `identity_resolution_confidence`
+All organizational identifiers must belong to the authenticated Tenant.
+
+### Related Domain Objects
+
+- `customer_id`.
+- `lead_id`.
+- `qualified_lead_id`.
+- `opportunity_id`.
+- `appointment_id`.
+- `quotation_id`.
+- `quotation_version`.
+- `vehicle_id`.
+- `inventory_record_id`.
+- `trade_in_id`.
+- `finance_application_id`.
+- `financial_contract_id`.
+- `deal_id`.
+- `primary_task_reference`.
+- `campaign_reference`.
+- `complaint_reference`.
+- `dispute_reference`.
+
+### Interaction Identity and Classification
+
+- `interaction_number`.
+- `interaction_type`.
+- `direction`.
+- `channel`.
+- `status`.
+- `purpose`.
+- `communication_category`.
+- `priority`.
+- `visibility`.
+- `source_system`.
+- `source_authority`.
+- `workflow_authority_mode`.
+- `customer_journey_stage_projection`.
+- `data_quality_status`.
+- `conflict_status`.
+- `review_status`.
 
 ### Conversation and Threading
 
-- `conversation_thread_id`
-- `parent_interaction_id`
-- `reply_to_interaction_id`
-- `root_interaction_id`
-- `sequence_number`
-- `subject`
-- `conversation_topic`
-- `thread_status`
-- `external_thread_id`
+- `conversation_thread_id`.
+- `external_conversation_id`.
+- `external_thread_id`.
+- `root_interaction_id`.
+- `parent_interaction_id`.
+- `reply_to_interaction_id`.
+- `supersedes_interaction_id`.
+- `corrects_interaction_id`.
+- `sequence_number`.
+- `thread_sequence_reference`.
+- `subject`.
+- `conversation_topic`.
+- `thread_status_projection`.
+- `thread_participant_snapshot`.
+- `thread_last_interaction_at`.
 
-### Content Fields
+### Participant Records
 
-- `content_text`
-- `content_html`
-- `content_summary`
-- `customer_visible_content`
-- `internal_notes`
-- `language_code`
-- `translated_content`
-- `translation_status`
-- `content_hash`
-- `content_redacted`
-- `redaction_reason`
+- `participant_record_ids`.
+- `sender_participant_id`.
+- `recipient_participant_ids`.
+- `cc_participant_ids`.
+- `bcc_participant_ids`.
+- `external_participant_count`.
+- `participant_snapshot`.
+- `participant_snapshot_hash`.
 
-### Media and Attachments
+Each participant record may contain:
 
-- `attachment_count`
-- `attachment_ids`
-- `media_type`
-- `recording_url`
-- `recording_duration_seconds`
-- `transcript_status`
-- `transcript_text`
-- `transcript_confidence`
-- `document_references`
-- `media_snapshot`
+- `interaction_participant_id`.
+- `participant_role`.
+- `participant_type`.
+- `customer_id`.
+- `user_id`.
+- `agent_id`.
+- `external_party_reference`.
+- `display_name_projection`.
+- `contact_point_reference`.
+- `submitted_contact_value`.
+- `normalized_contact_value_token`.
+- `provider_participant_id`.
+- `identity_resolution_status`.
+- `identity_resolution_method`.
+- `identity_resolution_evidence_references`.
+- `identity_resolution_decision_id`.
+- `authentication_status`.
+- `signing_or_commitment_authority_status`.
+- `participant_visibility`.
+- `participant_status`.
 
-### Timing Fields
+### Customer Identity Resolution
 
-- `occurred_at`
-- `received_at`
-- `queued_at`
-- `sent_at`
-- `delivered_at`
-- `read_at`
-- `started_at`
-- `ended_at`
-- `completed_at`
-- `failed_at`
-- `archived_at`
+- `customer_identity_resolution_status`.
+- `candidate_customer_ids`.
+- `resolved_customer_id`.
+- `identity_resolution_rule_id`.
+- `identity_resolution_rule_version`.
+- `identity_resolution_evidence_references`.
+- `identity_resolution_decision_id`.
+- `identity_resolved_at`.
+- `identity_resolved_by_actor_id`.
+- `identity_conflict_references`.
+- `identity_revalidation_required`.
 
-### Communication Provider Fields
+### Content Evidence
 
-- `provider_name`
-- `provider_account_id`
-- `provider_message_id`
-- `provider_conversation_id`
-- `provider_event_id`
-- `provider_status`
-- `provider_error_code`
-- `provider_error_message`
-- `provider_metadata`
-- `provider_received_at`
+- `original_content_reference`.
+- `original_content_type`.
+- `original_content_hash`.
+- `original_provider_payload_reference`.
+- `original_provider_payload_hash`.
+- `normalized_text`.
+- `normalized_html_reference`.
+- `structured_content`.
+- `content_language_code`.
+- `content_encoding`.
+- `content_hash`.
+- `content_mime_type`.
+- `subject`.
+- `content_character_count`.
+- `content_word_count`.
+- `content_finalized_at`.
+- `content_integrity_status`.
 
-### Consent and Communication Policy
+Original provider content should normally remain in controlled evidence storage.
 
-- `consent_status`
-- `consent_type`
-- `consent_reference`
-- `contact_permission_checked`
-- `contact_permission_checked_at`
-- `quiet_hours_checked`
-- `frequency_limit_checked`
-- `communication_policy_version`
-- `lawful_basis`
-- `opt_out_detected`
-- `opt_out_processed_at`
+### Customer-Visible Content
 
-### AI and Intelligence Fields
+- `customer_visible_text`.
+- `customer_visible_html_reference`.
+- `customer_visible_document_references`.
+- `customer_visible_content_hash`.
+- `customer_visible_language_code`.
+- `customer_visible_template_id`.
+- `customer_visible_template_version`.
+- `customer_visible_content_status`.
 
-- `intent`
-- `intent_confidence`
-- `sentiment`
-- `sentiment_score`
-- `urgency`
-- `urgency_score`
-- `topic_labels`
-- `entity_extraction`
-- `objection_type`
-- `commitment_detected`
-- `commitment_details`
-- `next_best_action`
-- `ai_summary`
-- `ai_processing_status`
-- `ai_model_reference`
-- `ai_prompt_version`
-- `human_review_required`
-- `human_review_reason`
+### Internal Content
 
-### Outcome and Follow-Up
+- `internal_note_text`.
+- `internal_note_category`.
+- `internal_note_reason`.
+- `internal_note_author_id`.
+- `internal_note_visibility`.
+- `internal_note_finalized_at`.
+- `internal_note_hash`.
 
-- `outcome`
-- `outcome_details`
-- `response_required`
-- `response_due_at`
-- `responded_at`
-- `response_sla_status`
-- `follow_up_required`
-- `next_action_type`
-- `next_action_at`
-- `task_id`
-- `escalation_required`
-- `escalation_reason`
-- `escalated_at`
+Internal content must never be included in Customer-visible rendering.
 
-### Quality and Compliance
+### Attachments and Documents
 
-- `recording_consent_status`
-- `compliance_review_status`
-- `content_moderation_status`
-- `restricted_data_detected`
-- `sensitive_data_types`
-- `quality_score`
-- `quality_review_status`
-- `dispute_reference`
-- `legal_hold_status`
+- `attachment_ids`.
+- `attachment_count`.
+- `attachment_processing_status`.
+- `attachment_security_status`.
+- `attachment_malware_scan_status`.
+- `attachment_data_loss_prevention_status`.
+- `attachment_content_moderation_status`.
+- `attachment_document_references`.
+- `attachment_media_references`.
+- `attachment_snapshot`.
+- `attachment_snapshot_hash`.
+- `restricted_attachment_detected`.
+- `untrusted_document_detected`.
 
-### Computed Fields
+Each attachment record may contain:
 
-- `response_time_seconds`
-- `conversation_duration_seconds`
-- `time_to_first_response_seconds`
-- `is_unanswered`
-- `is_overdue`
-- `customer_engagement_score`
-- `interaction_recency_days`
-- `sentiment_change`
-- `thread_interaction_count`
-- `attachment_processing_complete`
-- `sla_breached`
-- `requires_follow_up`
-- `is_customer_visible`
+- `interaction_attachment_id`.
+- `document_reference`.
+- `media_reference`.
+- `file_name_projection`.
+- `mime_type`.
+- `size_bytes`.
+- `content_hash`.
+- `source`.
+- `security_classification`.
+- `malware_scan_status`.
+- `data_loss_prevention_status`.
+- `content_moderation_status`.
+- `processing_status`.
+- `retention_class`.
+- `legal_hold_status`.
 
-### Governance and Lifecycle
+### Call and Synchronous Session
 
-- **Participant Snapshot:** `participant_snapshot` (Encrypted JSONB)
-- **Content Snapshot:** `content_snapshot` (Encrypted JSONB)
-- **Provider Snapshot:** `provider_snapshot` (JSONB)
-- **AI Analysis Snapshot:** `ai_analysis_snapshot` (JSONB)
-- **Consent Snapshot:** `consent_snapshot` (Encrypted JSONB)
-- **Compliance Snapshot:** `compliance_snapshot` (Encrypted JSONB)
-- **Outcome Snapshot:** `outcome_snapshot` (JSONB)
+- `session_id`.
+- `session_type`.
+- `session_status`.
+- `provider_call_id`.
+- `provider_meeting_id`.
+- `started_at`.
+- `answered_at`.
+- `ended_at`.
+- `duration_seconds`.
+- `ring_duration_seconds`.
+- `hold_duration_seconds`.
+- `participant_join_events`.
+- `participant_leave_events`.
+- `disconnection_reason`.
+- `call_disposition`.
+- `session_quality_status`.
+- `session_quality_metrics`.
 
-- **Audit Fields:**
-  - `created_by`
-  - `updated_by`
-  - `sent_by`
-  - `completed_by`
-  - `reviewed_by`
-  - `redacted_by`
-  - `archived_by`
-  - `last_processed_by_agent`
+### Recording
 
-- **Version:** `record_version` (Integer — optimistic locking)
-- **Soft Delete:** `is_deleted` (Boolean), `deleted_at` (Timestamp)
+- `recording_required`.
+- `recording_status`.
+- `recording_consent_required`.
+- `recording_consent_status`.
+- `recording_consent_reference`.
+- `recording_started_at`.
+- `recording_stopped_at`.
+- `recording_reference`.
+- `recording_hash`.
+- `recording_duration_seconds`.
+- `recording_provider_reference`.
+- `recording_retention_class`.
+- `recording_legal_hold_status`.
+- `recording_access_status`.
 
-- **Timestamps:**
-  - `created_at`
-  - `updated_at`
-  - `occurred_at`
-  - `received_at`
-  - `queued_at`
-  - `sent_at`
-  - `delivered_at`
-  - `read_at`
-  - `started_at`
-  - `ended_at`
-  - `completed_at`
-  - `failed_at`
-  - `responded_at`
-  - `escalated_at`
-  - `redacted_at`
-  - `archived_at`
+### Transcript
+
+- `transcript_status`.
+- `transcript_reference`.
+- `transcript_text`.
+- `transcript_language_code`.
+- `transcript_provider`.
+- `transcript_model_reference`.
+- `transcript_version`.
+- `transcript_generated_at`.
+- `transcript_hash`.
+- `transcript_speaker_segments`.
+- `transcript_quality_status`.
+- `transcript_review_status`.
+- `transcript_correction_references`.
+
+A transcript is not the original recording.
+
+### Translation
+
+- `translation_status`.
+- `source_language_code`.
+- `target_language_code`.
+- `translated_text`.
+- `translation_reference`.
+- `translation_provider`.
+- `translation_model_reference`.
+- `translation_version`.
+- `translation_generated_at`.
+- `translation_hash`.
+- `translation_review_status`.
+
+A translation is not the original communication evidence.
+
+### Communication Purpose and Policy
+
+- `communication_purpose`.
+- `communication_subpurpose`.
+- `transactional_or_marketing_classification`.
+- `lawful_basis`.
+- `consent_requirement_status`.
+- `consent_record_ids`.
+- `consent_snapshot`.
+- `consent_snapshot_hash`.
+- `contact_permission_status`.
+- `channel_permission_status`.
+- `recipient_permission_status`.
+- `quiet_hours_status`.
+- `frequency_limit_status`.
+- `communication_policy_id`.
+- `communication_policy_version`.
+- `policy_evaluated_at`.
+- `policy_expires_at`.
+- `policy_revalidation_required`.
+- `policy_block_reasons`.
+
+### Opt-Out Context
+
+- `opt_out_signal_status`.
+- `opt_out_signal_type`.
+- `opt_out_detected_at`.
+- `opt_out_evidence_references`.
+- `opt_out_processing_status`.
+- `opt_out_command_id`.
+- `opt_out_idempotency_key`.
+- `opt_out_processed_at`.
+- `opt_out_confirmation_status`.
+- `opt_out_reconciliation_status`.
+- `opt_out_human_review_required`.
+
+### Outbound Draft
+
+- `draft_status`.
+- `draft_content_reference`.
+- `draft_content_hash`.
+- `draft_created_at`.
+- `draft_created_by_actor_type`.
+- `draft_created_by_actor_id`.
+- `draft_source_type`.
+- `draft_template_id`.
+- `draft_template_version`.
+- `draft_expiration_at`.
+- `draft_review_required`.
+- `draft_review_status`.
+- `draft_review_decision_id`.
+- `draft_approved_at`.
+- `draft_approved_by_actor_id`.
+
+### Outbound Command
+
+- `send_authorization_status`.
+- `send_authorization_decision_id`.
+- `automation_policy_id`.
+- `automation_policy_version`.
+- `send_request_id`.
+- `send_command_id`.
+- `send_idempotency_key`.
+- `send_requested_at`.
+- `send_command_created_at`.
+- `send_command_status`.
+- `send_attempt_count`.
+- `last_send_attempt_at`.
+- `next_retry_at`.
+- `send_failure_reason`.
+
+### Provider Context
+
+- `provider_id`.
+- `provider_name`.
+- `provider_account_id`.
+- `provider_channel_id`.
+- `provider_message_id`.
+- `provider_conversation_id`.
+- `provider_thread_id`.
+- `provider_event_ids`.
+- `provider_status`.
+- `provider_status_code`.
+- `provider_error_code`.
+- `provider_error_message_reference`.
+- `provider_payload_references`.
+- `provider_received_at`.
+- `provider_accepted_at`.
+- `provider_updated_at`.
+- `provider_data_freshness_status`.
+
+### Provider Deduplication
+
+- `provider_deduplication_key`.
+- `provider_message_deduplication_status`.
+- `provider_event_deduplication_status`.
+- `duplicate_provider_record_ids`.
+- `provider_duplicate_detected_at`.
+- `provider_reconciliation_status`.
+
+Provider deduplication keys remain separate from:
+
+- ASOS `event_id`.
+- Command `idempotency_key`.
+- Canonical `interaction_id`.
+
+### Delivery and Read Projection
+
+- `delivery_status`.
+- `delivery_confirmation_status`.
+- `sent_at`.
+- `provider_accepted_at`.
+- `delivered_at`.
+- `delivery_failed_at`.
+- `read_status`.
+- `read_at`.
+- `read_confirmation_status`.
+- `recipient_response_status`.
+- `recipient_responded_at`.
+- `bounce_status`.
+- `bounce_type`.
+- `unsubscribe_status`.
+- `delivery_evidence_references`.
+- `read_evidence_references`.
+- `delivery_reconciliation_status`.
+
+### Interaction Timing
+
+- `occurred_at`.
+- `recorded_at`.
+- `received_at`.
+- `created_at`.
+- `queued_at`.
+- `sent_at`.
+- `delivered_at`.
+- `read_at`.
+- `started_at`.
+- `answered_at`.
+- `ended_at`.
+- `completed_at`.
+- `failed_at`.
+- `cancelled_at`.
+- `redacted_at`.
+- `archived_at`.
+
+`occurred_at` represents business occurrence time.
+
+`recorded_at` represents when ASOS recorded the evidence.
+
+### Outcome
+
+- `outcome_status`.
+- `outcome_type`.
+- `outcome_details`.
+- `outcome_evidence_references`.
+- `outcome_recorded_at`.
+- `outcome_recorded_by_actor_id`.
+- `outcome_authority`.
+- `downstream_action_required`.
+- `downstream_action_type`.
+- `downstream_action_reference`.
+- `outcome_review_status`.
+- `outcome_decision_id`.
+
+### Response and SLA
+
+- `response_required`.
+- `response_requirement_reason`.
+- `response_policy_id`.
+- `response_policy_version`.
+- `response_due_at`.
+- `first_response_interaction_id`.
+- `first_responded_at`.
+- `response_time_seconds`.
+- `response_sla_status`.
+- `response_sla_breached_at`.
+- `response_sla_waiver_decision_id`.
+- `response_sla_completed_at`.
+
+### Follow-Up and Escalation
+
+- `follow_up_required`.
+- `follow_up_reason`.
+- `recommended_follow_up_at`.
+- `authoritative_follow_up_at`.
+- `follow_up_task_reference`.
+- `follow_up_status`.
+- `escalation_required`.
+- `escalation_reason`.
+- `escalation_policy_id`.
+- `escalation_reference`.
+- `escalated_at`.
+- `escalation_resolved_at`.
+
+### Complaint and Dispute Context
+
+- `complaint_signal_status`.
+- `complaint_type_projection`.
+- `complaint_reference`.
+- `complaint_created_at`.
+- `dispute_signal_status`.
+- `dispute_reference`.
+- `legal_hold_status`.
+- `legal_hold_reference`.
+- `investigation_status`.
+- `investigation_evidence_references`.
+
+An Interaction complaint signal does not itself resolve or close a complaint.
+
+### Content Safety and Compliance
+
+- `content_moderation_status`.
+- `restricted_data_status`.
+- `restricted_data_types`.
+- `sensitive_data_detected`.
+- `personal_data_detected`.
+- `financial_data_detected`.
+- `identity_document_detected`.
+- `payment_instruction_detected`.
+- `prompt_injection_status`.
+- `malicious_content_status`.
+- `compliance_review_status`.
+- `compliance_block_reasons`.
+- `compliance_evidence_references`.
+
+### Redaction and Correction
+
+- `redaction_status`.
+- `redaction_type`.
+- `redaction_reason`.
+- `redaction_policy_id`.
+- `redaction_decision_id`.
+- `redacted_content_reference`.
+- `redacted_content_hash`.
+- `redaction_applied_at`.
+- `redaction_applied_by_actor_id`.
+- `correction_status`.
+- `correction_reason`.
+- `correction_interaction_id`.
+- `supersession_status`.
+- `superseded_at`.
+
+### Derived Intelligence
+
+- `intent_classification`.
+- `intent_scores`.
+- `sentiment_classification`.
+- `sentiment_score`.
+- `urgency_classification`.
+- `urgency_score`.
+- `topic_labels`.
+- `entity_extraction_results`.
+- `vehicle_interest_extraction`.
+- `appointment_signal`.
+- `quotation_signal`.
+- `finance_signal`.
+- `trade_in_signal`.
+- `payment_signal`.
+- `delivery_signal`.
+- `commitment_signal`.
+- `acceptance_signal`.
+- `rejection_signal`.
+- `opt_out_signal`.
+- `complaint_signal`.
+- `risk_signal`.
+- `ai_summary`.
+- `recommended_next_action`.
+- `recommended_response`.
+- `recommended_priority`.
+- `recommended_human_review`.
+- `requires_human_review`.
+- `derived_intelligence_expires_at`.
+
+Every material derived output must preserve:
+
+- Model, formula, or algorithm version.
+- Prompt version where applicable.
+- Input-record versions.
+- Evidence references.
+- Data freshness.
+- Confidence where meaningful.
+- Assumptions.
+- Limitations.
+- Generation timestamp.
+- Expiration timestamp.
+- Action Class.
+- Required Human authority.
+
+### AI Processing
+
+- `ai_processing_status`.
+- `ai_processing_request_ids`.
+- `ai_agent_run_ids`.
+- `ai_last_processed_at`.
+- `ai_processing_failure_reasons`.
+- `ai_processing_block_reasons`.
+- `ai_review_status`.
+- `ai_review_decision_id`.
+
+Canonical ingestion must not depend on successful AI processing.
+
+### Computed Projections
+
+- `interaction_age_seconds`.
+- `interaction_age_days`.
+- `conversation_duration_seconds`.
+- `time_to_first_response_seconds`.
+- `time_to_delivery_seconds`.
+- `is_unanswered`.
+- `is_overdue`.
+- `is_customer_visible`.
+- `is_internal_only`.
+- `is_recorded`.
+- `has_attachments`.
+- `has_restricted_data`.
+- `requires_follow_up`.
+- `sla_breached`.
+- `thread_interaction_count`.
+- `days_since_last_customer_interaction`.
+- `days_since_last_outbound_interaction`.
+
+### Source, Synchronization, and Audit
+
+- `source_system`.
+- `source_record_id`.
+- `source_authority`.
+- `source_created_at`.
+- `source_updated_at`.
+- `last_synced_at`.
+- `last_sync_status`.
+- `reconciliation_status`.
+- `field_authority_map`.
+- `created_at`.
+- `created_by_actor_type`.
+- `created_by_actor_id`.
+- `updated_at`.
+- `updated_by_actor_type`.
+- `updated_by_actor_id`.
+- `finalized_at`.
+- `finalized_by_actor_id`.
+- `archived_at`.
+
+---
 
 ## 3. Field Definitions
 
-| Name | Type | Description | Required | Default | Validation Rule | Example | Confidence Required |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| interaction_id | UUID | Unique canonical identifier for the Interaction. | Yes | Auto-generated | Must use a valid UUIDv4 format | 123e4567-e89b-12d3-a456-426614174000 | N/A |
-| dealership_id | UUID | Dealership tenant that owns the Interaction. | Yes | Active context | Must match the authenticated tenant | 987f6543-a21b-43d2-b123-426614174000 | N/A |
-| customer_id | UUID | Customer associated with the Interaction. | Conditional | Null | Required after successful Customer identity resolution | 777e8888-e99b-11d2-a333-426614174000 | System-controlled |
-| lead_id | UUID | Lead associated with the Interaction. | No | Null | Must belong to the same Customer and dealership when populated | 111e2222-e33b-44d5-a666-426614174000 | System-controlled |
-| opportunity_id | UUID | Opportunity supported by the Interaction. | No | Null | Must belong to the same Customer and dealership | 333e4444-e55b-66d7-a888-426614174000 | System-controlled |
-| deal_id | UUID | Deal associated with the Interaction. | No | Null | Must belong to the same Customer and dealership | 999e0000-e11b-22d3-a444-426614174000 | System-controlled |
-| conversation_thread_id | UUID | Canonical conversation thread containing the Interaction. | No | Null | Must belong to the same dealership and participants | 222e3333-e44b-55d6-a777-426614174000 | System-controlled |
-| interaction_type | Enum | Specific form of communication or engagement. | Yes | MESSAGE | Must match InteractionType ENUM | PHONE_CALL | At least 0.95 |
-| direction | Enum | Indicates whether the Interaction is inbound, outbound, internal, or system-generated. | Yes | INBOUND | Must match InteractionDirection ENUM | OUTBOUND | At least 0.99 |
-| channel | Enum | Communication channel used. | Yes | OTHER | Must match InteractionChannel ENUM | WHATSAPP | At least 0.99 |
-| status | Enum | Current lifecycle state of the Interaction. | Yes | CREATED | Must match InteractionStatus ENUM | DELIVERED | At least 0.99 |
-| purpose | Enum | Primary business purpose of the Interaction. | Yes | GENERAL_INQUIRY | Must match InteractionPurpose ENUM | QUOTATION_FOLLOW_UP | At least 0.90 |
-| priority | Enum | Operational urgency. | Yes | STANDARD | Must match InteractionPriority ENUM | HIGH | At least 0.90 |
-| source | Enum | Originating system or operational source. | Yes | MANUAL | Must match InteractionSource ENUM | WHATSAPP_PROVIDER | At least 0.95 |
-| sender_type | Enum | Type of participant that initiated the Interaction. | Yes | CUSTOMER | Must match InteractionParticipantType ENUM | AI_AGENT | At least 0.99 |
-| sender_id | UUID | Internal identifier of the sender when resolved. | No | Null | Must reference an entity compatible with sender_type | 321e6547-e89b-12d3-a456-426614174000 | System-controlled |
-| sender_address | String | Normalized sender address such as phone, email, or provider identifier. | Conditional | Null | Required for supported external communication channels | +201234567890 | Verified provider |
-| recipient_ids | UUID Array | Internal recipients associated with the Interaction. | No | Empty array | Every identifier must belong to the same tenant | [321e6547-e89b-12d3-a456-426614174000] | System-controlled |
-| subject | String | Short subject or conversation title. | No | Null | Maximum 500 characters | Test-drive confirmation | At least 0.90 |
-| content_text | Text | Normalized plain-text content. | Conditional | Null | Required for text-based Interactions unless media-only | I can visit tomorrow at 10 AM. | Provider or human |
-| content_summary | Text | Short governed summary of the Interaction. | No | Null | Must not introduce unsupported facts | Customer requested a test drive tomorrow morning. | AI or human |
-| language_code | String | Detected or selected language. | Yes | Dealership default | Must use a supported BCP 47 language tag | ar-EG | At least 0.95 |
-| occurred_at | Timestamp | Business time when the Interaction occurred. | Yes | Current server time | Must be valid and cannot be unreasonably later than ingestion time | 2026-08-01T14:00:00+03:00 | Provider or system |
-| provider_message_id | String | External provider message identifier. | No | Null | Must be unique within the provider account when populated | wamid.HBgM... | Trusted provider |
-| content_hash | String | Cryptographic hash of normalized Interaction content. | Conditional | Generated | Required after content normalization | sha256:7bc1... | System-generated |
-| consent_status | Enum | Communication-consent status applied to the Interaction. | Yes | UNKNOWN | Must match InteractionConsentStatus ENUM | PERMITTED | System-controlled |
-| contact_permission_checked | Boolean | Indicates whether permission was checked before outbound communication. | Yes | false | Must be true before regulated outbound delivery | true | System-controlled |
-| intent | Enum | Detected Customer or business intent. | No | UNKNOWN | Must match InteractionIntent ENUM | SCHEDULE_TEST_DRIVE | AI or human |
-| intent_confidence | Decimal | Confidence in intent classification. | No | 0.00 | Must remain between 0.00 and 1.00 | 0.94 | System-computed |
-| sentiment | Enum | Detected emotional polarity. | No | UNKNOWN | Must match InteractionSentiment ENUM | POSITIVE | AI or human |
-| sentiment_score | Decimal | Normalized sentiment score. | No | 0.00 | Must remain between -1.00 and 1.00 | 0.72 | System-computed |
-| urgency | Enum | Detected urgency classification. | Yes | NORMAL | Must match InteractionUrgency ENUM | HIGH | AI or human |
-| response_required | Boolean | Indicates whether a response is required. | Yes | false | Must be true when business policy requires continuation | true | System or human |
-| response_due_at | Timestamp | Deadline for the required response. | No | Null | Required when response_required is true | 2026-08-01T14:15:00+03:00 | System-calculated |
-| outcome | Enum | Result of the Interaction. | No | Null | Required when status becomes COMPLETED | APPOINTMENT_REQUESTED | Authorized human or trusted workflow |
-| follow_up_required | Boolean | Indicates whether a follow-up action is required. | Yes | false | Must be consistent with outcome and policy | true | System or human |
-| next_action_at | Timestamp | Due time for the follow-up action. | No | Null | Required when follow_up_required is true | 2026-08-01T15:00:00+03:00 | System or human |
-| recording_consent_status | Enum | Consent state for call or meeting recording. | Yes | NOT_APPLICABLE | Must match RecordingConsentStatus ENUM | GRANTED | Authoritative evidence |
-| ai_processing_status | Enum | Current AI-processing state. | Yes | NOT_REQUESTED | Must match AIProcessingStatus ENUM | COMPLETED | System-controlled |
-| human_review_required | Boolean | Indicates whether AI or compliance findings require human review. | Yes | false | Must become true for configured high-risk conditions | true | System-controlled |
-| record_version | Integer | Optimistic-concurrency version. | Yes | 1 | Must increase after every successful update | 4 | System-controlled |
+### Core Fields
+
+| Field | Type | Required | Authority | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `interaction_id` | UUID | Yes | ASOS | Immutable Canonical Interaction identifier. |
+| `tenant_id` | UUID | Yes | Security Context | Primary Tenant-isolation identifier. |
+| `interaction_number` | String | Yes | ASOS or configured authority | Human-readable Interaction reference. |
+| `interaction_type` | Enum | Yes | Source or workflow | Form of communication or engagement. |
+| `direction` | Enum | Yes | Source or workflow | Inbound, outbound, internal, or system direction. |
+| `channel` | Enum | Yes | Source or workflow | Communication channel. |
+| `status` | Enum | Yes | Interaction workflow | Current Interaction lifecycle state. |
+| `purpose` | Enum | Yes | Human, deterministic workflow, or Derived Intelligence | Governed communication purpose. |
+| `visibility` | Enum | Yes | Authorization policy | Permitted visibility of the Interaction. |
+| `occurred_at` | Timestamp | Yes | Source or authorized Human | Business occurrence time. |
+| `recorded_at` | Timestamp | Yes | ASOS | Time the Interaction was recorded. |
+| `record_version` | Integer | Yes | ASOS | Optimistic-concurrency version. |
+
+### Relationship Fields
+
+| Field | Type | Required | Authority | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `customer_id` | UUID | Conditional | Customer relationship | Resolved Customer where identity is sufficiently established. |
+| `lead_id` | UUID | No | Canonical relationship | Lead associated with the Interaction. |
+| `qualified_lead_id` | UUID | No | Canonical relationship | Qualified Lead supported by the Interaction. |
+| `opportunity_id` | UUID | No | Canonical relationship | Opportunity supported by the Interaction. |
+| `appointment_id` | UUID | No | Canonical relationship | Appointment discussed by the Interaction. |
+| `quotation_id` | UUID | No | Canonical relationship | Quotation discussed or presented. |
+| `vehicle_id` | UUID | No | Canonical relationship | Vehicle referenced by the Interaction. |
+| `trade_in_id` | UUID | No | Canonical relationship | Trade-In discussed. |
+| `finance_application_id` | UUID | No | Canonical relationship | Finance Application discussed. |
+| `financial_contract_id` | UUID | No | Canonical relationship | Financial Contract discussed. |
+| `deal_id` | UUID | No | Canonical relationship | Deal supported by the Interaction. |
+
+### Threading Fields
+
+| Field | Type | Required | Authority | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `conversation_thread_id` | UUID | Conditional | Thread workflow | Canonical Conversation Thread. |
+| `root_interaction_id` | UUID | No | Thread workflow | First Interaction in the thread. |
+| `parent_interaction_id` | UUID | No | Thread workflow | Parent Interaction where applicable. |
+| `reply_to_interaction_id` | UUID | No | Thread workflow | Interaction directly answered. |
+| `sequence_number` | Integer | No | Thread workflow | Canonical ordered sequence. |
+| `external_conversation_id` | String | No | Provider | External conversation reference. |
+| `external_thread_id` | String | No | Provider | External thread reference. |
+
+### Participant Fields
+
+| Field | Type | Required | Authority | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `interaction_participant_id` | UUID | Yes | ASOS | Identifier of one Interaction participant. |
+| `participant_role` | Enum | Yes | Source or workflow | Sender, recipient, copied participant, observer, or internal participant. |
+| `participant_type` | Enum | Yes | Source or workflow | Customer, User, AI Agent, external party, or system. |
+| `customer_id` | UUID | No | Customer relationship | Resolved Customer represented by the participant. |
+| `user_id` | UUID | No | Identity service | Internal authorized User. |
+| `agent_id` | UUID | No | Agent registry | Authorized AI Agent. |
+| `submitted_contact_value` | String | No | External source | Contact value received before verification. |
+| `normalized_contact_value_token` | String | No | Secure contact service | Protected normalized contact token. |
+| `identity_resolution_status` | Enum | Yes | Identity-resolution workflow | Current participant resolution state. |
+| `authentication_status` | Enum | Yes | Authentication authority | Whether the participant was authenticated for the interaction purpose. |
+
+### Content Fields
+
+| Field | Type | Required | Authority | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `original_content_reference` | String | Conditional | Evidence repository | Controlled reference to original source content. |
+| `original_content_hash` | String | Conditional | ASOS | Integrity hash of original evidence. |
+| `normalized_text` | Text | Conditional | Normalization workflow | Governed normalized representation. |
+| `structured_content` | JSON Object | No | Source or approved workflow | Structured message or system content. |
+| `content_language_code` | String | Yes | Source, Human, or Derived Intelligence | BCP 47 language tag. |
+| `content_hash` | String | Yes | ASOS | Hash of finalized normalized content. |
+| `customer_visible_text` | Text | Conditional | Authorized outbound workflow | Exact Customer-visible text. |
+| `customer_visible_content_hash` | String | Conditional | ASOS | Hash of finalized Customer-visible content. |
+| `internal_note_text` | Text | Conditional | Authorized Human | Restricted internal note content. |
+| `internal_note_hash` | String | Conditional | ASOS | Integrity hash of finalized internal note. |
+
+### Provider Fields
+
+| Field | Type | Required | Authority | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `provider_id` | UUID | Conditional | Integration registry | Configured communication provider. |
+| `provider_account_id` | String | Conditional | Provider configuration | Provider account used. |
+| `provider_message_id` | String | No | Provider | External provider message identifier. |
+| `provider_event_ids` | Array | No | Provider | Provider events associated with the Interaction. |
+| `provider_status` | String | No | Provider | Latest normalized provider status. |
+| `provider_deduplication_key` | String | Conditional | Integration workflow | Key used to prevent duplicate provider ingestion effects. |
+| `provider_reconciliation_status` | Enum | Yes | Reconciliation workflow | Current provider reconciliation state. |
+
+### Permission Fields
+
+| Field | Type | Required | Authority | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `communication_purpose` | Enum | Yes | Authorized workflow | Purpose for which communication occurs. |
+| `transactional_or_marketing_classification` | Enum | Yes | Deterministic policy | Communication classification. |
+| `lawful_basis` | Enum | Conditional | Consent or legal authority | Applicable processing basis. |
+| `consent_requirement_status` | Enum | Yes | Deterministic policy | Whether Consent is required. |
+| `consent_record_ids` | Array | No | Consent authority | Applicable Consent records. |
+| `contact_permission_status` | Enum | Yes | Policy Engine | Contact permission result. |
+| `channel_permission_status` | Enum | Yes | Policy Engine | Channel permission result. |
+| `quiet_hours_status` | Enum | Yes | Policy Engine | Quiet-hours evaluation result. |
+| `frequency_limit_status` | Enum | Yes | Policy Engine | Frequency-control result. |
+| `communication_policy_version` | String | Yes | Policy Engine | Applied policy version. |
+
+### Command and Delivery Fields
+
+| Field | Type | Required | Authority | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `send_authorization_status` | Enum | Conditional | Approval workflow | Authority to execute outbound delivery. |
+| `send_command_id` | UUID | No | Command Orchestration | Outbound communication Command. |
+| `send_idempotency_key` | String | Conditional | Command workflow | Retry-protection key. |
+| `send_command_status` | Enum | Yes | Command workflow | Current outbound Command state. |
+| `delivery_status` | Enum | Yes | Provider Projection | Current delivery state. |
+| `delivery_confirmation_status` | Enum | Yes | Workflow Projection | Provider delivery Confirmation state. |
+| `sent_at` | Timestamp | No | Provider or workflow | Time provider accepted the send where applicable. |
+| `delivered_at` | Timestamp | No | Provider | Time delivery was reported. |
+| `read_at` | Timestamp | No | Provider | Time read or opened status was reported. |
+
+### Outcome and Follow-Up Fields
+
+| Field | Type | Required | Authority | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `outcome_status` | Enum | Yes | Outcome workflow | Current outcome-recording state. |
+| `outcome_type` | Enum | No | Human or trusted workflow | Governed Interaction outcome. |
+| `outcome_evidence_references` | Array | No | Evidence repository | Supporting evidence. |
+| `response_required` | Boolean | Yes | Deterministic workflow or Human | Whether a response is required. |
+| `response_due_at` | Timestamp | Conditional | SLA policy | Response deadline. |
+| `response_sla_status` | Enum | Yes | SLA workflow | Current SLA state. |
+| `follow_up_required` | Boolean | Yes | Deterministic workflow or Human | Whether follow-up is required. |
+| `follow_up_task_reference` | String | No | Task workflow | Follow-up task reference. |
+| `escalation_required` | Boolean | Yes | Policy or Human | Whether escalation is required. |
+
+### Derived Intelligence Fields
+
+| Field | Type | Required | Authority | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `intent_classification` | Enum | No | Derived Intelligence | Predicted Interaction intent. |
+| `sentiment_classification` | Enum | No | Derived Intelligence | Predicted sentiment. |
+| `urgency_classification` | Enum | No | Derived Intelligence | Predicted urgency. |
+| `commitment_signal` | Enum | No | Derived Intelligence | Possible commitment indicator. |
+| `acceptance_signal` | Enum | No | Derived Intelligence | Possible acceptance indicator. |
+| `opt_out_signal` | Enum | No | Derived Intelligence | Possible opt-out indicator. |
+| `ai_summary` | Text | No | Derived Intelligence | Evidence-grounded summary. |
+| `recommended_next_action` | Enum | No | Derived Intelligence | Proposed next action. |
+| `requires_human_review` | Boolean | Yes | Policy or Derived Intelligence | Indicates required Human Review. |
+
+---
 
 ## 4. Enumerations
 
 ### InteractionStatus
 
-- **CREATED:** The Interaction record exists but processing has not started.
-- **RECEIVED:** An inbound Interaction was received from a trusted source.
-- **DRAFT:** An outbound Interaction is being prepared.
-- **QUEUED:** The outbound Interaction is waiting for provider delivery.
-- **SENT:** The provider accepted the outbound Interaction.
-- **DELIVERED:** Delivery was confirmed by the provider.
-- **READ:** The recipient opened or acknowledged the Interaction when supported.
-- **IN_PROGRESS:** A synchronous call, meeting, or conversation is active.
-- **COMPLETED:** The Interaction finished and its outcome was recorded.
-- **FAILED:** Processing or delivery failed.
-- **CANCELLED:** An outbound Interaction was cancelled before delivery.
-- **ARCHIVED:** The completed Interaction was moved to historical storage.
+- `CREATED`
+- `DRAFT`
+- `APPROVAL_PENDING`
+- `READY_TO_SEND`
+- `SEND_PENDING`
+- `QUEUED`
+- `SENT`
+- `DELIVERED`
+- `READ`
+- `RECEIVED`
+- `IN_PROGRESS`
+- `COMPLETED`
+- `FAILED`
+- `CANCELLED`
+- `REDACTED`
+- `SUPERSEDED`
+- `ARCHIVED`
 
 ### InteractionType
 
-- MESSAGE
-- PHONE_CALL
-- EMAIL
-- VIDEO_CALL
-- IN_PERSON_CONVERSATION
-- VOICE_NOTE
-- SOCIAL_MESSAGE
-- WEB_CHAT
-- SYSTEM_NOTIFICATION
-- INTERNAL_NOTE
-- DOCUMENT_EXCHANGE
-- CUSTOMER_FEEDBACK
-- COMPLAINT
-- OTHER
+- `TEXT_MESSAGE`
+- `EMAIL`
+- `PHONE_CALL`
+- `VIDEO_CALL`
+- `IN_PERSON_CONVERSATION`
+- `VOICE_NOTE`
+- `WEB_CHAT`
+- `SOCIAL_MESSAGE`
+- `MARKETPLACE_MESSAGE`
+- `WEBSITE_FORM_SUBMISSION`
+- `MOBILE_APP_MESSAGE`
+- `DOCUMENT_EXCHANGE`
+- `SYSTEM_NOTIFICATION`
+- `INTERNAL_NOTE`
+- `CUSTOMER_FEEDBACK`
+- `COMPLAINT`
+- `SURVEY_RESPONSE`
+- `OTHER`
 
 ### InteractionDirection
 
-- INBOUND
-- OUTBOUND
-- INTERNAL
-- SYSTEM_GENERATED
+- `INBOUND`
+- `OUTBOUND`
+- `INTERNAL`
+- `SYSTEM_GENERATED`
 
 ### InteractionChannel
 
-- PHONE
-- SMS
-- WHATSAPP
-- EMAIL
-- WEB_CHAT
-- WEBSITE_FORM
-- MOBILE_APP
-- VIDEO
-- IN_PERSON
-- FACEBOOK
-- INSTAGRAM
-- MARKETPLACE
-- OEM_PLATFORM
-- INTERNAL_SYSTEM
-- OTHER
+- `PHONE`
+- `SMS`
+- `WHATSAPP`
+- `EMAIL`
+- `WEB_CHAT`
+- `WEBSITE_FORM`
+- `MOBILE_APP`
+- `VIDEO`
+- `IN_PERSON`
+- `FACEBOOK`
+- `INSTAGRAM`
+- `OTHER_SOCIAL_PLATFORM`
+- `MARKETPLACE`
+- `OEM_PLATFORM`
+- `PARTNER_PLATFORM`
+- `INTERNAL_SYSTEM`
+- `POSTAL_MAIL`
+- `OTHER`
 
 ### InteractionPurpose
 
-- GENERAL_INQUIRY
-- LEAD_FOLLOW_UP
-- REQUIREMENT_DISCOVERY
-- VEHICLE_INFORMATION
-- VEHICLE_AVAILABILITY
-- APPOINTMENT_SCHEDULING
-- APPOINTMENT_CONFIRMATION
-- TEST_DRIVE_FOLLOW_UP
-- TRADE_IN_DISCUSSION
-- QUOTATION_PRESENTATION
-- QUOTATION_FOLLOW_UP
-- NEGOTIATION
-- FINANCE_DISCUSSION
-- DOCUMENT_COLLECTION
-- CONTRACT_DISCUSSION
-- PAYMENT_FOLLOW_UP
-- DELIVERY_COORDINATION
-- POST_SALE_FOLLOW_UP
-- COMPLAINT_HANDLING
-- CUSTOMER_SUPPORT
-- OPT_OUT_REQUEST
-- INTERNAL_COORDINATION
-- OTHER
+- `GENERAL_INQUIRY`
+- `LEAD_RESPONSE`
+- `LEAD_FOLLOW_UP`
+- `QUALIFICATION`
+- `REQUIREMENT_DISCOVERY`
+- `VEHICLE_INFORMATION`
+- `VEHICLE_AVAILABILITY`
+- `APPOINTMENT_SCHEDULING`
+- `APPOINTMENT_CONFIRMATION`
+- `APPOINTMENT_RESCHEDULING`
+- `APPOINTMENT_CANCELLATION`
+- `TEST_DRIVE_COORDINATION`
+- `TEST_DRIVE_FOLLOW_UP`
+- `TRADE_IN_DISCUSSION`
+- `QUOTATION_REQUEST`
+- `QUOTATION_PRESENTATION`
+- `QUOTATION_FOLLOW_UP`
+- `NEGOTIATION`
+- `FINANCE_DISCUSSION`
+- `FINANCE_DOCUMENT_REQUEST`
+- `CONTRACT_DISCUSSION`
+- `SIGNATURE_COORDINATION`
+- `PAYMENT_FOLLOW_UP`
+- `FUNDING_UPDATE`
+- `DELIVERY_COORDINATION`
+- `POST_SALE_FOLLOW_UP`
+- `CUSTOMER_SUPPORT`
+- `COMPLAINT_HANDLING`
+- `DISPUTE_HANDLING`
+- `OPT_OUT_PROCESSING`
+- `INTERNAL_COORDINATION`
+- `SYSTEM_ALERT`
+- `OTHER`
+
+### CommunicationCategory
+
+- `TRANSACTIONAL`
+- `SERVICE`
+- `MARKETING`
+- `SALES_FOLLOW_UP`
+- `LEGAL_OR_REGULATORY`
+- `SECURITY`
+- `INTERNAL`
+- `OTHER`
 
 ### InteractionPriority
 
-- LOW
-- STANDARD
-- HIGH
-- URGENT
-- CRITICAL
-- VIP
+- `LOW`
+- `STANDARD`
+- `HIGH`
+- `URGENT`
+- `CRITICAL`
 
-### InteractionSource
-
-- MANUAL
-- CRM
-- WEBSITE
-- MOBILE_APP
-- PHONE_PROVIDER
-- WHATSAPP_PROVIDER
-- EMAIL_PROVIDER
-- SOCIAL_PLATFORM
-- MARKETPLACE
-- OEM_PLATFORM
-- CALENDAR
-- AI_AGENT
-- AUTOMATION
-- IMPORT
-- API_INTEGRATION
-- OTHER
-
-### InteractionParticipantType
-
-- CUSTOMER
-- PROSPECT
-- USER
-- AI_AGENT
-- SYSTEM
-- LENDER
-- VENDOR
-- OEM
-- PARTNER
-- UNKNOWN
+Priority must not override Consent, authorization, privacy, safety, legal, or communication-policy controls.
 
 ### InteractionVisibility
 
-- CUSTOMER_VISIBLE
-- INTERNAL
-- RESTRICTED
-- COMPLIANCE_ONLY
-- MANAGEMENT_ONLY
+- `CUSTOMER_VISIBLE`
+- `INTERNAL`
+- `RESTRICTED`
+- `FINANCE_RESTRICTED`
+- `LEGAL_RESTRICTED`
+- `COMPLIANCE_RESTRICTED`
+- `MANAGEMENT_RESTRICTED`
+- `SECURITY_RESTRICTED`
 
-### InteractionConsentStatus
+### InteractionSource
 
-- UNKNOWN
-- NOT_REQUIRED
-- PERMITTED
-- RESTRICTED
-- OPTED_OUT
-- EXPIRED
-- BLOCKED
+- `MANUAL`
+- `CRM`
+- `DMS`
+- `WEBSITE`
+- `MOBILE_APP`
+- `PHONE_PROVIDER`
+- `MESSAGING_PROVIDER`
+- `EMAIL_PROVIDER`
+- `SOCIAL_PLATFORM`
+- `MARKETPLACE`
+- `OEM_PLATFORM`
+- `PARTNER_PLATFORM`
+- `CALENDAR`
+- `AI_AGENT`
+- `AUTOMATION`
+- `IMPORT`
+- `API_INTEGRATION`
+- `OTHER`
 
-### InteractionIntent
+### WorkflowAuthorityMode
 
-- UNKNOWN
-- ASK_VEHICLE_PRICE
-- ASK_VEHICLE_AVAILABILITY
-- REQUEST_QUOTATION
-- SCHEDULE_APPOINTMENT
-- SCHEDULE_TEST_DRIVE
-- CHANGE_APPOINTMENT
-- CANCEL_APPOINTMENT
-- DISCUSS_TRADE_IN
-- APPLY_FOR_FINANCE
-- PROVIDE_DOCUMENTS
-- NEGOTIATE_PRICE
-- ACCEPT_OFFER
-- REJECT_OFFER
-- REQUEST_CALLBACK
-- REQUEST_DELIVERY_UPDATE
-- REPORT_COMPLAINT
-- OPT_OUT
-- OTHER
+- `ASOS_AUTHORITATIVE`
+- `COMMUNICATION_PROVIDER_AUTHORITATIVE`
+- `EXTERNAL_CRM_AUTHORITATIVE`
+- `GOVERNED_BIDIRECTIONAL`
 
-### InteractionSentiment
+### InteractionParticipantRole
 
-- UNKNOWN
-- VERY_NEGATIVE
-- NEGATIVE
-- NEUTRAL
-- POSITIVE
-- VERY_POSITIVE
-- MIXED
+- `SENDER`
+- `PRIMARY_RECIPIENT`
+- `CC_RECIPIENT`
+- `BCC_RECIPIENT`
+- `CALLER`
+- `CALLEE`
+- `ATTENDEE`
+- `AUTHOR`
+- `OBSERVER`
+- `INTERNAL_PARTICIPANT`
+- `OTHER`
 
-### InteractionUrgency
+### InteractionParticipantType
 
-- LOW
-- NORMAL
-- HIGH
-- URGENT
-- CRITICAL
+- `CUSTOMER`
+- `PROSPECT`
+- `USER`
+- `AI_AGENT`
+- `SYSTEM`
+- `LENDER`
+- `COMMUNICATION_PROVIDER`
+- `VENDOR`
+- `OEM`
+- `PARTNER`
+- `LEGAL_REPRESENTATIVE`
+- `AUTHORIZED_REPRESENTATIVE`
+- `UNKNOWN_EXTERNAL_PARTY`
 
-### InteractionOutcome
+### ParticipantStatus
 
-- INFORMATION_PROVIDED
-- CUSTOMER_RESPONDED
-- CUSTOMER_UNREACHABLE
-- CALLBACK_REQUESTED
-- APPOINTMENT_REQUESTED
-- APPOINTMENT_CONFIRMED
-- APPOINTMENT_CANCELLED
-- REQUIREMENTS_UPDATED
-- VEHICLE_SELECTED
-- QUOTATION_REQUESTED
-- QUOTATION_PRESENTED
-- OFFER_ACCEPTED
-- OFFER_REJECTED
-- FINANCE_APPLICATION_STARTED
-- DOCUMENTS_RECEIVED
-- DEAL_PROGRESS_UPDATED
-- DELIVERY_UPDATE_PROVIDED
-- COMPLAINT_OPENED
-- COMPLAINT_RESOLVED
-- OPT_OUT_PROCESSED
-- FOLLOW_UP_REQUIRED
-- NO_ACTION_REQUIRED
-- ESCALATED
-- OTHER
-
-### RecordingConsentStatus
-
-- NOT_APPLICABLE
-- NOT_REQUESTED
-- PENDING
-- GRANTED
-- DECLINED
-- WITHDRAWN
-- EXPIRED
-
-### AIProcessingStatus
-
-- NOT_REQUESTED
-- QUEUED
-- PROCESSING
-- COMPLETED
-- FAILED
-- BLOCKED
-- HUMAN_REVIEW_REQUIRED
+- `UNRESOLVED`
+- `RESOLVED`
+- `AUTHENTICATED`
+- `UNAUTHENTICATED`
+- `CONFLICTED`
+- `RESTRICTED`
+- `REMOVED`
+- `DISPUTED`
 
 ### IdentityResolutionStatus
 
-- NOT_REQUIRED
-- UNRESOLVED
-- PARTIALLY_RESOLVED
-- RESOLVED
-- CONFLICT
-- MANUAL_REVIEW_REQUIRED
+- `NOT_REQUIRED`
+- `NOT_STARTED`
+- `CANDIDATES_FOUND`
+- `PARTIALLY_RESOLVED`
+- `RESOLVED`
+- `AMBIGUOUS`
+- `CONFLICTED`
+- `REJECTED`
+- `MANUAL_REVIEW_REQUIRED`
+
+### AuthenticationStatus
+
+- `NOT_REQUIRED`
+- `NOT_AUTHENTICATED`
+- `AUTHENTICATION_PENDING`
+- `AUTHENTICATED`
+- `AUTHENTICATION_FAILED`
+- `EXPIRED`
+- `REVIEW_REQUIRED`
+
+### ContentIntegrityStatus
+
+- `NOT_EVALUATED`
+- `VALID`
+- `HASH_MISMATCH`
+- `INCOMPLETE`
+- `ALTERED`
+- `CORRUPTED`
+- `DISPUTED`
+- `REVIEW_REQUIRED`
+
+### AttachmentProcessingStatus
+
+- `NOT_REQUIRED`
+- `PENDING`
+- `PROCESSING`
+- `COMPLETED`
+- `PARTIALLY_COMPLETED`
+- `FAILED`
+- `BLOCKED`
+- `QUARANTINED`
+- `REVIEW_REQUIRED`
+
+### MalwareScanStatus
+
+- `NOT_REQUIRED`
+- `NOT_SCANNED`
+- `PENDING`
+- `CLEAN`
+- `SUSPICIOUS`
+- `MALICIOUS`
+- `SCAN_FAILED`
+- `QUARANTINED`
+
+### DataLossPreventionStatus
+
+- `NOT_REQUIRED`
+- `NOT_EVALUATED`
+- `PENDING`
+- `CLEARED`
+- `RESTRICTED_DATA_DETECTED`
+- `BLOCKED`
+- `REVIEW_REQUIRED`
+
+### SessionStatus
+
+- `NOT_STARTED`
+- `RINGING`
+- `CONNECTING`
+- `IN_PROGRESS`
+- `ON_HOLD`
+- `COMPLETED`
+- `MISSED`
+- `DECLINED`
+- `FAILED`
+- `CANCELLED`
+- `DISCONNECTED`
+- `DISPUTED`
+
+### RecordingStatus
+
+- `NOT_REQUIRED`
+- `NOT_STARTED`
+- `CONSENT_PENDING`
+- `RECORDING`
+- `STOPPED`
+- `COMPLETED`
+- `FAILED`
+- `BLOCKED`
+- `REDACTED`
+- `DELETED_UNDER_POLICY`
+- `LEGAL_HOLD`
+
+### RecordingConsentStatus
+
+- `NOT_REQUIRED`
+- `NOT_REQUESTED`
+- `PENDING`
+- `GRANTED`
+- `DECLINED`
+- `WITHDRAWN`
+- `EXPIRED`
+- `DISPUTED`
+- `REVALIDATION_REQUIRED`
+
+### TranscriptStatus
+
+- `NOT_REQUIRED`
+- `NOT_REQUESTED`
+- `QUEUED`
+- `PROCESSING`
+- `COMPLETED`
+- `FAILED`
+- `BLOCKED`
+- `REVIEW_REQUIRED`
+- `CORRECTED`
+- `REDACTED`
+
+### TranslationStatus
+
+- `NOT_REQUIRED`
+- `NOT_REQUESTED`
+- `QUEUED`
+- `PROCESSING`
+- `COMPLETED`
+- `FAILED`
+- `REVIEW_REQUIRED`
+- `CORRECTED`
+- `REDACTED`
+
+### CommunicationClassification
+
+- `TRANSACTIONAL`
+- `MARKETING`
+- `SERVICE`
+- `LEGAL`
+- `SECURITY`
+- `INTERNAL`
+- `MIXED`
+- `UNKNOWN`
+
+### LawfulBasis
+
+- `CONSENT`
+- `CONTRACTUAL_NECESSITY`
+- `LEGAL_OBLIGATION`
+- `LEGITIMATE_INTEREST_WHERE_PERMITTED`
+- `VITAL_INTEREST_WHERE_APPLICABLE`
+- `OTHER_APPROVED_BASIS`
+- `NOT_APPLICABLE`
+- `UNKNOWN`
+
+### ConsentRequirementStatus
+
+- `NOT_EVALUATED`
+- `NOT_REQUIRED`
+- `REQUIRED`
+- `SATISFIED`
+- `NOT_SATISFIED`
+- `WITHDRAWN`
+- `EXPIRED`
+- `DISPUTED`
+- `REVALIDATION_REQUIRED`
+
+### PermissionStatus
+
+- `NOT_EVALUATED`
+- `PERMITTED`
+- `PERMITTED_WITH_RESTRICTIONS`
+- `NOT_PERMITTED`
+- `OPTED_OUT`
+- `BLOCKED`
+- `EXPIRED`
+- `REVIEW_REQUIRED`
+
+### QuietHoursStatus
+
+- `NOT_EVALUATED`
+- `NOT_APPLICABLE`
+- `PERMITTED_NOW`
+- `DEFERRED`
+- `BLOCKED`
+- `OVERRIDE_APPROVAL_REQUIRED`
+
+### FrequencyLimitStatus
+
+- `NOT_EVALUATED`
+- `NOT_APPLICABLE`
+- `WITHIN_LIMIT`
+- `LIMIT_APPROACHING`
+- `LIMIT_REACHED`
+- `BLOCKED`
+- `OVERRIDE_APPROVAL_REQUIRED`
+
+### OptOutSignalStatus
+
+- `NOT_DETECTED`
+- `POTENTIAL`
+- `DETECTED`
+- `CONFIRMED`
+- `DISPUTED`
+- `FALSE_POSITIVE`
+
+### OptOutProcessingStatus
+
+- `NOT_REQUIRED`
+- `PENDING`
+- `PROCESSING`
+- `PENDING_CONFIRMATION`
+- `COMPLETED`
+- `FAILED`
+- `DISPUTED`
+- `RECONCILIATION_REQUIRED`
+
+### DraftStatus
+
+- `NOT_APPLICABLE`
+- `CREATED`
+- `AI_GENERATED`
+- `HUMAN_AUTHORED`
+- `REVIEW_PENDING`
+- `APPROVED`
+- `REJECTED`
+- `EXPIRED`
+- `SUPERSEDED`
+- `CANCELLED`
+
+### SendAuthorizationStatus
+
+- `NOT_REQUIRED`
+- `NOT_EVALUATED`
+- `PENDING`
+- `AUTHORIZED_BY_HUMAN`
+- `AUTHORIZED_BY_AUTOMATION_POLICY`
+- `REJECTED`
+- `REVOKED`
+- `EXPIRED`
+
+### SendCommandStatus
+
+- `NOT_REQUIRED`
+- `NOT_CREATED`
+- `CREATION_PENDING`
+- `CREATED`
+- `DISPATCH_PENDING`
+- `DISPATCHED`
+- `PENDING_PROVIDER_CONFIRMATION`
+- `ACKNOWLEDGED_BY_PROVIDER`
+- `FAILED`
+- `CANCELLED`
+- `EXPIRED`
+- `RECONCILIATION_REQUIRED`
+
+### InteractionDeliveryStatus
+
+- `NOT_APPLICABLE`
+- `NOT_SENT`
+- `QUEUED`
+- `PROVIDER_ACCEPTED`
+- `PENDING_CONFIRMATION`
+- `DELIVERED`
+- `PARTIALLY_DELIVERED`
+- `BOUNCED`
+- `UNDELIVERABLE`
+- `FAILED`
+- `EXPIRED`
+- `UNKNOWN`
+- `RECONCILIATION_REQUIRED`
+
+### ReadStatus
+
+- `NOT_SUPPORTED`
+- `NOT_READ`
+- `PENDING_CONFIRMATION`
+- `READ`
+- `ACKNOWLEDGED`
+- `UNKNOWN`
+- `RECONCILIATION_REQUIRED`
+
+### InteractionOutcomeStatus
+
+- `NOT_EVALUATED`
+- `PENDING`
+- `RECORDED`
+- `REVIEW_REQUIRED`
+- `CONFIRMED`
+- `DISPUTED`
+- `SUPERSEDED`
+
+### InteractionOutcome
+
+- `INFORMATION_PROVIDED`
+- `CUSTOMER_RESPONDED`
+- `CUSTOMER_UNREACHABLE`
+- `CALLBACK_REQUESTED`
+- `APPOINTMENT_REQUESTED`
+- `APPOINTMENT_CHANGE_REQUESTED`
+- `APPOINTMENT_CANCELLATION_REQUESTED`
+- `REQUIREMENTS_DISCOVERED`
+- `VEHICLE_INTEREST_EXPRESSED`
+- `QUOTATION_REQUESTED`
+- `QUOTATION_PRESENTED`
+- `POSSIBLE_OFFER_ACCEPTANCE`
+- `POSSIBLE_OFFER_REJECTION`
+- `TRADE_IN_INTEREST_EXPRESSED`
+- `FINANCE_INTEREST_EXPRESSED`
+- `DOCUMENTS_RECEIVED`
+- `CONTRACT_QUESTION_RECEIVED`
+- `PAYMENT_STATUS_DISCUSSION`
+- `DELIVERY_UPDATE_PROVIDED`
+- `COMPLAINT_SIGNAL_DETECTED`
+- `COMPLAINT_OPENED`
+- `OPT_OUT_REQUESTED`
+- `FOLLOW_UP_REQUIRED`
+- `ESCALATION_REQUIRED`
+- `NO_FURTHER_ACTION`
+- `OTHER`
+
+Outcome values that contain `POSSIBLE` remain evidence signals and not authoritative downstream outcomes.
 
 ### ResponseSLAStatus
 
-- NOT_APPLICABLE
-- PENDING
-- WITHIN_SLA
-- DUE_SOON
-- BREACHED
-- WAIVED
-- COMPLETED
+- `NOT_APPLICABLE`
+- `PENDING`
+- `WITHIN_SLA`
+- `DUE_SOON`
+- `BREACHED`
+- `WAIVER_PENDING`
+- `WAIVED`
+- `COMPLETED`
+- `DISPUTED`
+
+### FollowUpStatus
+
+- `NOT_REQUIRED`
+- `PENDING`
+- `SCHEDULED`
+- `IN_PROGRESS`
+- `COMPLETED`
+- `CANCELLED`
+- `OVERDUE`
+- `ESCALATED`
+
+### ComplaintSignalStatus
+
+- `NOT_DETECTED`
+- `POTENTIAL`
+- `DETECTED`
+- `CONFIRMED`
+- `FALSE_POSITIVE`
+- `DISPUTED`
+
+### ContentModerationStatus
+
+- `NOT_EVALUATED`
+- `PENDING`
+- `CLEARED`
+- `RESTRICTED`
+- `BLOCKED`
+- `ESCALATED`
+- `REVIEW_REQUIRED`
+
+### PromptInjectionStatus
+
+- `NOT_EVALUATED`
+- `NOT_DETECTED`
+- `POTENTIAL`
+- `DETECTED`
+- `BLOCKED`
+- `REVIEW_REQUIRED`
 
 ### ComplianceReviewStatus
 
-- NOT_REQUIRED
-- PENDING
-- CLEARED
-- RESTRICTED
-- BLOCKED
-- MANUAL_REVIEW_REQUIRED
+- `NOT_REQUIRED`
+- `PENDING`
+- `IN_REVIEW`
+- `CLEARED`
+- `CLEARED_WITH_RESTRICTIONS`
+- `BLOCKED`
+- `ESCALATED`
+- `DISPUTED`
+
+### RedactionStatus
+
+- `NOT_REQUIRED`
+- `REQUESTED`
+- `REVIEW_PENDING`
+- `APPROVED`
+- `APPLIED`
+- `REJECTED`
+- `FAILED`
+- `LEGAL_HOLD_BLOCKED`
+- `RECONCILIATION_REQUIRED`
+
+### CorrectionStatus
+
+- `NOT_REQUIRED`
+- `REQUESTED`
+- `REVIEW_PENDING`
+- `APPROVED`
+- `CORRECTED_BY_SUPERSESSION`
+- `REJECTED`
+- `DISPUTED`
+
+### AIProcessingStatus
+
+- `NOT_REQUESTED`
+- `QUEUED`
+- `PROCESSING`
+- `COMPLETED`
+- `PARTIALLY_COMPLETED`
+- `FAILED`
+- `BLOCKED`
+- `HUMAN_REVIEW_REQUIRED`
+- `EXPIRED`
+
+### InteractionIntent
+
+- `UNKNOWN`
+- `ASK_VEHICLE_PRICE`
+- `ASK_VEHICLE_AVAILABILITY`
+- `REQUEST_VEHICLE_DETAILS`
+- `REQUEST_QUOTATION`
+- `SCHEDULE_APPOINTMENT`
+- `SCHEDULE_TEST_DRIVE`
+- `CHANGE_APPOINTMENT`
+- `CANCEL_APPOINTMENT`
+- `DISCUSS_TRADE_IN`
+- `APPLY_FOR_FINANCE`
+- `PROVIDE_DOCUMENTS`
+- `NEGOTIATE_PRICE`
+- `POSSIBLE_ACCEPTANCE`
+- `POSSIBLE_REJECTION`
+- `REQUEST_CALLBACK`
+- `REQUEST_PAYMENT_UPDATE`
+- `REQUEST_DELIVERY_UPDATE`
+- `REPORT_COMPLAINT`
+- `REQUEST_SUPPORT`
+- `OPT_OUT`
+- `OTHER`
+
+### InteractionSentiment
+
+- `UNKNOWN`
+- `VERY_NEGATIVE`
+- `NEGATIVE`
+- `NEUTRAL`
+- `POSITIVE`
+- `VERY_POSITIVE`
+- `MIXED`
+
+### InteractionUrgency
+
+- `UNKNOWN`
+- `LOW`
+- `NORMAL`
+- `HIGH`
+- `URGENT`
+- `CRITICAL`
+
+### SignalStatus
+
+- `NOT_DETECTED`
+- `POTENTIAL`
+- `DETECTED`
+- `CONFIRMED_BY_HUMAN`
+- `CONFIRMED_BY_WORKFLOW`
+- `FALSE_POSITIVE`
+- `DISPUTED`
+- `EXPIRED`
+
+### ReviewStatus
+
+- `NOT_REQUIRED`
+- `PENDING`
+- `IN_REVIEW`
+- `APPROVED`
+- `REJECTED`
+- `ESCALATED`
+- `CANCELLED`
+- `EXPIRED`
+
+### ConfirmationStatus
+
+- `NOT_REQUIRED`
+- `NOT_REQUESTED`
+- `PENDING`
+- `RECEIVED`
+- `REJECTED`
+- `FAILED`
+- `EXPIRED`
+- `RECONCILIATION_REQUIRED`
+
+### ReconciliationStatus
+
+- `NOT_REQUIRED`
+- `CURRENT`
+- `PENDING`
+- `IN_PROGRESS`
+- `RESOLVED`
+- `FAILED`
+- `MANUAL_REVIEW_REQUIRED`
+
+### DataQualityStatus
+
+- `COMPLETE`
+- `INCOMPLETE`
+- `STALE`
+- `CONFLICTED`
+- `QUARANTINED`
+
+### ConflictStatus
+
+- `NONE`
+- `POTENTIAL`
+- `CONFIRMED`
+- `UNDER_REVIEW`
+- `RESOLVED`
+
+---
 
 ## 5. Validation Rules
 
-### Business Rules
+### Tenant and Organizational Rules
 
-- Every Interaction must belong to exactly one dealership tenant.
-- Every inbound Interaction must preserve its trusted source and provider reference when available.
-- Every outbound Interaction must have an authorized sender.
-- Customer identity may remain unresolved temporarily for inbound messages, but identity resolution must occur before sensitive information is disclosed.
-- A Customer-facing outbound Interaction must pass consent, channel, quiet-hours, and frequency-limit checks.
-- An opted-out Customer must not receive unauthorized promotional communication.
-- Transactional communication may proceed only when permitted by law, policy, and documented purpose.
-- A phone or video recording requires valid recording consent when legally required.
-- Internal notes must never be delivered to the Customer.
-- Restricted financial, identity, compliance, or profitability data must not appear in unrestricted Customer-facing content.
-- A completed Interaction must preserve its outcome when an operational result occurred.
-- An unanswered Customer Interaction must create a follow-up requirement according to SLA policy.
-- Customer promises, dealership commitments, complaints, opt-outs, and acceptance signals must be explicitly recorded.
-- AI-generated outbound content must be reviewed or policy-approved before delivery.
-- An AI Agent must identify itself when required by policy.
-- An Interaction linked to a Deal, Finance Application, Complaint, or legal dispute may be subject to enhanced retention or legal hold.
-- Provider delivery confirmation does not prove Customer understanding or acceptance.
-- Customer acceptance of an offer must reference the applicable Quotation, finance offer, contract, or Deal evidence rather than relying on free text alone.
+- `tenant_id` is required and immutable.
+- `tenant_id` must come from the authenticated security context.
+- Request bodies must not override `tenant_id`.
+- Every related Domain Object must belong to the authorized Tenant.
+- Dealership, branch, department, queue, team, User, and Agent must belong to the permitted organizational scope.
+- Cross-Tenant Interaction access, search, threading, identity matching, AI retrieval, export, and communication execution are prohibited unless governed by an approved mechanism.
+- Background Jobs, Event Consumers, connectors, and AI Agents must receive trusted Tenant execution context.
 
-### Technical Rules
+### Interaction Creation Rules
 
-- Provider events must be authenticated and deduplicated.
-- `provider_message_id` or `provider_event_id` must be used as an idempotency key when available.
-- Outbound send operations must require an idempotency key.
-- Normalized content must produce a cryptographic `content_hash`.
-- `record_version` must increase after every permitted update.
-- Completed Customer-visible content must be immutable.
-- Corrections must create a versioned replacement or governed redaction record.
-- Message ordering within a thread must preserve provider sequence and event timestamps.
-- Attachments must be scanned, classified, and stored in the approved Document Vault.
-- Public media URLs must not be stored.
-- Transcripts must preserve source recording, provider, model version, and confidence.
-- AI outputs must preserve model reference, prompt version, structured input scope, and confidence.
-- Failed AI processing must not block canonical Interaction ingestion.
-- Failed provider delivery must create retry or Human Review logic according to policy.
-- SLA calculations must use authoritative server time.
+Every Interaction must contain:
 
-### Data Constraints
+- Tenant context.
+- Interaction type.
+- Direction.
+- Channel.
+- Source.
+- Occurrence time.
+- Participant context.
+- Content, session evidence, attachment, structured system content, or internal-note content.
+- Visibility.
+- Security classification.
+- Audit actor.
+- Idempotency or provider deduplication controls where applicable.
 
-- `occurred_at` is required for every Interaction.
-- `scheduled_end_at` or equivalent does not apply unless the Interaction is synchronous.
-- `ended_at` must be later than `started_at`.
-- `completed_at` cannot precede `occurred_at`.
-- `delivered_at` cannot precede `sent_at`.
-- `read_at` cannot precede `delivered_at`.
-- `responded_at` cannot precede the related inbound Interaction.
-- `intent_confidence` must remain between `0.00` and `1.00`.
-- `identity_resolution_confidence` must remain between `0.00` and `1.00`.
-- `transcript_confidence` must remain between `0.00` and `1.00`.
-- `sentiment_score` must remain between `-1.00` and `1.00`.
-- `urgency_score` must remain between `0.00` and `1.00`.
-- `quality_score` must remain between `0.00` and `100.00`.
-- `response_due_at` is required when `response_required = true`.
-- `next_action_at` is required when `follow_up_required = true`.
-- `escalation_reason` is required when `escalation_required = true`.
-- `redaction_reason` is required when `content_redacted = true`.
-- `recording_consent_status = GRANTED` is required before recording when consent is mandatory.
-- `content_text`, media, attachment, recording, or structured system content must exist.
-- `provider_error_code` or failure details must exist when status becomes `FAILED`.
+An Interaction must not be created without meaningful evidence or a valid outbound Draft purpose.
 
-### Referential Integrity
+### Inbound Ingestion Rules
 
-- All linked records must belong to the same `dealership_id`.
-- `lead_id`, `qualified_lead_id`, `opportunity_id`, and `deal_id` must belong to the linked Customer when `customer_id` is known.
-- `appointment_id`, `quotation_id`, `trade_in_id`, and `finance_application_id` must match the same Customer Journey context.
-- `vehicle_id` must belong to the referenced Opportunity, Quotation, Appointment, or Deal context when applicable.
-- `conversation_thread_id` must belong to the same dealership.
-- `parent_interaction_id`, `reply_to_interaction_id`, and `root_interaction_id` must belong to the same conversation thread.
+Inbound provider ingestion requires:
+
+- Authenticated or otherwise trusted provider source.
+- Provider account.
+- Provider event or message reference where supported.
+- Provider deduplication key.
+- Source timestamp.
+- Original payload reference.
+- Original payload hash.
+- Normalization outcome.
+- Tenant routing.
+- Security scanning.
+- Audit evidence.
+
+An inbound provider event may be delivered more than once.
+
+The integration must prevent duplicate business effects using provider-specific deduplication identifiers.
+
+Provider deduplication must not be confused with ASOS Event Consumer deduplication using `event_id`.
+
+### Outbound Creation Rules
+
+An outbound Interaction must not be sent unless:
+
+- Authorized sender exists.
+- Intended recipients are identified.
+- Recipient contact points are valid for the purpose.
+- Communication purpose is known.
+- Transactional or marketing classification is known.
+- Required Consent or lawful basis exists.
+- Channel permission is valid.
+- Quiet-hours policy passes.
+- Frequency-limit policy passes.
+- Customer restrictions are respected.
+- Content is finalized.
+- Customer-visible content hash exists.
+- Required Human Approval or automation policy exists.
+- Communication provider is approved.
+- Send Command uses an `idempotency_key`.
+- No security or compliance block exists.
+
+### Outbound Content Freeze Rules
+
+Once a send Command is created:
+
+- Customer-visible content must be immutable.
+- Recipient set must be immutable for that Command.
+- Template version must be preserved.
+- Content hash must be preserved.
+- Permission snapshot must be preserved.
+- Approval or automation-policy reference must be preserved.
+
+A material change requires:
+
+- Cancellation where possible.
+- A new outbound Interaction or version.
+- A new authorization evaluation.
+- A new idempotency key.
+- Preserved history.
+
+### Provider Authority Rules
+
+Provider authority may establish:
+
+- Technical acceptance.
+- Queueing.
+- Delivery.
+- Bounce.
+- Read status where supported.
+- Call connection.
+- Call duration.
+- Provider failure.
+
+Provider authority does not establish:
+
+- Customer identity.
+- Customer understanding.
+- Customer legal acceptance.
+- Payment.
+- Appointment completion.
+- Contract signature unless the provider is the configured signature authority.
+- Deal completion.
+
+### Delivery Rules
+
+- `SENT` requires provider acceptance or equivalent authoritative send evidence.
+- `DELIVERED` requires provider delivery evidence where supported.
+- `READ` requires provider read or acknowledgement evidence where supported.
+- A channel that does not support read Confirmation must remain `NOT_SUPPORTED` or `UNKNOWN`.
+- The platform must not infer read status solely from lack of response.
+- Delivery timestamps must follow valid chronological order.
+- A bounce or delivery failure must preserve provider evidence.
+- Retry policy must remain configurable.
+- Retry must reuse the same Command idempotency intent or create a governed new attempt according to provider requirements.
+
+### Identity-Resolution Rules
+
+- External contact values are unverified observations until governed resolution.
+- A phone number, email, social account, or display name must not be used as the sole permanent Customer identifier.
+- Identity candidates must belong to the same Tenant.
+- Sensitive data must not be disclosed before sufficient authentication and identity verification.
+- Ambiguous identity matches require Human Review or deterministic evidence.
+- AI confidence alone must not merge a participant into a Customer.
+- Customer resolution must preserve evidence and Decision.
+- Identity corrections must not rewrite original sender information.
+
+### Participant Rules
+
+- Every Interaction must have at least one participant.
+- Outbound Customer communication requires at least one recipient.
+- Inbound communication requires a sender or trusted external source.
+- Internal notes require one authenticated Human author.
+- AI-generated messages must identify the responsible Agent and authorizing workflow.
+- Participant roles must remain compatible with direction.
+- A participant must not be added to finalized original evidence without a correction annotation.
+- BCC recipients must receive restricted visibility.
+- External participant details must remain protected.
+
+### Threading Rules
+
+- All Interactions in a Conversation Thread must belong to the same Tenant.
+- Thread participants must have a valid continuity relationship.
+- `parent_interaction_id`, `reply_to_interaction_id`, and `root_interaction_id` must belong to the same thread.
 - An Interaction cannot reply to itself.
-- Circular reply or supersession chains are prohibited.
-- `task_id` must reference a Task created from or linked to this Interaction.
-- `owner_id`, `assigned_user_id`, and `agent_id` must reference active authorized identities.
-- An Interaction cannot be hard-deleted while referenced by a Customer Journey, complaint, Deal, finance record, Task, audit entry, or legal hold.
+- Circular reply relationships are prohibited.
+- Circular supersession relationships are prohibited.
+- Sequence numbers must be unique within the canonical thread where used.
+- Provider sequence and canonical sequence must remain distinguishable.
+- Thread merging requires governed identity and participant review.
+- Thread splitting must preserve original history.
 
-### Human Approval Requirements
+### Content Rules
 
-- Outbound messages containing pricing commitments, discounts, finance terms, trade-in values, legal terms, or delivery commitments require the appropriate approved source.
-- AI Agents cannot make binding pricing, finance, trade-in, contract, payment, reservation, or delivery commitments.
-- AI Agents cannot process an opt-out without preserving the Customer evidence and updating the authoritative consent record.
-- AI Agents cannot disclose sensitive Customer, Deal, finance, or compliance data to unresolved identities.
-- AI Agents cannot mark complaints resolved without authorized confirmation.
-- High-risk sentiment, threats, fraud indicators, legal claims, discrimination allegations, or regulatory complaints require human review.
-- Conflicting identity, consent, acceptance, payment, or commitment evidence must create a Human Review Task.
-- Redaction or deletion of completed Customer communications requires authorized compliance or privacy approval.
-- Manual changes to provider delivery or read status require documented correction evidence.
+- At least one applicable content or session evidence field must exist.
+- Normalized content must not replace original evidence.
+- Customer-visible content must exclude internal notes.
+- Restricted financial, identity, legal, compliance, margin, funding, or security information must not appear in unrestricted outbound content.
+- HTML and rich content must be sanitized.
+- Links must be validated according to security policy.
+- Content hashes must use an approved cryptographic algorithm.
+- Finalized content must be immutable.
+- Unsupported characters or encoding failures must not silently alter meaning.
+- The original language must be preserved.
+- A summary must not introduce unsupported facts.
+
+### Internal Note Rules
+
+- Internal notes require an authenticated authorized author.
+- Internal notes require a business purpose.
+- Internal notes must use `INTERNAL` or a more restrictive visibility.
+- Internal notes must not be copied into Customer-visible messages automatically.
+- Internal notes must not impersonate the Customer.
+- Internal notes must distinguish observation from interpretation.
+- AI-generated internal summaries must be labelled as Derived Intelligence.
+- Finalized internal notes must be corrected through supersession or annotation.
+
+### Attachment Rules
+
+Every attachment must:
+
+- Use controlled storage.
+- Preserve a content hash.
+- Preserve MIME type and size.
+- Be scanned for malware.
+- Be evaluated for restricted data.
+- Be classified.
+- Be blocked or quarantined when required.
+- Be treated as untrusted input.
+- Be excluded from public indexing.
+- Be excluded from unrestricted AI context.
+- Preserve retention and legal-hold requirements.
+
+An attachment received through an Interaction does not make the document authoritative.
+
+The responsible document or Domain workflow must verify and accept it.
+
+### Recording Rules
+
+- Recording requirements must be determined before recording begins.
+- Valid recording Consent must exist where required.
+- Consent status must be participant-specific where applicable.
+- Recording must stop when required by withdrawal or policy.
+- Recording source, time, participants, and hash must be preserved.
+- Public or predictable recording URLs are prohibited.
+- Recording access must be logged.
+- Recording retention must follow law and policy.
+- AI must not create recording Consent.
+- A transcript must not replace the original recording.
+
+### Transcript Rules
+
+- Transcript output is Derived Intelligence or approved provider output.
+- Transcript source recording must be preserved.
+- Transcript model or provider must be recorded.
+- Transcript version must be recorded.
+- Speaker attribution uncertainty must remain explicit.
+- Corrections must preserve prior versions.
+- Material contractual or acceptance interpretation must not rely solely on an unreviewed transcript.
+- Failed transcription must not block canonical Interaction storage.
+- Restricted content in transcripts must receive the same or stronger classification as the recording.
+
+### Translation Rules
+
+- Original content and source language must remain available.
+- Translation must identify provider or model.
+- Translation must identify target language.
+- Translation must not replace original legal or contractual content.
+- Customer-facing translated legal, finance, or contractual material requires approved translation controls.
+- Material uncertainty must be escalated.
+- Translation corrections must preserve history.
+
+### Consent and Permission Rules
+
+Before outbound communication, deterministic policy must evaluate:
+
+- Customer or recipient identity.
+- Contact point.
+- Purpose.
+- Communication category.
+- Channel.
+- Jurisdiction.
+- Consent.
+- Lawful basis.
+- Opt-out state.
+- Quiet hours.
+- Frequency.
+- Customer restrictions.
+- Template.
+- Required disclosure.
+- Age or representation restrictions where applicable.
+- Human Approval or approved automation policy.
+
+Prompt content, Agent Recommendation, sales priority, or User interface state must not override these controls.
+
+### Marketing and Transactional Separation
+
+- Marketing and transactional communication must remain distinguishable.
+- Transactional purpose must not be used as a pretext for marketing.
+- Mixed-purpose content must follow the stricter applicable policy.
+- Marketing Consent must not be inferred from a purchase inquiry.
+- Finance Consent must not be reused as marketing Consent.
+- An inbound conversation does not create indefinite outbound permission.
+
+### Opt-Out Rules
+
+A potential opt-out signal must:
+
+- Be recorded.
+- Preserve original evidence.
+- Trigger deterministic processing.
+- Prevent prohibited outbound communication while pending where required.
+- Update the appropriate Consent or permission authority.
+- Preserve channel and purpose scope.
+- Use idempotency.
+- Produce External Confirmation where applicable.
+- Create Human Review when ambiguous.
+
+AI may detect a possible opt-out.
+
+AI must not suppress or dismiss an opt-out request independently.
+
+### Acceptance and Commitment Rules
+
+AI or Human interpretation of communication must distinguish:
+
+- Interest.
+- Question.
+- Negotiation.
+- Conditional language.
+- Possible acceptance.
+- Confirmed acceptance.
+- Binding acceptance.
+
+An Interaction must not independently confirm:
+
+- Quotation acceptance.
+- Trade-In acceptance.
+- Finance offer selection.
+- Financial Contract signature.
+- Deal commitment.
+- Payment settlement.
+- Delivery acceptance.
+
+Authoritative acceptance requires the responsible Domain workflow and accepted evidence.
+
+### Outcome Rules
+
+- Outcomes must describe what the Interaction established, not unsupported downstream completion.
+- `POSSIBLE_OFFER_ACCEPTANCE` must not update Quotation to accepted.
+- `APPOINTMENT_REQUESTED` must not create an Appointment without the Appointment workflow.
+- `DOCUMENTS_RECEIVED` must not mark documents verified.
+- `PAYMENT_STATUS_DISCUSSION` must not mark Payment received.
+- `DELIVERY_UPDATE_PROVIDED` must not mark delivery completed.
+- Outcome authority and evidence must be recorded.
+- Disputed outcomes must remain explicit.
+
+### SLA Rules
+
+- SLA calculations must use authoritative server time.
+- SLA policy and version must be preserved.
+- `response_due_at` is required when a response deadline applies.
+- Inbound and outbound response relationships must be explicit.
+- A provider auto-acknowledgement must not satisfy a Human-response SLA unless policy permits it.
+- Waivers require an authorized Decision.
+- SLA breach must not rewrite the original deadline.
+- SLA changes require policy versioning.
+
+### Follow-Up Rules
+
+- Follow-up Recommendations remain separate from authoritative tasks.
+- A required follow-up must identify reason, due time, owner or queue, and status.
+- Duplicate follow-up tasks must be prevented.
+- Completion must reference the satisfying Interaction or action.
+- AI may recommend follow-up but must not claim completion.
+- Customer opt-out and communication restrictions override ordinary sales follow-up.
+
+### Complaint and Dispute Rules
+
+- Complaint language must not be dismissed solely by sentiment classification.
+- A confirmed complaint signal must create or update the responsible complaint workflow.
+- Original evidence must be preserved.
+- Complaint closure must not be represented by the Interaction alone.
+- Legal holds must override deletion and ordinary retention.
+- Dispute evidence access must remain restricted.
+- AI may summarize but must not resolve a complaint or legal dispute.
+
+### Correction Rules
+
+Original evidence must not be materially edited in place.
+
+A correction must preserve:
+
+- Original Interaction.
+- Corrected or superseding Interaction.
+- Reason.
+- Actor.
+- Authority.
+- Timestamp.
+- Evidence.
+- Original and revised hashes.
+- Impacted downstream references.
+- Audit record.
+
+Provider-originated corrections must preserve both provider records where possible.
+
+### Redaction Rules
+
+Redaction may occur only through approved policy.
+
+Redaction must preserve:
+
+- Redaction request.
+- Scope.
+- Legal basis.
+- Decision.
+- Original secure evidence where lawful and required.
+- Redacted representation.
+- Hashes.
+- Actor.
+- Timestamp.
+- Downstream propagation status.
+- Legal-hold evaluation.
+
+Redaction must not be used to conceal unauthorized communication or alter commercial history.
+
+### Concurrency and Idempotency Rules
+
+- Every mutation must validate `record_version`.
+- Stale updates must return a version conflict.
+- Manual Interaction creation must support idempotency where retry is possible.
+- Outbound send Commands must use `idempotency_key`.
+- Provider ingestion must use provider-specific deduplication keys.
+- Opt-out processing must support idempotency.
+- Redaction and correction requests must support idempotency.
+- Event Consumers must prevent duplicate ASOS Event effects using `event_id`.
+- Duplicate retries must not create duplicate:
+  - Interactions.
+  - Provider messages.
+  - Send Commands.
+  - Delivery records.
+  - Conversation Thread entries.
+  - Opt-out records.
+  - Follow-up tasks.
+  - Complaint cases.
+  - Redactions.
+  - Corrections.
+
+### AI Failure Rules
+
+- AI processing failure must not block canonical inbound ingestion.
+- AI processing failure must not delete content.
+- AI processing failure must remain explicit.
+- Outbound AI-generated content must not be sent when required review or policy checks fail.
+- Missing AI output must not be replaced with fabricated values.
+- Human workflows must remain available.
+
+### Human Review Requirements
+
+Human Review is required according to policy for:
+
+- Ambiguous Customer identity.
+- Conflicting participants.
+- Possible sensitive-data disclosure.
+- Possible opt-out.
+- Complaint or legal-threat signal.
+- Possible contractual acceptance.
+- Finance or Payment instruction.
+- Restricted document.
+- Malware or prompt injection.
+- Recording-Consent dispute.
+- Transcript dispute.
+- Translation uncertainty affecting a material outcome.
+- AI-generated regulated content.
+- Unauthorized commitment.
+- Delivery or provider conflict.
+- Correction or redaction.
+- Legal hold.
+- Another material privacy, legal, financial, or commercial risk.
+
+---
 
 ## 6. State Machine
 
 ### Allowed States
 
-- CREATED
-- RECEIVED
-- DRAFT
-- QUEUED
-- SENT
-- DELIVERED
-- READ
-- IN_PROGRESS
-- COMPLETED
-- FAILED
-- CANCELLED
-- ARCHIVED
+```text
+CREATED
+DRAFT
+APPROVAL_PENDING
+READY_TO_SEND
+SEND_PENDING
+QUEUED
+SENT
+DELIVERED
+READ
+RECEIVED
+IN_PROGRESS
+COMPLETED
+FAILED
+CANCELLED
+REDACTED
+SUPERSEDED
+ARCHIVED
+```
 
-### Allowed Transitions
+Not every state applies to every direction or Interaction type.
 
-#### Inbound and Imported Interactions
+### Principal Outbound Transitions
 
-- CREATED → RECEIVED
-- RECEIVED → IN_PROGRESS
-- RECEIVED → COMPLETED
-- RECEIVED → FAILED
-- IN_PROGRESS → COMPLETED
-- IN_PROGRESS → FAILED
-- COMPLETED → ARCHIVED
+```text
+CREATED → DRAFT
+CREATED → CANCELLED
 
-#### Outbound Interactions
+DRAFT → APPROVAL_PENDING
+DRAFT → READY_TO_SEND
+DRAFT → CANCELLED
+DRAFT → SUPERSEDED
 
-- CREATED → DRAFT
-- DRAFT → QUEUED
-- DRAFT → CANCELLED
-- QUEUED → SENT
-- QUEUED → FAILED
-- QUEUED → CANCELLED
-- SENT → DELIVERED
-- SENT → READ
-- SENT → COMPLETED
-- SENT → FAILED
-- DELIVERED → READ
-- DELIVERED → COMPLETED
-- READ → COMPLETED
-- FAILED → QUEUED
-- FAILED → CANCELLED
-- COMPLETED → ARCHIVED
+APPROVAL_PENDING → READY_TO_SEND
+APPROVAL_PENDING → DRAFT
+APPROVAL_PENDING → CANCELLED
+APPROVAL_PENDING → SUPERSEDED
 
-#### Synchronous Interactions
+READY_TO_SEND → SEND_PENDING
+READY_TO_SEND → DRAFT
+READY_TO_SEND → CANCELLED
+READY_TO_SEND → SUPERSEDED
 
-- CREATED → IN_PROGRESS
-- RECEIVED → IN_PROGRESS
-- IN_PROGRESS → COMPLETED
-- IN_PROGRESS → FAILED
-- IN_PROGRESS → CANCELLED
+SEND_PENDING → QUEUED
+SEND_PENDING → SENT
+SEND_PENDING → FAILED
+SEND_PENDING → CANCELLED
 
-#### Internal and System Interactions
+QUEUED → SENT
+QUEUED → FAILED
+QUEUED → CANCELLED
 
-- CREATED → COMPLETED
-- CREATED → FAILED
-- COMPLETED → ARCHIVED
+SENT → DELIVERED
+SENT → READ
+SENT → COMPLETED
+SENT → FAILED
 
-### Forbidden Transitions
+DELIVERED → READ
+DELIVERED → COMPLETED
+DELIVERED → FAILED
 
-- RECEIVED → DRAFT
-- RECEIVED → QUEUED
-- DRAFT → RECEIVED
-- DRAFT → DELIVERED
-- DRAFT → READ
-- QUEUED → RECEIVED
-- QUEUED → DELIVERED
-- DELIVERED → SENT
-- READ → DELIVERED
-- COMPLETED → IN_PROGRESS
-- COMPLETED → SENT
-- COMPLETED → DELIVERED
-- CANCELLED → SENT
-- CANCELLED → DELIVERED
-- ARCHIVED → IN_PROGRESS
-- ARCHIVED → SENT
-- ARCHIVED → COMPLETED
+READ → COMPLETED
 
-### Entry Conditions
+FAILED → READY_TO_SEND
+FAILED → CANCELLED
+FAILED → SUPERSEDED
 
-- To enter `RECEIVED`:
-  - The inbound provider or source must be identified.
-  - The Interaction payload must pass authentication and ingestion validation.
-  - Duplicate-provider events must be rejected or linked to the existing Interaction.
-  - `received_at` and `occurred_at` must be populated.
+COMPLETED → REDACTED
+COMPLETED → SUPERSEDED
+COMPLETED → ARCHIVED
 
-- To enter `DRAFT`:
-  - An authorized User, AI Agent, or automation must be identified.
-  - Intended recipients and communication purpose must be known.
-  - Customer-visible content must not yet be delivered.
+CANCELLED → ARCHIVED
+REDACTED → ARCHIVED
+SUPERSEDED → ARCHIVED
+```
 
-- To enter `QUEUED`:
-  - Customer identity and recipient address must be sufficiently resolved.
-  - Contact permission, quiet-hours, and frequency-limit checks must pass.
-  - Content moderation and restricted-data checks must pass.
-  - Required human approval must be complete.
-  - A valid provider route must exist.
-  - `queued_at` must be populated.
+A retry from `FAILED` must follow provider and idempotency rules.
 
-- To enter `SENT`:
-  - The communication provider must accept the message or call request.
-  - `provider_message_id` or equivalent provider reference must exist.
-  - `sent_at` must be populated.
+### Principal Inbound Transitions
 
-- To enter `DELIVERED`:
-  - A trusted provider delivery confirmation must exist.
-  - `delivered_at` must be populated.
+```text
+CREATED → RECEIVED
 
-- To enter `READ`:
-  - A trusted provider or Customer acknowledgement event must exist.
-  - `read_at` must be populated.
+RECEIVED → IN_PROGRESS
+RECEIVED → COMPLETED
+RECEIVED → FAILED
+RECEIVED → REDACTED
 
-- To enter `IN_PROGRESS`:
-  - The synchronous call, meeting, or active conversation must have started.
-  - Required recording consent must be validated.
-  - `started_at` must be populated.
+IN_PROGRESS → COMPLETED
+IN_PROGRESS → FAILED
+IN_PROGRESS → CANCELLED
 
-- To enter `COMPLETED`:
-  - The Interaction must have ended or required processing must be complete.
-  - The final content or transcript must be preserved.
-  - Required outcome, follow-up, escalation, and SLA decisions must be recorded.
-  - `completed_at` must be populated.
+FAILED → RECEIVED
+FAILED → COMPLETED
 
-- To enter `FAILED`:
-  - A delivery, provider, ingestion, processing, or recording failure must be documented.
-  - Error source, code, and retry eligibility must be recorded.
-  - `failed_at` must be populated.
+COMPLETED → REDACTED
+COMPLETED → SUPERSEDED
+COMPLETED → ARCHIVED
 
-- To enter `CANCELLED`:
-  - The outbound Interaction must not already be delivered.
-  - An authorized cancellation reason and actor must be recorded.
-  - Any queued provider operation must be cancelled when supported.
+REDACTED → ARCHIVED
+SUPERSEDED → ARCHIVED
+```
 
-- To enter `ARCHIVED`:
-  - The Interaction must already be completed.
-  - Required retention, indexing, audit, and legal-hold checks must pass.
-  - `archived_at` must be populated.
+`FAILED → RECEIVED` is permitted only for successful reconciliation of previously incomplete provider ingestion.
 
-### Exit Conditions
+### Principal Synchronous Session Transitions
 
-- An Interaction cannot exit `CREATED` without source, direction, channel, and occurrence time.
-- An Interaction cannot exit `DRAFT` toward `QUEUED` without completed communication-policy checks.
-- An Interaction cannot exit `QUEUED` toward `SENT` without provider acceptance.
-- An Interaction cannot exit `SENT` toward `DELIVERED` without trusted provider confirmation.
-- An Interaction cannot exit `IN_PROGRESS` toward `COMPLETED` without an end time and outcome evaluation.
-- A failed Interaction may be retried only when the failure is retryable and policy checks remain valid.
-- A cancelled Interaction cannot return to an active delivery state; a new Interaction must be created.
-- A completed Interaction cannot be edited directly; corrections require a governed replacement, annotation, or redaction.
-- An archived Interaction remains historical and cannot return to an active state.
+```text
+CREATED → IN_PROGRESS
+IN_PROGRESS → COMPLETED
+IN_PROGRESS → FAILED
+IN_PROGRESS → CANCELLED
+COMPLETED → REDACTED
+COMPLETED → ARCHIVED
+```
+
+### Internal Note Transitions
+
+```text
+CREATED → DRAFT
+DRAFT → COMPLETED
+DRAFT → CANCELLED
+COMPLETED → SUPERSEDED
+COMPLETED → REDACTED
+COMPLETED → ARCHIVED
+```
+
+### Forbidden Ordinary Transitions
+
+```text
+DRAFT → DELIVERED
+DRAFT → READ
+DRAFT → COMPLETED_AS_OUTBOUND_DELIVERY
+
+APPROVAL_PENDING → SENT
+APPROVAL_PENDING → DELIVERED
+
+READY_TO_SEND → DELIVERED
+READY_TO_SEND → READ
+
+SEND_PENDING → DELIVERED
+QUEUED → READ
+
+SENT → RECEIVED
+DELIVERED → RECEIVED
+READ → RECEIVED
+
+RECEIVED → DRAFT
+RECEIVED → SENT
+
+COMPLETED → DRAFT
+COMPLETED → SEND_PENDING
+COMPLETED → RECEIVED
+
+CANCELLED → SENT
+CANCELLED → DELIVERED
+
+REDACTED → DRAFT
+REDACTED → SENT
+
+SUPERSEDED → SENT
+ARCHIVED → DRAFT
+ARCHIVED → SENT
+```
+
+Corrections require a governed correction, superseding Interaction, or redaction workflow.
+
+### Entering CREATED
+
+Requires:
+
+- Valid Tenant context.
+- Interaction classification.
+- Direction.
+- Source.
+- Occurrence or intended communication context.
+- Initial participants.
+- Creation authority.
+- Audit evidence.
+- Idempotency or deduplication control where applicable.
+
+### Entering DRAFT
+
+Requires:
+
+- Outbound or internal Interaction.
+- Author or Agent.
+- Draft content.
+- Purpose.
+- Intended recipients for outbound communication.
+- Visibility.
+- Draft hash.
+- No claim of delivery.
+
+### Entering APPROVAL_PENDING
+
+Requires:
+
+- Final proposed content.
+- Recipient set.
+- Purpose.
+- Communication-policy evaluation.
+- Reason approval is required.
+- Assigned authorized approver.
+- Frozen approval snapshot.
+
+### Entering READY_TO_SEND
+
+Requires:
+
+- Final Customer-visible content.
+- Final content hash.
+- Valid recipients.
+- Valid permission and policy checks.
+- Required Human Approval or automation policy.
+- Approved provider.
+- No blocking security or compliance issue.
+
+### Entering SEND_PENDING
+
+Requires:
+
+- Valid send authorization.
+- Outbound Command.
+- `idempotency_key`.
+- Current content hash.
+- Current recipient snapshot.
+- Audit evidence.
+
+### Entering QUEUED
+
+Requires:
+
+- Provider or internal queue evidence.
+- Command reference.
+- No delivery claim.
+
+### Entering SENT
+
+Requires:
+
+- Provider acceptance or equivalent authoritative send evidence.
+- Provider message reference where supported.
+- `sent_at`.
+- No claim of Customer receipt.
+
+### Entering DELIVERED
+
+Requires:
+
+- Authoritative provider delivery evidence.
+- Recipient scope.
+- Delivery timestamp.
+- Delivery Confirmation reference.
+
+### Entering READ
+
+Requires:
+
+- Provider-supported authoritative read or acknowledgement evidence.
+- Read timestamp.
+- No claim of understanding or acceptance.
+
+### Entering RECEIVED
+
+Requires:
+
+- Trusted inbound source.
+- Original evidence.
+- Provider or source deduplication.
+- Occurrence and receipt timestamps.
+- Participant information.
+- Security processing state.
+
+### Entering IN_PROGRESS
+
+Requires:
+
+- Active call, meeting, live chat session, or synchronous conversation.
+- Session reference.
+- Start timestamp.
+- Active participants.
+- Recording controls where applicable.
+
+### Entering COMPLETED
+
+Requires applicable:
+
+- Final content or session evidence.
+- Finalized content hash.
+- End or completion timestamp.
+- Provider or Human evidence.
+- Outcome evaluation.
+- Required follow-up evaluation.
+- Required SLA update.
+- No unresolved ingestion failure.
+
+Completion does not prove a downstream Domain outcome.
+
+### Entering FAILED
+
+Requires:
+
+- Failure reason.
+- Failure stage.
+- Provider or system evidence.
+- Retry eligibility.
+- Security and reconciliation evaluation.
+- Failure timestamp.
+
+### Entering CANCELLED
+
+Requires:
+
+- Valid cancellation reason.
+- Authorized actor or policy.
+- Confirmation that prohibited or pending send activity is stopped where possible.
+- Audit evidence.
+
+Cancellation after provider acceptance may not be possible and must not falsify external status.
+
+### Entering REDACTED
+
+Requires:
+
+- Approved redaction Decision.
+- Redaction scope.
+- Legal-hold evaluation.
+- Preserved original evidence where lawful.
+- Redacted representation.
+- Redaction timestamp.
+- Audit evidence.
+
+### Entering SUPERSEDED
+
+Requires:
+
+- Valid replacement or correction Interaction.
+- Supersession reason.
+- Replacement reference.
+- Preserved original evidence.
+- No circular lineage.
 
 ### Terminal States
 
-- **COMPLETED:** The Interaction finished and its governed outcome was recorded.
-- **CANCELLED:** The outbound or synchronous Interaction ended before completion.
-- **ARCHIVED:** The completed Interaction moved to historical retention.
-- **FAILED:** Operationally terminal when retry is not permitted; otherwise it may return to `QUEUED`.
+For ordinary processing:
+
+- `COMPLETED`
+- `CANCELLED`
+- `REDACTED`
+- `SUPERSEDED`
+- `ARCHIVED`
+
+Provider status reconciliation may append new evidence without altering finalized original content.
+
+### Transition Evidence
+
+Every material transition must preserve:
+
+- Previous state.
+- New state.
+- Reason.
+- Actor.
+- Authority.
+- Interaction version.
+- Content hash.
+- Participant snapshot.
+- Applied Business Rules.
+- Consent and permission snapshot.
+- Human Decision.
+- Automation-policy reference where applicable.
+- Command.
+- Provider reference.
+- External Confirmation.
+- Record version.
+- Evidence.
+- Timestamp.
+- Correlation identifier.
+- Causation identifier.
+- Related Event.
+
+---
 
 ## 7. Relationships
 
-- **Depends On:**
-  - Dealership identified by `dealership_id`.
-  - Valid communication-channel configuration.
-  - Customer consent and contact-permission policies.
-  - Trusted communication providers and integration credentials.
-  - Identity-resolution, content-security, retention, and SLA policies.
+### Tenant
 
-- **Consumes:**
-  - Customer, Lead, Qualified Lead, Opportunity, Appointment, Quotation, Trade-In, Finance Application, Deal, and Vehicle context.
-  - Customer communication preferences and consent status.
-  - Provider messages, calls, emails, delivery receipts, and webhook events.
-  - User and AI Agent actions.
-  - Campaign and Customer Journey context.
-  - Attachment, recording, transcription, translation, and document-processing results.
-  - Response-time, escalation, and follow-up rules.
+- Every Interaction belongs to exactly one `tenant_id`.
+- All relationships must remain inside authorized Tenant scope.
+- Cross-Tenant communication processing requires an approved and auditable legal and technical mechanism.
 
-- **Produces:**
-  - Canonical omnichannel communication history.
-  - Conversation-thread state.
-  - Customer intent, sentiment, urgency, and objection context.
-  - Customer commitments and dealership promises.
-  - Follow-up and SLA requirements.
-  - Customer Journey timeline entries.
-  - Engagement and response analytics.
-  - Governed AI conversation memory.
-  - Compliance and dispute evidence.
+### Customer
 
-- **Creates:**
-  - Conversation Thread.
-  - Follow-up Task.
-  - Appointment request.
-  - Escalation request.
-  - Complaint or compliance-review case.
-  - Customer opt-out processing request.
-  - Lead, Opportunity, Quotation, Trade-In, Finance Application, or Deal workflow request when justified by the Interaction.
+- An Interaction may exist before Customer resolution.
+- After accepted resolution, `customer_id` references the canonical Customer.
+- Original participant observations must remain preserved.
+- Interaction must not rewrite Customer identity or Consent.
 
-- **Triggers:**
-  - Identity-resolution workflow.
-  - AI classification and summarization.
-  - Response-SLA monitoring.
-  - Customer notification workflow.
-  - Follow-up Task creation.
-  - Escalation and complaint processing.
-  - Consent or opt-out updates.
-  - Customer Journey updates.
-  - Attachment and media processing.
-  - Human Review when restricted or conflicting information is detected.
+### Lead
 
-- **Owned By:**
-  - The assigned User identified by `assigned_user_id`.
-  - The relevant Customer Journey owner when no specific User is assigned.
-  - Provider-originated Interactions remain operationally owned by the responsible dealership queue.
+- An Interaction may create evidence for Lead creation.
+- Lead intake may reference the originating Interaction.
+- Interaction must not silently create or qualify a Lead without the governed workflow.
 
-- **Referenced By:**
-  - Customer
-  - Lead
-  - Qualified Lead
-  - Opportunity
-  - Appointment
-  - Quotation
-  - Trade-In
-  - Finance Application
-  - Deal
-  - Vehicle
-  - Task
-  - Campaign
-  - Complaint
-  - Customer Journey
-  - Conversation Thread
-  - Consent Record
-  - Compliance Case
-  - AI Agent Run
-  - Document Vault
-  - Analytics Event
+### Qualified Lead
 
-- **Replies To / Belongs To:**
-  - An Interaction may reply to another Interaction through `reply_to_interaction_id`.
-  - Related Interactions belong to one canonical Conversation Thread.
-  - Thread participants, Customer identity, and tenant scope must remain consistent.
+- Qualification evidence may reference one or more Interactions.
+- Interaction intent or sentiment alone must not create authoritative qualification.
 
-- **Supersedes / Corrects:**
-  - Completed Interactions are not edited directly.
-  - Governed corrections create a replacement Interaction or annotation through `supersedes_interaction_id`.
-  - The original record remains immutable and auditable.
+### Opportunity
+
+- Interactions may support requirement discovery, negotiation, follow-up, and commitment evidence.
+- Opportunity owns commercial pursuit state.
+- Interaction must not independently close the Opportunity as won or lost.
+
+### Appointment
+
+- Interactions may request, discuss, confirm, reschedule, or cancel Appointment activity.
+- Appointment owns scheduling and attendance.
+- Interaction delivery does not prove Appointment confirmation.
+
+### Quotation
+
+- Interactions may request, present, discuss, or collect responses to a Quotation.
+- Exact Quotation and version must be referenced.
+- Quotation owns authoritative acceptance and decline.
+
+### Vehicle
+
+- Interactions may reference Vehicle interest or questions.
+- Vehicle owns canonical identity and specification.
+- Submitted vehicle text remains unverified until resolved.
+
+### Inventory Record
+
+- Interactions may discuss availability.
+- Inventory Record owns authoritative availability, Reservation, Allocation, sale, and delivery projections.
+- Customer-facing availability statements must use current authoritative information.
+
+### Trade-In
+
+- Interactions may collect submitted Trade-In information and Customer expectations.
+- Trade-In owns appraisal, ownership, payoff, offer, and acquisition.
+- Interaction must not present AI-extracted value as approved appraisal.
+
+### Finance Application
+
+- Interactions may support document requests, status communication, and offer presentation.
+- Finance Application owns Applicant, Consent, Lender submission, and Decision workflows.
+- Sensitive finance content must be minimized.
+
+### Financial Contract
+
+- Interactions may deliver Contract documents or coordinate signatures.
+- Financial Contract owns Contract version, disclosure, signature, effectiveness, and activation.
+- Message delivery does not prove Contract signature.
+
+### Deal
+
+- Interactions may support Deal communication, Payment follow-up, delivery coordination, cancellation request, or dispute evidence.
+- Deal owns authoritative transaction state.
+
+### Conversation Thread
+
+A Conversation Thread groups related Interactions.
+
+It must preserve:
+
+- Tenant.
+- Participants.
+- External thread references.
+- Canonical sequence.
+- Root Interaction.
+- Current status.
+- Security classification.
+- Last activity.
+- Merge and split history.
+
+### Communication Provider
+
+Provider relationships may establish:
+
+- Provider account.
+- Message identifier.
+- Conversation identifier.
+- Call identifier.
+- Delivery status.
+- Read status.
+- Provider errors.
+- Provider timestamps.
+
+Provider data must remain normalized and source-traceable.
+
+### Task and Follow-Up
+
+An Interaction may create or satisfy a follow-up Task.
+
+Task state must remain separate from Interaction state.
+
+### Campaign
+
+Campaign communication may reference campaign and audience context.
+
+Campaign association does not bypass individual Consent and permission checks.
+
+### Complaint and Dispute
+
+Complaint and dispute workflows may reference multiple Interactions as evidence.
+
+Interaction must not independently close the complaint or dispute.
+
+### Human Decision
+
+Interactions may reference Decisions for:
+
+- Outbound approval.
+- Identity resolution.
+- Acceptance interpretation.
+- Permission exception.
+- Recording exception.
+- Redaction.
+- Correction.
+- Complaint escalation.
+- Legal hold.
+
+### AI Agent Run
+
+AI Agent Runs may reference Interactions as input.
+
+Each run must preserve:
+
+- Approved purpose.
+- Tenant scope.
+- Input fields.
+- Model and Prompt versions.
+- Output.
+- Decision authority.
+- Tool use.
+- Audit evidence.
+
+### Supporting Child Records
+
+Interaction may own or govern:
+
+- Participant records.
+- Thread relationships.
+- Provider records.
+- Provider events.
+- Delivery records.
+- Attachments.
+- Recordings.
+- Transcripts.
+- Translations.
+- Permission snapshots.
+- Draft versions.
+- Send Commands.
+- SLA records.
+- Outcomes.
+- Follow-up references.
+- Redaction records.
+- Correction records.
+- Derived Intelligence.
+- Data-quality issues.
+- Reconciliation cases.
+- Audit history.
+
+---
 
 ## 8. Domain Events
 
-### Emitted Events
+The Canonical Event Catalog is the authoritative source for final:
 
-- **InteractionCreated**  
-  Payload: `interaction_id`, `direction`, `channel`, `source`, `occurred_at`
+- Event names.
+- Event versions.
+- Event envelopes.
+- Payload Schemas.
+- Producers.
+- Consumers.
+- Compatibility rules.
+- Correction and reversal behaviour.
 
-- **InteractionReceived**  
-  Payload: `interaction_id`, `provider_name`, `provider_message_id`, `received_at`
+The following are required Interaction Event concepts and do not replace the Event Catalog.
 
-- **InteractionIdentityResolved**  
-  Payload: `interaction_id`, `customer_id`, `identity_resolution_status`, `identity_resolution_confidence`
+### Inbound Event Concepts
 
-- **InteractionThreadAssigned**  
-  Payload: `interaction_id`, `conversation_thread_id`, `sequence_number`
+- Inbound Interaction observed.
+- Inbound Interaction recorded.
+- Inbound provider duplicate detected.
+- Inbound Interaction normalization completed.
+- Inbound Interaction normalization failed.
+- Inbound attachment quarantined.
+- Inbound Interaction identity resolution requested.
+- Inbound Interaction Customer resolved.
+- Inbound Interaction identity conflict detected.
 
-- **InteractionDraftCreated**  
-  Payload: `interaction_id`, `sender_id`, `recipient_ids`, `purpose`, `created_at`
+### Draft and Approval Event Concepts
 
-- **InteractionQueued**  
-  Payload: `interaction_id`, `provider_name`, `queued_at`, `communication_policy_version`
+- Outbound Interaction Draft created.
+- Outbound Interaction Draft updated.
+- Outbound Interaction Draft reviewed.
+- Outbound Interaction approval requested.
+- Outbound Interaction authorized.
+- Outbound Interaction rejected.
+- Outbound Interaction authorization expired.
+- Outbound Interaction superseded.
 
-- **InteractionSent**  
-  Payload: `interaction_id`, `provider_message_id`, `sent_at`
+### Policy Event Concepts
 
-- **InteractionDelivered**  
-  Payload: `interaction_id`, `provider_message_id`, `delivered_at`
+- Communication permission evaluated.
+- Communication permission denied.
+- Quiet-hours deferral applied.
+- Frequency limit reached.
+- Communication policy revalidation required.
+- Customer restriction applied.
 
-- **InteractionRead**  
-  Payload: `interaction_id`, `read_at`, `provider_event_id`
+### Send and Provider Event Concepts
 
-- **InteractionStarted**  
-  Payload: `interaction_id`, `channel`, `started_at`, `recording_consent_status`
+- Outbound Interaction send requested.
+- Outbound Interaction Command created.
+- Outbound Interaction Command dispatched.
+- Communication provider accepted message.
+- Communication provider rejected message.
+- Communication provider reported delivery.
+- Communication provider reported read status.
+- Communication provider reported bounce.
+- Communication provider reported failure.
+- Communication provider reconciliation required.
 
-- **InteractionCompleted**  
-  Payload: `interaction_id`, `outcome`, `completed_at`, `completed_by`
+### Session Event Concepts
 
-- **InteractionFailed**  
-  Payload: `interaction_id`, `provider_error_code`, `failure_type`, `failed_at`
+- Interaction session started.
+- Interaction session answered.
+- Interaction session placed on hold.
+- Interaction session resumed.
+- Interaction session ended.
+- Interaction session missed.
+- Interaction session failed.
 
-- **InteractionCancelled**  
-  Payload: `interaction_id`, `cancellation_reason`, `cancelled_by`, `cancelled_at`
+### Recording and Transcript Event Concepts
 
-- **InteractionArchived**  
-  Payload: `interaction_id`, `archived_by`, `archived_at`
+- Recording Consent requested.
+- Recording Consent granted.
+- Recording Consent declined.
+- Recording started.
+- Recording stopped.
+- Recording completed.
+- Recording failed.
+- Transcript requested.
+- Transcript generated.
+- Transcript failed.
+- Transcript corrected.
+- Translation generated.
+- Translation corrected.
 
-- **InteractionIntentDetected**  
-  Payload: `interaction_id`, `intent`, `intent_confidence`, `model_reference`
+### Content and Attachment Event Concepts
 
-- **InteractionSentimentDetected**  
-  Payload: `interaction_id`, `sentiment`, `sentiment_score`, `model_reference`
+- Interaction content finalized.
+- Interaction attachment received.
+- Interaction attachment scan completed.
+- Restricted data detected.
+- Malicious attachment detected.
+- Prompt injection detected.
+- Interaction content restricted.
+- Interaction security review requested.
 
-- **InteractionUrgencyDetected**  
-  Payload: `interaction_id`, `urgency`, `urgency_score`
+### Outcome and Follow-Up Event Concepts
 
-- **InteractionCommitmentDetected**  
-  Payload: `interaction_id`, `commitment_type`, `commitment_details`, `confidence`
+- Interaction outcome recorded.
+- Interaction response required.
+- Interaction response SLA started.
+- Interaction response SLA breached.
+- Interaction response completed.
+- Interaction follow-up required.
+- Interaction follow-up completed.
+- Interaction escalation requested.
+- Interaction escalation resolved.
 
-- **InteractionOptOutDetected**  
-  Payload: `interaction_id`, `customer_id`, `channel`, `detected_at`
+### Opt-Out Event Concepts
 
-- **InteractionResponseRequired**  
-  Payload: `interaction_id`, `response_due_at`, `assigned_user_id`, `priority`
+- Possible opt-out detected.
+- Opt-out processing requested.
+- Opt-out Command created.
+- Opt-out confirmed.
+- Opt-out processing failed.
+- Opt-out reconciliation required.
 
-- **InteractionSLABreached**  
-  Payload: `interaction_id`, `response_due_at`, `breached_at`, `assigned_user_id`
+### Complaint and Dispute Event Concepts
 
-- **InteractionFollowUpRequired**  
-  Payload: `interaction_id`, `task_id`, `next_action_type`, `next_action_at`
+- Complaint signal detected.
+- Complaint workflow requested.
+- Interaction dispute opened.
+- Interaction legal hold applied.
+- Interaction legal hold released.
 
-- **InteractionEscalationRequired**  
-  Payload: `interaction_id`, `escalation_reason`, `priority`, `escalated_at`
+### Correction and Redaction Event Concepts
 
-- **InteractionHumanReviewRequired**  
-  Payload: `interaction_id`, `human_review_reason`, `restricted_data_types`, `created_at`
+- Interaction correction requested.
+- Interaction corrected by supersession.
+- Interaction redaction requested.
+- Interaction redaction approved.
+- Interaction redacted.
+- Interaction redaction failed.
 
-- **InteractionRedacted**  
-  Payload: `interaction_id`, `redaction_reason`, `redacted_by`, `redacted_at`
+### Derived Intelligence Event Concepts
 
-- **InteractionCorrectionCreated**  
-  Payload: `original_interaction_id`, `replacement_interaction_id`, `correction_reason`
+- Interaction intent analysis generated.
+- Interaction sentiment analysis generated.
+- Interaction urgency analysis generated.
+- Interaction acceptance signal detected.
+- Interaction commitment signal detected.
+- Interaction complaint signal detected.
+- Interaction summary generated.
+- Interaction next action recommended.
+- Interaction Human Review recommended.
 
-### Consumed Events
+Derived Intelligence Events must not imply:
 
-- **CustomerCreated**  
-  Allows unresolved Interactions to be linked after identity resolution.
+- Customer identity resolution.
+- Consent.
+- Appointment confirmation.
+- Quotation acceptance.
+- Finance approval.
+- Contract signature.
+- Payment.
+- Delivery.
+- Deal completion.
+- Complaint resolution.
+- Human Approval.
+- External completion.
 
-- **CustomerMerged**  
-  Reassigns Interaction ownership to the canonical Customer while preserving historical references.
+### Producer Rules
 
-- **CustomerContactPermissionChanged**  
-  Updates communication restrictions and blocks unauthorized outbound delivery.
+- Interaction Domain Service publishes accepted Interaction canonical and workflow-state changes.
+- Customer Domain Service publishes accepted Customer identity and permission facts.
+- Communication integrations publish normalized provider observations.
+- Appointment, Quotation, Trade-In, Finance Application, Financial Contract, and Deal Domain Services publish their authoritative outcomes.
+- Document and media services publish accepted processing facts.
+- AI Agents may publish Agent-run, extraction, classification, summarization, or Recommendation Events.
+- AI Agents must not publish authoritative identity, Consent, acceptance, Payment, delivery, or business-completion Events merely because they predicted or detected the outcome.
 
-- **CustomerOptedOut**  
-  Cancels or blocks eligible pending promotional Interactions.
+### Event Requirements
 
-- **LeadCreated**  
-  Links qualifying early Customer Interactions to the Lead.
+Every material Interaction Event must preserve, where applicable:
 
-- **QualifiedLeadCreated**  
-  Adds qualification context to the conversation.
+- `event_id`.
+- `event_type`.
+- `event_version`.
+- `tenant_id`.
+- `interaction_id`.
+- `conversation_thread_id`.
+- Customer and related Domain references.
+- Interaction direction.
+- Channel.
+- Purpose.
+- Content hash.
+- Participant snapshot reference.
+- Provider references.
+- Occurrence timestamp.
+- Recording timestamp.
+- Producer.
+- Actor.
+- Authority category.
+- Record version.
+- Correlation identifier.
+- Causation identifier.
+- Consent and permission snapshot.
+- Human Decision.
+- Automation-policy reference where applicable.
+- Command.
+- External Confirmation.
+- Evidence references.
+- Security classification.
 
-- **OpportunityCreated**  
-  Links relevant sales Interactions to the active Opportunity.
+Events are immutable.
 
-- **AppointmentScheduled**  
-  Adds scheduling context and confirmation requirements.
+Corrections, redactions, provider reconciliation, opt-out correction, and supersession must use new Events linked to prior Events.
 
-- **QuotationIssued**  
-  Enables governed Quotation-presentation and follow-up Interactions.
+The Event Backbone may deliver the same Event more than once.
 
-- **TradeInAppraised**  
-  Enables Customer-facing Trade-In discussions using approved values.
+Consumers must prevent duplicate ASOS Event effects using `event_id`.
 
-- **FinanceApplicationStatusChanged**  
-  Enables permitted finance-status communication without exposing restricted information.
+Provider-event deduplication must use the appropriate provider identifiers and remains a separate concern.
 
-- **DealStatusChanged**  
-  Enables transactional Deal progress communication.
-
-- **VehicleStatusChanged**  
-  Revalidates Vehicle-availability statements before outbound communication.
-
-- **TaskCompleted**  
-  Updates follow-up completion and response status.
-
-- **ComplaintOpened**  
-  Marks related Interactions for enhanced retention and review.
-
-- **ProviderDeliveryEventReceived**  
-  Updates sent, delivered, read, failed, or provider-status information.
-
-- **RecordingTranscribed**  
-  Adds the governed transcript and processing metadata.
-
-- **AttachmentProcessed**  
-  Updates attachment classification, malware status, and document references.
-
-- **LegalHoldApplied**  
-  Prevents deletion, redaction, or archival actions that conflict with the hold.
+---
 
 ## 9. AI Considerations
 
-### Fields Used for Vector Embeddings
+### Permitted AI Assistance
 
-- `content_text`
-- `content_summary`
-- Permitted `transcript_text`
-- `conversation_topic`
-- `customer_visible_content`
-- `outcome_details`
-- Customer objections
-- Customer preferences
-- Vehicle-interest statements
-- Appointment requests
-- Quotation feedback
-- Trade-In feedback
-- Finance questions
-- Complaint summaries
-- Follow-up summaries
-- Non-sensitive internal notes approved for AI retrieval
+AI Agents may assist with:
 
-### Fields Excluded from Embeddings
+- Language detection.
+- Transcription.
+- Translation.
+- Content summarization.
+- Intent classification.
+- Sentiment analysis.
+- Urgency analysis.
+- Topic classification.
+- Entity extraction.
+- Vehicle-interest extraction.
+- Appointment-signal detection.
+- Quotation-signal detection.
+- Trade-In-signal detection.
+- Finance-signal detection.
+- Commitment-signal detection.
+- Possible acceptance detection.
+- Possible rejection detection.
+- Opt-out detection.
+- Complaint detection.
+- Sensitive-data detection.
+- Prompt-injection detection.
+- Response drafting.
+- Follow-up Recommendation.
+- SLA prioritization.
+- Thread summarization.
+- Human Review preparation.
 
-- `interaction_id`
-- `customer_id`
-- `lead_id`
-- `qualified_lead_id`
-- `opportunity_id`
-- `appointment_id`
-- `quotation_id`
-- `trade_in_id`
-- `finance_application_id`
-- `deal_id`
-- `provider_message_id`
-- `provider_account_id`
-- `sender_address`
-- `recipient_addresses`
-- Phone numbers
-- Email addresses
-- Customer addresses
-- Secure meeting links
-- National identifiers
-- Bank information
-- Credit information
-- Payment references
-- Signed documents
-- Identity documents
-- Driving-license documents
-- Raw provider metadata
-- `consent_snapshot`
-- `compliance_snapshot`
-- Restricted financial or profitability information
+### Prohibited Independent AI Actions
 
-> Personally identifiable information, restricted financial data, authentication details, and secure document content must be supplied only through authorized structured context.
+AI Agents must not independently:
 
-### Structured AI Context Fields
+- Resolve Customer identity from ambiguous evidence.
+- Merge Customers.
+- Create Consent.
+- Ignore or reverse an opt-out.
+- Decide lawful basis.
+- Bypass quiet hours or frequency limits.
+- Send outbound content without required authority.
+- Create authoritative Appointment confirmation.
+- Confirm Quotation acceptance.
+- Confirm Trade-In acceptance.
+- Submit a Finance Application.
+- Select a Lender offer for the Customer.
+- Sign or confirm a Financial Contract.
+- Confirm Payment.
+- Confirm funding.
+- Confirm delivery.
+- Complete a Deal.
+- Resolve a complaint or legal dispute.
+- Delete or redact evidence.
+- Remove a legal hold.
+- Execute communication-provider Commands directly.
+- Access Interactions outside authorized Tenant and purpose scope.
 
-Authorized AI Agents may receive:
+### AI Output Requirements
 
-- `interaction_type`
-- `direction`
-- `channel`
-- `purpose`
-- `priority`
-- `status`
-- `language_code`
-- `intent`
-- `intent_confidence`
-- `sentiment`
-- `sentiment_score`
-- `urgency`
-- `urgency_score`
-- `response_required`
-- `response_due_at`
-- `follow_up_required`
-- `next_action_type`
-- `next_action_at`
-- `communication_category`
-- `customer_journey_stage`
-- Permitted Customer preferences
-- Permitted Lead, Opportunity, Appointment, Quotation, Vehicle, and Deal context
+Every material AI output must preserve:
 
-Restricted Agents may additionally receive:
+- Output type.
+- Interaction identifier.
+- Interaction record version.
+- Content or evidence hash.
+- Input fields.
+- Supporting evidence.
+- Source authority.
+- Model, formula, or algorithm version.
+- Prompt version where applicable.
+- Confidence where meaningful.
+- Alternative interpretations where material.
+- Assumptions.
+- Limitations.
+- Generation timestamp.
+- Expiration timestamp.
+- Action Class.
+- Required Human authority.
 
-- Tokenized Customer identifiers
-- Consent status
-- Compliance-review status
-- Restricted-data classifications
-- Approved Customer-specific commercial context
+### Evidence Grounding
 
-### Metadata Filters for Context Retrieval
+AI outputs must reference the evidence supporting them.
 
-- `dealership_id` — mandatory for every retrieval.
-- `interaction_id`
-- `conversation_thread_id`
-- `customer_id`
-- `lead_id`
-- `qualified_lead_id`
-- `opportunity_id`
-- `appointment_id`
-- `quotation_id`
-- `finance_application_id`
-- `deal_id`
-- `vehicle_id`
-- `channel`
-- `direction`
-- `purpose`
-- `occurred_at`
-- `visibility`
-- `language_code`
+AI must distinguish:
 
-### Confidence Thresholds
+- Direct quotation or observed content.
+- Normalized content.
+- Extracted entity.
+- Interpretation.
+- Prediction.
+- Recommendation.
+- Authoritative fact.
 
-- Customer-identity resolution requires confidence of at least `0.95`; lower-confidence matches require human review.
-- Intent classification requires confidence of at least `0.85`.
-- Appointment-date extraction requires confidence of at least `0.95`.
-- Price, payment, finance, Trade-In, or commitment extraction requires confidence of at least `0.95`.
-- Customer acceptance or rejection detection requires confidence of at least `0.99`.
-- Opt-out detection requires confidence of at least `0.99`.
-- Complaint detection requires confidence of at least `0.95`.
-- Urgent safety, legal, fraud, or compliance classification requires human review regardless of confidence.
-- AI-generated outbound content requires confidence of at least `0.95` and all policy checks.
-- AI summaries must distinguish confirmed facts from inferred intent or sentiment.
-- No AI confidence score may replace authoritative Customer consent, payment, contract, finance, identity, or Deal evidence.
+AI summaries must not introduce unsupported:
 
-### Human Approval Thresholds
+- Prices.
+- Dates.
+- Customer commitments.
+- Finance results.
+- Payment results.
+- Delivery results.
+- Legal conclusions.
 
-- AI Agents cannot make binding pricing, discount, Trade-In, finance, payment, contract, reservation, delivery, or legal commitments.
-- AI Agents cannot send restricted financial or identity information to unresolved participants.
-- AI Agents cannot mark a Customer acceptance as legally binding without authoritative evidence.
-- AI Agents cannot alter provider delivery or read evidence.
-- AI Agents cannot resolve complaints, legal claims, fraud alerts, or regulatory issues without authorized review.
-- AI Agents cannot redact or delete completed communications.
-- AI Agents cannot override Customer opt-out or communication restrictions.
-- Conflicting identity, consent, Customer commitment, payment, or contract evidence must create a Human Review Task.
-- High-risk sentiment, threats, harassment, discrimination allegations, or legal notices must be escalated to authorized Users.
+### Intent and Sentiment
 
-### AI Memory Rules
+Intent and sentiment are Derived Intelligence.
 
-- Conversation memory must be tenant-scoped and Customer-scoped.
-- Memory retrieval must exclude records outside the User or Agent's permission scope.
-- Expired, redacted, deleted, or legally restricted content must not be returned.
-- AI memory must preserve source Interaction IDs and timestamps.
-- Summaries must not replace immutable source Interactions.
-- Long-term memory must store only approved, relevant, and non-sensitive facts.
-- Customer preferences inferred from one Interaction must remain provisional until confirmed.
+They must not be used as sole authority for:
+
+- Customer identity.
+- Qualification.
+- Commercial acceptance.
+- Adverse treatment.
+- Complaint closure.
+- Contact permission.
+- Finance Decision.
+- Delivery outcome.
+
+Sentiment must not be treated as a reliable measure of Customer truthfulness or creditworthiness.
+
+### Acceptance and Commitment Detection
+
+AI may identify possible acceptance or commitment language.
+
+The output must preserve:
+
+- Exact evidence span.
+- Communication language.
+- Context.
+- Conditions stated by the Customer.
+- Ambiguity.
+- Model version.
+- Confidence where meaningful.
+- Required downstream workflow.
+
+AI must distinguish:
+
+```text
+“I like the offer”
+  = positive reaction
+
+“I may proceed if finance is approved”
+  = conditional interest
+
+“I accept quotation version 4”
+  = possible explicit acceptance evidence
+
+Authoritative acceptance
+  = governed Quotation workflow outcome
+```
+
+### Opt-Out Detection
+
+AI may detect phrases indicating:
+
+- Stop contacting me.
+- Do not send promotions.
+- Remove me from the list.
+- Unsubscribe.
+- Do not call this number.
+
+Potential opt-outs must be processed conservatively.
+
+AI must not:
+
+- Downgrade a possible opt-out to ordinary negative sentiment.
+- Delay required policy enforcement.
+- Limit the scope without evidence.
+- Re-enable communication.
+
+### Complaint Detection
+
+AI may identify complaint, threat, escalation, or regulatory language.
+
+Complaint detection must:
+
+- Preserve evidence.
+- Avoid dismissing indirect or polite complaints.
+- Support Human Review.
+- Respect legal-hold rules.
+- Avoid Customer retaliation.
+- Avoid inferring resolution.
+
+### Response Drafting
+
+AI-generated outbound Drafts must:
+
+- Use current authoritative Domain data.
+- Use approved templates where required.
+- Respect communication purpose.
+- Exclude restricted internal data.
+- Avoid unsupported promises.
+- Avoid invented availability.
+- Avoid invented pricing.
+- Avoid invented finance approval.
+- Avoid invented delivery date.
+- Identify required disclosures.
+- Remain a Draft until authorized.
+
+### Action Class 2
+
+Controlled outbound follow-up, reminders, status updates, and document requests may proceed through:
+
+- Explicit Human Approval; or
+- An applicable pre-approved automation policy.
+
+The deterministic Policy Engine must validate:
+
+- Tenant scope.
+- Customer identity.
+- Recipient.
+- Contact point.
+- Purpose.
+- Channel.
+- Consent or lawful basis.
+- Opt-out status.
+- Quiet hours.
+- Frequency.
+- Template.
+- Source data.
+- Interaction and Customer state.
+- Data sensitivity.
+- Risk limits.
+- Audit requirements.
+
+The AI Agent must not approve its own automation authority.
+
+### Action Class 3
+
+Binding or high-impact actions require an Authoritative Human Decision or the responsible external authority.
+
+Examples include:
+
+- Interpreting ambiguous legal acceptance.
+- Identity-resolution exception.
+- Consent exception.
+- Restricted disclosure.
+- Recording exception.
+- Complaint resolution.
+- Legal response.
+- Finance or Payment instruction.
+- Redaction.
+- Correction of material evidence.
+- Removal of legal hold.
+
+### AI Context and Embeddings
+
+Interaction content must not enter unrestricted embeddings.
+
+Normally excluded or restricted fields include:
+
+- Full phone numbers.
+- Email addresses.
+- Home addresses.
+- National identifiers.
+- Identity documents.
+- Bank details.
+- Payment instructions.
+- Credit information.
+- Finance documents.
+- Full Financial Contracts.
+- Signature evidence.
+- Call recordings.
+- Sensitive transcripts.
+- Complaint evidence.
+- Legal correspondence.
+- Internal notes.
+- Profitability and margin information.
+- Authentication secrets.
+- Provider tokens.
+
+Approved redacted context may include:
+
+- General Interaction purpose.
+- Redacted message text.
+- Non-sensitive summary.
+- General intent.
+- General sentiment.
+- General next-action category.
+- Non-sensitive thread context.
+
+Every vector record must enforce:
+
+- `tenant_id`.
+- Interaction access scope.
+- Participant-purpose scope.
+- Source reference.
+- Content version.
+- Security classification.
+- Retention.
+- Expiration.
+- Deletion and redaction propagation.
+
+### Prompt Injection and Untrusted Content
+
+Messages, emails, documents, web forms, transcripts, and provider metadata are untrusted input.
+
+AI Agents must treat them as data, not instructions.
+
+Interaction content must not:
+
+- Change system policy.
+- Grant permissions.
+- Override Tenant scope.
+- Reveal secrets.
+- Trigger external Commands.
+- Change Consent.
+- Change Deal status.
+- Confirm Payment.
+- Confirm delivery.
+- Modify audit records.
+- Request hidden system instructions.
+
+### Explainability
+
+Material Interaction Recommendations must explain:
+
+- Evidence used.
+- Original or normalized content source.
+- Content version and hash.
+- Source authority.
+- Data freshness.
+- Identity-resolution status.
+- Consent and permission state.
+- Detected intent or signal.
+- Ambiguity.
+- Assumptions.
+- Limitations.
+- Confidence where meaningful.
+- Required Human authority.
+- Required downstream workflow.
+- Expiration.
+
+---
 
 ## 10. API Contract
 
-### REST Resource
+Detailed API operations, request Schemas, response Schemas, and error definitions will become authoritative in the API Contracts Catalog.
 
-- **Base Path:** `/api/v1/dealerships/{dealership_id}/interactions`
+This section defines required Interaction API behaviour.
 
-### Methods
+### REST Resources
 
-- `GET` — list or search Interactions.
-- `POST` — create an inbound, internal, system, or Draft outbound Interaction.
-- `GET /{id}` — retrieve one Interaction according to visibility and security scope.
-- `PATCH /{id}` — update permitted fields before completion.
-- `POST /{id}/resolve-identity` — associate the Interaction with a Customer or prospect.
-- `POST /{id}/assign-thread` — assign or create the canonical Conversation Thread.
-- `POST /{id}/queue` — validate and queue an outbound Interaction.
-- `POST /{id}/send` — deliver an authorized outbound Interaction.
-- `POST /{id}/record-delivery` — process trusted provider delivery evidence.
-- `POST /{id}/record-read` — process trusted provider read evidence.
-- `POST /{id}/start` — begin a synchronous Interaction.
-- `POST /{id}/complete` — complete the Interaction with outcome and follow-up decisions.
-- `POST /{id}/retry` — retry an eligible failed outbound Interaction.
-- `POST /{id}/cancel` — cancel an eligible queued or in-progress Interaction.
-- `POST /{id}/analyze` — request governed AI analysis.
-- `POST /{id}/create-follow-up` — create a Task or next-action requirement.
-- `POST /{id}/escalate` — create an escalation or complaint workflow.
-- `POST /{id}/redact` — perform an authorized governed redaction.
-- `POST /{id}/correct` — create a governed replacement Interaction.
-- `POST /{id}/archive` — archive a completed Interaction.
-- `DELETE /{id}` — perform a soft delete only when legally and operationally permitted.
+```text
+GET    /api/v1/interactions
+POST   /api/v1/interactions
+GET    /api/v1/interactions/{interaction_id}
+PATCH  /api/v1/interactions/{interaction_id}
 
-### Suggested JSON Schema — Create Payload
+POST   /api/v1/interactions/inbound-ingestion
+POST   /api/v1/interactions/{interaction_id}/identity-resolution-requests
+POST   /api/v1/interactions/{interaction_id}/thread-assignment-requests
+
+POST   /api/v1/interactions/{interaction_id}/draft-review-requests
+POST   /api/v1/interactions/{interaction_id}/approval-requests
+POST   /api/v1/interactions/{interaction_id}/approval-decisions
+POST   /api/v1/interactions/{interaction_id}/send-requests
+POST   /api/v1/interactions/{interaction_id}/send-retry-requests
+POST   /api/v1/interactions/{interaction_id}/send-cancellation-requests
+
+POST   /api/v1/interactions/{interaction_id}/outcome-submissions
+POST   /api/v1/interactions/{interaction_id}/follow-up-requests
+POST   /api/v1/interactions/{interaction_id}/escalation-requests
+POST   /api/v1/interactions/{interaction_id}/opt-out-processing-requests
+
+POST   /api/v1/interactions/{interaction_id}/transcription-requests
+POST   /api/v1/interactions/{interaction_id}/translation-requests
+POST   /api/v1/interactions/{interaction_id}/ai-analysis-requests
+
+POST   /api/v1/interactions/{interaction_id}/correction-requests
+POST   /api/v1/interactions/{interaction_id}/redaction-requests
+POST   /api/v1/interactions/{interaction_id}/archive-requests
+
+GET    /api/v1/interactions/{interaction_id}/participants
+GET    /api/v1/interactions/{interaction_id}/attachments
+GET    /api/v1/interactions/{interaction_id}/provider-history
+GET    /api/v1/interactions/{interaction_id}/delivery-status
+GET    /api/v1/interactions/{interaction_id}/ai-analysis
+GET    /api/v1/interactions/{interaction_id}/history
+GET    /api/v1/interactions/{interaction_id}/reconciliation
+
+GET    /api/v1/conversation-threads
+GET    /api/v1/conversation-threads/{conversation_thread_id}
+GET    /api/v1/conversation-threads/{conversation_thread_id}/interactions
+```
+
+### Tenant Context
+
+- `tenant_id` must come from the authenticated security context.
+- Request bodies must not override `tenant_id`.
+- Dealership, branch, team, queue, User, and Agent scope must be validated.
+- Cross-Tenant queries must be blocked by default.
+
+### Example Manual Inbound Interaction
 
 ```json
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "CreateInteractionRequest",
-  "type": "object",
-  "properties": {
-    "customer_id": {
-      "type": ["string", "null"],
-      "format": "uuid"
+  "interaction_type": "IN_PERSON_CONVERSATION",
+  "direction": "INBOUND",
+  "channel": "IN_PERSON",
+  "purpose": "VEHICLE_INFORMATION",
+  "visibility": "INTERNAL",
+  "occurred_at": "2026-08-01T19:15:00+03:00",
+  "participants": [
+    {
+      "participant_role": "SENDER",
+      "participant_type": "CUSTOMER",
+      "customer_id": "a2d85b86-7079-4aaf-964a-580cc040046b"
     },
-    "lead_id": {
-      "type": ["string", "null"],
-      "format": "uuid"
-    },
-    "qualified_lead_id": {
-      "type": ["string", "null"],
-      "format": "uuid"
-    },
-    "opportunity_id": {
-      "type": ["string", "null"],
-      "format": "uuid"
-    },
-    "appointment_id": {
-      "type": ["string", "null"],
-      "format": "uuid"
-    },
-    "quotation_id": {
-      "type": ["string", "null"],
-      "format": "uuid"
-    },
-    "trade_in_id": {
-      "type": ["string", "null"],
-      "format": "uuid"
-    },
-    "finance_application_id": {
-      "type": ["string", "null"],
-      "format": "uuid"
-    },
-    "deal_id": {
-      "type": ["string", "null"],
-      "format": "uuid"
-    },
-    "vehicle_id": {
-      "type": ["string", "null"],
-      "format": "uuid"
-    },
-    "conversation_thread_id": {
-      "type": ["string", "null"],
-      "format": "uuid"
-    },
-    "interaction_type": {
-      "type": "string",
-      "enum": [
-        "MESSAGE",
-        "PHONE_CALL",
-        "EMAIL",
-        "VIDEO_CALL",
-        "IN_PERSON_CONVERSATION",
-        "VOICE_NOTE",
-        "SOCIAL_MESSAGE",
-        "WEB_CHAT",
-        "SYSTEM_NOTIFICATION",
-        "INTERNAL_NOTE",
-        "DOCUMENT_EXCHANGE",
-        "CUSTOMER_FEEDBACK",
-        "COMPLAINT",
-        "OTHER"
-      ]
-    },
-    "direction": {
-      "type": "string",
-      "enum": [
-        "INBOUND",
-        "OUTBOUND",
-        "INTERNAL",
-        "SYSTEM_GENERATED"
-      ]
-    },
-    "channel": {
-      "type": "string",
-      "enum": [
-        "PHONE",
-        "SMS",
-        "WHATSAPP",
-        "EMAIL",
-        "WEB_CHAT",
-        "WEBSITE_FORM",
-        "MOBILE_APP",
-        "VIDEO",
-        "IN_PERSON",
-        "FACEBOOK",
-        "INSTAGRAM",
-        "MARKETPLACE",
-        "OEM_PLATFORM",
-        "INTERNAL_SYSTEM",
-        "OTHER"
-      ]
-    },
-    "purpose": {
-      "type": "string",
-      "enum": [
-        "GENERAL_INQUIRY",
-        "LEAD_FOLLOW_UP",
-        "REQUIREMENT_DISCOVERY",
-        "VEHICLE_INFORMATION",
-        "VEHICLE_AVAILABILITY",
-        "APPOINTMENT_SCHEDULING",
-        "APPOINTMENT_CONFIRMATION",
-        "TEST_DRIVE_FOLLOW_UP",
-        "TRADE_IN_DISCUSSION",
-        "QUOTATION_PRESENTATION",
-        "QUOTATION_FOLLOW_UP",
-        "NEGOTIATION",
-        "FINANCE_DISCUSSION",
-        "DOCUMENT_COLLECTION",
-        "CONTRACT_DISCUSSION",
-        "PAYMENT_FOLLOW_UP",
-        "DELIVERY_COORDINATION",
-        "POST_SALE_FOLLOW_UP",
-        "COMPLAINT_HANDLING",
-        "CUSTOMER_SUPPORT",
-        "OPT_OUT_REQUEST",
-        "INTERNAL_COORDINATION",
-        "OTHER"
-      ]
-    },
-    "priority": {
-      "type": "string",
-      "enum": [
-        "LOW",
-        "STANDARD",
-        "HIGH",
-        "URGENT",
-        "CRITICAL",
-        "VIP"
-      ]
-    },
-    "source": {
-      "type": "string"
-    },
-    "sender_type": {
-      "type": "string",
-      "enum": [
-        "CUSTOMER",
-        "PROSPECT",
-        "USER",
-        "AI_AGENT",
-        "SYSTEM",
-        "LENDER",
-        "VENDOR",
-        "OEM",
-        "PARTNER",
-        "UNKNOWN"
-      ]
-    },
-    "sender_id": {
-      "type": ["string", "null"],
-      "format": "uuid"
-    },
-    "sender_address": {
-      "type": ["string", "null"],
-      "maxLength": 500
-    },
-    "recipient_ids": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "format": "uuid"
-      }
-    },
-    "subject": {
-      "type": ["string", "null"],
-      "maxLength": 500
-    },
-    "content_text": {
-      "type": ["string", "null"],
-      "maxLength": 50000
-    },
-    "language_code": {
-      "type": "string",
-      "minLength": 2,
-      "maxLength": 20
-    },
-    "occurred_at": {
-      "type": "string",
-      "format": "date-time"
-    },
-    "provider_name": {
-      "type": ["string", "null"],
-      "maxLength": 100
-    },
-    "provider_message_id": {
-      "type": ["string", "null"],
-      "maxLength": 500
-    },
-    "response_required": {
-      "type": "boolean"
-    },
-    "response_due_at": {
-      "type": ["string", "null"],
-      "format": "date-time"
-    },
-    "visibility": {
-      "type": "string",
-      "enum": [
-        "CUSTOMER_VISIBLE",
-        "INTERNAL",
-        "RESTRICTED",
-        "COMPLIANCE_ONLY",
-        "MANAGEMENT_ONLY"
-      ]
+    {
+      "participant_role": "PRIMARY_RECIPIENT",
+      "participant_type": "USER",
+      "user_id": "d64ed10d-ded1-454e-b57e-cfa92ce0ee0c"
     }
-  },
-  "required": [
-    "interaction_type",
-    "direction",
-    "channel",
-    "purpose",
-    "priority",
-    "source",
-    "sender_type",
-    "recipient_ids",
-    "language_code",
-    "occurred_at",
-    "response_required",
-    "visibility"
   ],
-  "additionalProperties": false
+  "internal_note_text": "Customer requested specifications for the selected vehicle.",
+  "related_objects": {
+    "opportunity_id": "a524e9f1-6d7e-4820-a0c3-5039f5089346",
+    "vehicle_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
 }
 ```
 
-### GraphQL Type
+A retryable request must include:
 
-```graphql
-type Interaction {
-  id: ID!
-  dealershipId: ID!
-  customerId: ID
-  leadId: ID
-  qualifiedLeadId: ID
-  opportunityId: ID
-  appointmentId: ID
-  quotationId: ID
-  tradeInId: ID
-  financeApplicationId: ID
-  dealId: ID
-  vehicleId: ID
-  ownerId: ID
-  assignedUserId: ID
-  agentId: ID
-  campaignId: ID
-  conversationThreadId: ID
-  parentInteractionId: ID
-  replyToInteractionId: ID
-  rootInteractionId: ID
-  taskId: ID
-  supersedesInteractionId: ID
-  interactionType: InteractionType!
-  direction: InteractionDirection!
-  channel: InteractionChannel!
-  status: InteractionStatus!
-  purpose: InteractionPurpose!
-  priority: InteractionPriority!
-  source: InteractionSource!
-  visibility: InteractionVisibility!
-  senderType: InteractionParticipantType!
-  senderId: ID
-  senderDisplayName: String
-  subject: String
-  contentText: String
-  contentSummary: String
-  languageCode: String!
-  contentRedacted: Boolean!
-  attachmentCount: Int!
-  transcriptStatus: String
-  intent: InteractionIntent
-  intentConfidence: Float
-  sentiment: InteractionSentiment
-  sentimentScore: Float
-  urgency: InteractionUrgency!
-  urgencyScore: Float
-  outcome: InteractionOutcome
-  responseRequired: Boolean!
-  responseDueAt: DateTime
-  respondedAt: DateTime
-  responseSlaStatus: ResponseSLAStatus!
-  followUpRequired: Boolean!
-  nextActionType: NextActionType
-  nextActionAt: DateTime
-  escalationRequired: Boolean!
-  humanReviewRequired: Boolean!
-  consentStatus: InteractionConsentStatus!
-  identityResolutionStatus: IdentityResolutionStatus!
-  providerName: String
-  providerMessageId: String
-  occurredAt: DateTime!
-  receivedAt: DateTime
-  queuedAt: DateTime
-  sentAt: DateTime
-  deliveredAt: DateTime
-  readAt: DateTime
-  startedAt: DateTime
-  endedAt: DateTime
-  completedAt: DateTime
-  failedAt: DateTime
-  archivedAt: DateTime
-  createdAt: DateTime!
-  updatedAt: DateTime!
+```text
+Idempotency-Key: 819fc894-39ec-4ee3-bdb7-31f6b91fb6cf
+```
+
+### Example Inbound Provider Ingestion
+
+```json
+{
+  "provider_id": "f4629990-aeaa-4b34-8bf1-17cb85addb42",
+  "provider_account_id": "whatsapp-account-01",
+  "provider_message_id": "wamid.HBgMNT...",
+  "provider_event_id": "provider-event-912887",
+  "provider_conversation_id": "provider-conversation-771",
+  "channel": "WHATSAPP",
+  "occurred_at": "2026-08-01T19:20:00+03:00",
+  "sender": {
+    "provider_participant_id": "201001234567",
+    "submitted_contact_value": "+201001234567",
+    "display_name": "Submitted Customer Name"
+  },
+  "content": {
+    "content_type": "TEXT",
+    "text": "هل العربية متاحة للتجربة غدًا؟",
+    "language_code": "ar-EG"
+  },
+  "original_payload_reference": "evidence://provider-events/provider-event-912887",
+  "original_payload_hash": "sha256:5d4d371f..."
 }
 ```
+
+The provider event must be authenticated and deduplicated using the provider-specific identifiers.
+
+### Example Inbound Response
+
+```json
+{
+  "interaction_id": "47af5c31-2443-4cba-b107-bdc7aeb1558e",
+  "interaction_number": "INT-2026-004829",
+  "direction": "INBOUND",
+  "channel": "WHATSAPP",
+  "status": "RECEIVED",
+  "customer_identity_resolution_status": "CANDIDATES_FOUND",
+  "provider_message_id": "wamid.HBgMNT...",
+  "provider_message_deduplication_status": "CURRENT",
+  "content_language_code": "ar-EG",
+  "content_hash": "sha256:f6b672a1...",
+  "ai_processing_status": "QUEUED",
+  "record_version": 1,
+  "recorded_at": "2026-08-01T19:20:02+03:00"
+}
+```
+
+### Example Outbound Draft Request
+
+```json
+{
+  "interaction_type": "TEXT_MESSAGE",
+  "direction": "OUTBOUND",
+  "channel": "WHATSAPP",
+  "purpose": "APPOINTMENT_SCHEDULING",
+  "communication_category": "TRANSACTIONAL",
+  "customer_id": "a2d85b86-7079-4aaf-964a-580cc040046b",
+  "recipient_contact_point_reference": "contact-point://customers/a2d85b86/whatsapp/primary",
+  "customer_visible_text": "يمكننا ترتيب موعد لتجربة السيارة غدًا. يرجى اختيار الوقت المناسب.",
+  "content_language_code": "ar-EG",
+  "related_objects": {
+    "opportunity_id": "a524e9f1-6d7e-4820-a0c3-5039f5089346",
+    "vehicle_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+### Example Draft Response
+
+```json
+{
+  "interaction_id": "c5c8aec3-4ab5-47e8-9d58-d6126f20432c",
+  "status": "DRAFT",
+  "draft_status": "HUMAN_AUTHORED",
+  "customer_visible_content_hash": "sha256:6f005408...",
+  "contact_permission_status": "NOT_EVALUATED",
+  "send_authorization_status": "NOT_EVALUATED",
+  "send_command_status": "NOT_CREATED",
+  "record_version": 1
+}
+```
+
+### Example Send Request
+
+```json
+{
+  "expected_content_hash": "sha256:6f005408...",
+  "expected_record_version": 4,
+  "send_authorization_decision_id": "a4a74a4d-f14d-43ec-a89b-14d9bb557aea"
+}
+```
+
+The request must include an idempotency key.
+
+A pending response may be:
+
+```json
+{
+  "interaction_id": "c5c8aec3-4ab5-47e8-9d58-d6126f20432c",
+  "status": "SEND_PENDING",
+  "send_command_status": "PENDING_PROVIDER_CONFIRMATION",
+  "command_id": "77e9aeae-b646-4786-bf18-d060f3bb1bc7",
+  "delivery_status": "NOT_SENT",
+  "record_version": 5
+}
+```
+
+The response must not describe the message as sent or delivered.
+
+### Example Provider-Accepted Projection
+
+```json
+{
+  "interaction_id": "c5c8aec3-4ab5-47e8-9d58-d6126f20432c",
+  "status": "SENT",
+  "send_command_status": "ACKNOWLEDGED_BY_PROVIDER",
+  "provider_message_id": "wamid.HBgMNj...",
+  "delivery_status": "PROVIDER_ACCEPTED",
+  "sent_at": "2026-08-01T19:25:10+03:00",
+  "record_version": 6
+}
+```
+
+### Example Delivery Projection
+
+```json
+{
+  "interaction_id": "c5c8aec3-4ab5-47e8-9d58-d6126f20432c",
+  "status": "DELIVERED",
+  "delivery_status": "DELIVERED",
+  "delivery_confirmation_status": "RECEIVED",
+  "delivered_at": "2026-08-01T19:25:16+03:00",
+  "read_status": "NOT_READ",
+  "record_version": 7
+}
+```
+
+Delivery does not prove Customer acceptance.
+
+### Example AI Analysis Response
+
+```json
+{
+  "interaction_id": "47af5c31-2443-4cba-b107-bdc7aeb1558e",
+  "ai_processing_status": "COMPLETED",
+  "intent_classification": "SCHEDULE_TEST_DRIVE",
+  "intent_scores": {
+    "SCHEDULE_TEST_DRIVE": 0.94
+  },
+  "sentiment_classification": "NEUTRAL",
+  "urgency_classification": "NORMAL",
+  "appointment_signal": "DETECTED",
+  "recommended_next_action": "CREATE_APPOINTMENT_PROPOSAL",
+  "requires_human_review": false,
+  "model_reference": "interaction-intelligence-model",
+  "model_version": "2026-08",
+  "prompt_version": "interaction-analysis-1.1",
+  "generated_at": "2026-08-01T19:20:08+03:00"
+}
+```
+
+This response is Derived Intelligence.
+
+It does not create an Appointment.
+
+### Example Opt-Out Processing Request
+
+```json
+{
+  "opt_out_signal_type": "EXPLICIT_TEXT_REQUEST",
+  "evidence_reference": "evidence://interactions/47af5c31/content",
+  "requested_scope": {
+    "channel": "WHATSAPP",
+    "communication_category": "MARKETING"
+  },
+  "expected_record_version": 3
+}
+```
+
+The operation must use an idempotency key.
+
+### Example Correction Request
+
+```json
+{
+  "correction_reason": "The internal note attributed the statement to the wrong participant.",
+  "corrected_internal_note_text": "The accompanying representative, not the Customer, requested the callback.",
+  "expected_record_version": 6
+}
+```
+
+A correction must create a governed replacement or correction record.
+
+It must not overwrite the finalized original evidence.
+
+### Mutation Requirements
+
+Every mutation must enforce:
+
+- Authentication.
+- Tenant scope.
+- Organizational scope.
+- Authorization.
+- Record-version validation.
+- Direction and channel validation.
+- Participant validation.
+- Identity-resolution controls.
+- Content integrity.
+- Visibility.
+- Communication permission.
+- Consent and lawful-basis controls.
+- Quiet-hours and frequency controls.
+- Content safety.
+- Human Approval or approved automation policy.
+- Lifecycle validation.
+- Idempotency or provider deduplication where applicable.
+- Audit recording.
+- Event publication after accepted state change.
+- External Confirmation tracking where applicable.
+
+### Optimistic Concurrency
+
+Updates must use an approved mechanism such as:
+
+```text
+If-Match: <record_version>
+```
+
+A stale version must return a conflict response.
+
+### Idempotency
+
+Retryable ASOS operations must support:
+
+```text
+Idempotency-Key
+```
+
+The same key and request intent must not create duplicate:
+
+- Interactions.
+- Outbound Commands.
+- Provider send attempts.
+- Opt-out requests.
+- Follow-up tasks.
+- Redaction requests.
+- Correction requests.
+
+Provider ingestion deduplication must use provider-specific identifiers.
+
+### Pending External Confirmation
+
+Operations requiring provider Confirmation may return:
+
+```json
+{
+  "operation_status": "PENDING_CONFIRMATION",
+  "interaction_id": "c5c8aec3-4ab5-47e8-9d58-d6126f20432c",
+  "command_id": "77e9aeae-b646-4786-bf18-d060f3bb1bc7",
+  "record_version": 5
+}
+```
+
+The API must not describe the external operation as complete until authoritative evidence exists.
+
+### Error Categories
+
+The API must distinguish at least:
+
+- `UNAUTHENTICATED`
+- `UNAUTHORIZED`
+- `TENANT_SCOPE_VIOLATION`
+- `ORGANIZATIONAL_SCOPE_VIOLATION`
+- `VALIDATION_FAILED`
+- `VERSION_CONFLICT`
+- `DUPLICATE_PROVIDER_EVENT`
+- `DUPLICATE_INTERACTION`
+- `PROVIDER_AUTHENTICATION_FAILED`
+- `PROVIDER_CONFIGURATION_INVALID`
+- `PARTICIPANT_REQUIRED`
+- `PARTICIPANT_IDENTITY_AMBIGUOUS`
+- `CUSTOMER_IDENTITY_REQUIRED`
+- `RECIPIENT_REQUIRED`
+- `CONTACT_POINT_INVALID`
+- `CONTACT_PERMISSION_NOT_GRANTED`
+- `CONSENT_REQUIRED`
+- `CONSENT_WITHDRAWN`
+- `OPT_OUT_ACTIVE`
+- `QUIET_HOURS_BLOCK`
+- `FREQUENCY_LIMIT_REACHED`
+- `COMMUNICATION_PURPOSE_INVALID`
+- `CONTENT_REQUIRED`
+- `CONTENT_IMMUTABLE`
+- `CONTENT_HASH_MISMATCH`
+- `INTERNAL_CONTENT_EXPOSURE_BLOCKED`
+- `RESTRICTED_DATA_DETECTED`
+- `ATTACHMENT_QUARANTINED`
+- `MALWARE_DETECTED`
+- `PROMPT_INJECTION_DETECTED`
+- `RECORDING_CONSENT_REQUIRED`
+- `SEND_AUTHORIZATION_REQUIRED`
+- `SEND_COMMAND_DUPLICATE`
+- `PROVIDER_CONFIRMATION_PENDING`
+- `DELIVERY_NOT_CONFIRMED`
+- `INVALID_LIFECYCLE_TRANSITION`
+- `HUMAN_REVIEW_REQUIRED`
+- `CORRECTION_REQUIRED`
+- `REDACTION_NOT_PERMITTED`
+- `LEGAL_HOLD_ACTIVE`
+- `RECONCILIATION_REQUIRED`
+- `INTERACTION_TERMINAL`
+- `RECORD_ARCHIVED`
+
+### GraphQL Requirements
+
+A GraphQL implementation must enforce the same:
+
+- Tenant isolation.
+- Organizational scope.
+- Participant-purpose scope.
+- Visibility.
+- Content integrity.
+- Consent and permission.
+- Communication policy.
+- Provider authority.
+- Concurrency.
+- Idempotency.
+- Provider deduplication.
+- Human Approval.
+- External Confirmation.
+- Audit requirements.
+
+GraphQL resolvers must not bypass Interaction Domain Service, Consent controls, Policy Engine, Command Orchestration, or provider integration controls.
+
+---
 
 ## 11. Database Design
 
-### Recommended SQL Tables
+### Recommended Tables
 
-- **Primary Table:** `interactions`
-- **Conversation-Thread Table:** `conversation_threads`
-- **Participant Table:** `interaction_participants`
-- **Attachment Table:** `interaction_attachments`
-- **Provider-Event Table:** `interaction_provider_events`
-- **Delivery Table:** `interaction_delivery_status`
-- **AI-Analysis Table:** `interaction_ai_analysis`
-- **Consent-Check Table:** `interaction_consent_checks`
-- **Outcome Table:** `interaction_outcomes`
-- **SLA Table:** `interaction_sla_tracking`
-- **Redaction Table:** `interaction_redactions`
-- **Correction Table:** `interaction_corrections`
-- **Status-History Table:** `interaction_status_history`
-- **Audit Table:** `interaction_audit_log`
+```text
+interactions
+interaction_versions
+interaction_participants
+interaction_thread_links
+conversation_threads
+conversation_thread_participants
+interaction_content_evidence
+interaction_customer_visible_content
+interaction_internal_notes
+interaction_attachments
+interaction_media
+interaction_sessions
+interaction_recordings
+interaction_recording_consents
+interaction_transcripts
+interaction_transcript_versions
+interaction_translations
+interaction_permission_snapshots
+interaction_opt_out_signals
+interaction_outbound_drafts
+interaction_approval_requests
+interaction_approval_decisions
+interaction_send_commands
+interaction_send_attempts
+interaction_provider_messages
+interaction_provider_events
+interaction_delivery_events
+interaction_outcomes
+interaction_response_sla
+interaction_follow_up_references
+interaction_escalations
+interaction_complaint_signals
+interaction_redactions
+interaction_corrections
+interaction_external_confirmations
+interaction_derived_intelligence
+interaction_ai_runs
+interaction_reconciliation_cases
+interaction_data_quality_issues
+interaction_status_history
+interaction_record_versions
+interaction_audit_log
+```
 
-### Indexes
+### Interactions Table
 
-- `idx_interactions_tenant_time (dealership_id, occurred_at DESC)`  
-  Used for dealership communication timelines.
+The `interactions` table should contain:
 
-- `idx_interactions_customer_time (dealership_id, customer_id, occurred_at DESC)`  
-  Used for Customer Journey history.
+- Canonical identifiers.
+- Tenant and organizational scope.
+- Related Domain references.
+- Direction.
+- Channel.
+- Interaction type.
+- Purpose.
+- Visibility.
+- Current lifecycle state.
+- Conversation Thread reference.
+- Current participant projection.
+- Current content references and hashes.
+- Current permission projection.
+- Current provider projection.
+- Current delivery and read projection.
+- Current SLA and follow-up projection.
+- Current outcome projection.
+- Current security, redaction, correction, and legal-hold projection.
+- Data-quality and conflict state.
+- Source and synchronization state.
+- Record version.
+- Audit timestamps.
 
-- `idx_interactions_thread_sequence (dealership_id, conversation_thread_id, sequence_number)`  
-  Used for ordered conversation retrieval.
+Repeating, historical, sensitive, and binary information must remain in child or controlled-storage records.
 
-- `idx_interactions_lead_time (dealership_id, lead_id, occurred_at DESC)`  
-  Used for Lead communication history.
+### Primary Key
 
-- `idx_interactions_opportunity_time (dealership_id, opportunity_id, occurred_at DESC)`  
-  Used for Opportunity engagement history.
+```text
+PRIMARY KEY (interaction_id)
+```
 
-- `idx_interactions_deal_time (dealership_id, deal_id, occurred_at DESC)`  
-  Used for Deal communication history.
+### Tenant Protection
 
-- `idx_interactions_assigned_status (dealership_id, assigned_user_id, status, priority)`  
-  Used for User communication queues.
+Every Interaction-related table must include:
 
-- `idx_interactions_response_due (dealership_id, response_required, response_due_at, status)`  
-  Used for SLA and unanswered-message monitoring.
+```text
+tenant_id
+```
 
-- `idx_interactions_follow_up (dealership_id, follow_up_required, next_action_at)`  
-  Used for follow-up queues.
+Tenant consistency must be enforced using:
 
-- `idx_interactions_provider_message (provider_name, provider_account_id, provider_message_id)`  
-  Used for provider-event idempotency.
+- Composite Tenant-aware foreign keys; or
+- Equivalent database and service controls.
 
-- `idx_interactions_provider_event (provider_name, provider_event_id)`  
-  Used for webhook-event deduplication.
+Row-Level Security should be used where supported.
 
-- `idx_interactions_content_hash (dealership_id, content_hash)`  
-  Used for duplicate-content detection.
+### Recommended Indexes
 
-- `idx_interactions_intent (dealership_id, intent, occurred_at DESC)`  
-  Used for intent analytics.
+```text
+idx_interactions_tenant_status
+  (tenant_id, status)
 
-- `idx_interactions_sentiment (dealership_id, sentiment, urgency, occurred_at DESC)`  
-  Used for escalation and Customer-experience monitoring.
+idx_interactions_tenant_customer
+  (tenant_id, customer_id, occurred_at)
 
-- `idx_interactions_human_review (dealership_id, human_review_required, priority, created_at)`  
-  Used for Human Review queues.
+idx_interactions_tenant_lead
+  (tenant_id, lead_id, occurred_at)
 
-- `idx_interactions_legal_hold (dealership_id, legal_hold_status)`  
-  Used for retention and compliance controls.
+idx_interactions_tenant_opportunity
+  (tenant_id, opportunity_id, occurred_at)
+
+idx_interactions_tenant_deal
+  (tenant_id, deal_id, occurred_at)
+
+idx_interactions_tenant_thread
+  (tenant_id, conversation_thread_id, sequence_number)
+
+idx_interactions_tenant_channel
+  (tenant_id, channel, occurred_at)
+
+idx_interactions_tenant_direction
+  (tenant_id, direction, occurred_at)
+
+idx_interactions_tenant_assigned_user
+  (tenant_id, assigned_user_id, response_sla_status)
+
+idx_interactions_response_due
+  (tenant_id, response_sla_status, response_due_at)
+
+idx_interactions_follow_up
+  (tenant_id, follow_up_status, authoritative_follow_up_at)
+
+idx_interactions_provider_message
+  (tenant_id, provider_id, provider_account_id, provider_message_id)
+
+idx_interactions_delivery
+  (tenant_id, delivery_status, sent_at)
+
+idx_interactions_opt_out
+  (tenant_id, opt_out_processing_status)
+
+idx_interactions_review
+  (tenant_id, review_status)
+
+idx_interactions_legal_hold
+  (tenant_id, legal_hold_status)
+
+idx_interactions_updated_at
+  (tenant_id, updated_at)
+```
 
 ### Unique Constraints
 
-- `UQ_provider_message (provider_name, provider_account_id, provider_message_id)`  
-  Applies when `provider_message_id` is not null.
+Recommended constraints include:
 
-- `UQ_provider_event (provider_name, provider_event_id)`  
-  Applies when `provider_event_id` is not null.
+```text
+UNIQUE (tenant_id, interaction_number)
+```
 
-- `UQ_thread_sequence (dealership_id, conversation_thread_id, sequence_number)`  
-  Applies when `conversation_thread_id` and `sequence_number` are populated.
+Provider message uniqueness should normally use:
 
-- `UQ_interaction_correction (supersedes_interaction_id)`  
-  Applies when only one direct governed replacement is permitted.
+```text
+UNIQUE (
+  tenant_id,
+  provider_id,
+  provider_account_id,
+  provider_message_id
+)
+```
 
-### Foreign Keys
+where the provider guarantees message-identifier uniqueness.
 
-- `dealership_id` → `dealerships(id)`
-- `customer_id` → `customers(id)` — nullable
-- `lead_id` → `leads(id)` — nullable
-- `qualified_lead_id` → `qualified_leads(id)` — nullable
-- `opportunity_id` → `opportunities(id)` — nullable
-- `appointment_id` → `appointments(id)` — nullable
-- `quotation_id` → `quotations(id)` — nullable
-- `trade_in_id` → `trade_ins(id)` — nullable
-- `finance_application_id` → `finance_applications(id)` — nullable
-- `deal_id` → `deals(id)` — nullable
-- `vehicle_id` → `vehicles(id)` — nullable
-- `owner_id` → `users(id)` — nullable
-- `assigned_user_id` → `users(id)` — nullable
-- `agent_id` → `agents(id)` — nullable
-- `campaign_id` → `campaigns(id)` — nullable
-- `conversation_thread_id` → `conversation_threads(id)` — nullable
-- `parent_interaction_id` → `interactions(id)` — nullable
-- `reply_to_interaction_id` → `interactions(id)` — nullable
-- `root_interaction_id` → `interactions(id)` — nullable
-- `task_id` → `tasks(id)` — nullable
-- `supersedes_interaction_id` → `interactions(id)` — nullable
-- `created_by` → `users(id)` — nullable
-- `reviewed_by` → `users(id)` — nullable
-- `redacted_by` → `users(id)` — nullable
+Provider event uniqueness should use:
 
-### Database Constraints
+```text
+UNIQUE (
+  tenant_id,
+  provider_id,
+  provider_account_id,
+  provider_event_id
+)
+```
 
-- `ended_at > started_at`
-- `delivered_at >= sent_at`
-- `read_at >= delivered_at`
-- `completed_at >= occurred_at`
-- `intent_confidence BETWEEN 0.00 AND 1.00`
-- `identity_resolution_confidence BETWEEN 0.00 AND 1.00`
-- `transcript_confidence BETWEEN 0.00 AND 1.00`
-- `sentiment_score BETWEEN -1.00 AND 1.00`
-- `urgency_score BETWEEN 0.00 AND 1.00`
-- `quality_score BETWEEN 0.00 AND 100.00`
-- `response_due_at IS NOT NULL` when `response_required = true`.
-- `next_action_at IS NOT NULL` when `follow_up_required = true`.
-- `escalation_reason IS NOT NULL` when `escalation_required = true`.
-- `redaction_reason IS NOT NULL` when `content_redacted = true`.
-- `provider_error_code IS NOT NULL` or error details must exist when `status = FAILED`.
-- `recording_consent_status = GRANTED` before recording when consent is required.
-- A text, attachment, recording, media object, or structured system payload must exist.
-- Completed Customer-visible content must be immutable.
-- Circular reply, parent, root, and supersession relationships are prohibited.
+Send-Command idempotency should use:
 
-### Storage Strategy
+```text
+UNIQUE (
+  tenant_id,
+  send_idempotency_key
+)
+```
 
-- Store searchable normalized text separately from encrypted original content.
-- Store attachments, recordings, documents, and large transcripts in the encrypted Document Vault.
-- Store only secure object references in the primary Interaction record.
-- Use cryptographic hashes to detect tampering and duplicate content.
-- High-volume provider events may use append-only event storage.
-- Search indexes must exclude restricted and redacted content.
+where appropriate to the Command scope.
 
-### Partition Keys
+### Interaction Versions
 
-- Partition by `dealership_id` using Hash or List partitioning.
-- High-volume deployments may sub-partition by `occurred_at`.
-- Provider-event, attachment, participant, AI-analysis, SLA, history, and audit tables must preserve the same tenant-isolation strategy.
+`interaction_versions` should preserve:
+
+- Interaction.
+- Version.
+- Content references.
+- Content hashes.
+- Participant snapshot.
+- Visibility.
+- Reason.
+- Creation authority.
+- Creation timestamp.
+- Superseded version.
+- Related Events.
+
+Original inbound evidence and finalized outbound content must remain immutable.
+
+### Participant Storage
+
+`interaction_participants` should preserve:
+
+- Participant identifier.
+- Interaction.
+- Role.
+- Type.
+- Customer, User, or Agent reference.
+- External participant reference.
+- Contact-point token.
+- Submitted contact observation.
+- Identity-resolution state.
+- Authentication state.
+- Authority state.
+- Visibility.
+- Evidence.
+- Related Events.
+
+### Conversation Thread Storage
+
+`conversation_threads` should preserve:
+
+- Thread identifier.
+- Tenant.
+- Thread status.
+- Primary Customer projection.
+- Participant snapshot.
+- Channel set.
+- External references.
+- Root Interaction.
+- Last Interaction.
+- Security classification.
+- Merge and split history.
+- Created and updated timestamps.
+
+Thread merging must remain auditable.
+
+### Content Evidence Storage
+
+`interaction_content_evidence` should preserve:
+
+- Original evidence reference.
+- Original hash.
+- Source.
+- MIME type.
+- Encoding.
+- Normalized representation.
+- Normalized hash.
+- Language.
+- Integrity state.
+- Security classification.
+- Retention class.
+- Legal hold.
+- Related Events.
+
+Binary and large source content should remain in controlled evidence storage.
+
+### Internal Note Storage
+
+Internal notes should be stored separately from Customer-visible content.
+
+Storage must preserve:
+
+- Author.
+- Business purpose.
+- Visibility.
+- Text.
+- Hash.
+- Finalization.
+- Correction lineage.
+- Access history.
+- Related Events.
+
+### Attachment Storage
+
+Attachment records should preserve:
+
+- Interaction.
+- Document or media reference.
+- File metadata.
+- Hash.
+- Scan state.
+- DLP state.
+- Content moderation.
+- Prompt-injection state.
+- Security classification.
+- Retention.
+- Legal hold.
+- Related Events.
+
+### Provider Storage
+
+Provider-message and provider-event tables should preserve:
+
+- Provider.
+- Account.
+- Channel.
+- Message identifier.
+- Event identifier.
+- Conversation identifier.
+- Provider status.
+- Provider timestamps.
+- Original payload reference.
+- Payload hash.
+- Deduplication state.
+- Reconciliation state.
+- Related Events.
+
+Provider payloads must not be stored in unrestricted Logs.
+
+### Send Command Storage
+
+`interaction_send_commands` should preserve:
+
+- Interaction.
+- Content hash.
+- Recipient snapshot.
+- Permission snapshot.
+- Human Decision or automation policy.
+- Command.
+- Idempotency key.
+- Provider.
+- Requested time.
+- Dispatch time.
+- Status.
+- Failure.
+- Retry state.
+- External Confirmation.
+- Related Events.
+
+### Delivery Storage
+
+Delivery-event storage should preserve:
+
+- Interaction.
+- Provider message.
+- Provider event.
+- Recipient.
+- Status.
+- Timestamp.
+- Source.
+- Evidence.
+- Deduplication status.
+- Reconciliation status.
+- Related Events.
+
+Delivery history must be append-only.
+
+### Recording Storage
+
+Recording records should preserve:
+
+- Interaction.
+- Provider.
+- Session.
+- Participant Consent.
+- Start and end times.
+- Controlled media reference.
+- Hash.
+- Duration.
+- Security classification.
+- Retention.
+- Legal hold.
+- Access state.
+- Related Events.
+
+### Transcript and Translation Storage
+
+Transcript and translation versions must preserve:
+
+- Source.
+- Model or provider.
+- Version.
+- Language.
+- Text reference.
+- Hash.
+- Generated time.
+- Review.
+- Correction lineage.
+- Security classification.
+- Related Events.
+
+### Permission Snapshot Storage
+
+`interaction_permission_snapshots` should preserve:
+
+- Customer or recipient.
+- Contact point.
+- Purpose.
+- Communication category.
+- Channel.
+- Consent records.
+- Lawful basis.
+- Opt-out state.
+- Quiet-hours result.
+- Frequency result.
+- Policy and version.
+- Evaluation time.
+- Expiration.
+- Result.
+- Related Events.
+
+### SLA Storage
+
+SLA records should preserve:
+
+- Interaction.
+- Policy and version.
+- Start time.
+- Due time.
+- Satisfying response.
+- Completion time.
+- Breach time.
+- Waiver Decision.
+- Status.
+- Related Events.
+
+### Redaction and Correction Storage
+
+Redaction and correction records should preserve:
+
+- Request.
+- Interaction.
+- Scope.
+- Reason.
+- Legal basis.
+- Human Decision.
+- Original hash.
+- Revised or redacted hash.
+- Secure evidence.
+- Actor.
+- Timestamp.
+- Propagation state.
+- Related Events.
+
+### Derived Intelligence
+
+Derived Interaction records must remain separate from original evidence and authoritative workflow fields.
+
+Each derived record should preserve:
+
+- Output type.
+- Value.
+- Evidence spans.
+- Model, formula, or algorithm version.
+- Prompt version where applicable.
+- Input-record versions.
+- Confidence.
+- Assumptions.
+- Generated time.
+- Expiration time.
+- Review status.
+
+### Audit Storage
+
+Interaction audit records must be append-only or protected through an equivalent immutable-audit mechanism.
+
+Secure hashes should replace raw communication, identity, financial, and legal values where full-value audit retention is unnecessary.
+
+### Partitioning
+
+Large deployments may partition by:
+
+- `tenant_id`.
+- Region.
+- Dealership.
+- Channel.
+- Occurrence date.
+- Retention class.
+- Security classification.
+- Legal-hold status.
+- Audit date.
+
+Partitioning must not weaken:
+
+- Tenant isolation.
+- Provider deduplication.
+- Thread ordering.
+- Content immutability.
+- Legal holds.
+- Referential integrity.
+- Audit integrity.
+
+### Hard Deletion
+
+An Interaction must not be hard-deleted when referenced by:
+
+- Customer Journey.
+- Lead.
+- Qualified Lead.
+- Opportunity.
+- Appointment.
+- Quotation.
+- Trade-In.
+- Finance Application.
+- Financial Contract.
+- Deal.
+- Complaint.
+- Dispute.
+- Follow-up Task.
+- Human Decision.
+- AI Agent Run.
+- Command.
+- External Confirmation.
+- Legal hold.
+- Audit evidence.
+
+Redaction, anonymization, governed deletion, archival, or legally required retention workflows must be used instead.
+
+---
 
 ## 12. Security
 
-### RBAC — Role-Based Access Control
+### Security Classification
 
-- **Sales Consultant:** Access Customer Interactions assigned to them or linked to permitted Customers and Opportunities.
-- **Sales Manager:** Access dealership sales Interactions, escalations, and quality reviews within authorized scope.
-- **BDC Agent:** Access early-stage inbound and outbound communication queues.
-- **Finance User:** Access finance-related Interactions without unrestricted access to unrelated Customer conversations.
-- **Compliance User:** Access restricted, complaint, fraud, consent, redaction, and legal-hold Interactions.
-- **Delivery Coordinator:** Access Deal and delivery-related Interactions within assigned scope.
-- **Marketing User:** Access campaign Interactions only according to consent and privacy policy; restricted financial and transactional content excluded.
-- **Customer Self-Service User:** Access only permitted Customer-visible Interactions belonging to their authenticated identity.
-- **AI Interaction Agent:** Service Account access limited to permitted context retrieval, classification, summarization, drafting, and approved send requests.
-- **Communication Provider Service:** Restricted inbound-event and outbound-delivery access.
-- **Notification Service:** Restricted access to approved transactional and reminder communications.
-- **Audit Service:** Read-only access to immutable audit and event metadata.
+Recommended classifications include:
 
-### PII Classification
+| Classification | Example Fields |
+| :--- | :--- |
+| `DIRECT_IDENTIFIER` | Name, phone, email, social account |
+| `CUSTOMER_COMMUNICATION` | Customer-visible message content |
+| `INTERNAL_RESTRICTED` | Internal notes and internal coordination |
+| `FINANCIAL_RESTRICTED` | Finance, Payment, bank, and funding content |
+| `IDENTITY_RESTRICTED` | Identity documents and national identifiers |
+| `CONTRACTUAL_RESTRICTED` | Contract and signature discussion |
+| `LEGAL_AND_COMPLIANCE` | Complaints, disputes, legal holds |
+| `RECORDING_RESTRICTED` | Call and meeting recordings |
+| `PROVIDER_CONFIDENTIAL` | Provider identifiers and payloads |
+| `DERIVED_INTELLIGENCE` | Intent, sentiment, summaries, Recommendations |
+| `AUDIT_EVIDENCE` | Decisions, Commands, Confirmations, and history |
 
-- **Level:** `CRITICAL PII`
+### Authentication
 
-The Interaction may contain or reference:
+Every internal Interaction operation requires an authenticated Human or service identity.
 
-- Customer names
-- Phone numbers
-- Email addresses
-- Residential or business addresses
-- Voice recordings
-- Video recordings
-- Message content
-- Customer preferences
-- Appointment details
-- Vehicle interests
-- Financial questions
-- Trade-In information
-- Complaint information
-- Identity or supporting documents
-- External participant details
+Customer self-service access must use an approved authentication or verification mechanism.
 
-### Restricted Data Categories
+Anonymous inbound communication may be accepted only into a restricted unresolved-identity workflow.
 
-- National identifiers
-- Bank and Payment information
-- Credit and finance information
-- Signed contracts
-- Identity documents
-- Driving-license documents
-- Medical or accessibility information
-- Legal claims
-- Fraud indicators
-- Internal profitability information
-- Authentication credentials
-- Secure links and tokens
+Anonymous communication must not receive sensitive Customer information.
 
-### Encryption Requirements
+### Authorization
 
-- **In Transit:** TLS 1.3 minimum.
-- **At Rest:** AES-256 encryption for databases, recordings, transcripts, attachments, snapshots, event stores, and backups.
-- **Column-Level Protection:** Sender and recipient addresses, Customer contact data, transcripts, consent references, restricted notes, complaint content, and external identifiers require encryption, tokenization, or equivalent approved protection.
-- Attachments, recordings, and documents must be stored in an encrypted Document Vault.
-- Provider credentials, API keys, and access tokens must be stored in a secrets-management system.
-- Secure message, meeting, and attachment links must be time-limited and cryptographically protected.
-- Encryption keys must be separated by environment and rotated according to security policy.
+Authorization must consider:
 
-### Communication Security
+- `tenant_id`.
+- Dealer group.
+- Dealership.
+- Branch.
+- Department.
+- Team.
+- Queue.
+- Assigned User.
+- Customer relationship.
+- Related Domain Object.
+- Participant relationship.
+- Direction.
+- Channel.
+- Purpose.
+- Visibility.
+- Requested field.
+- Requested action.
+- Security classification.
+- Legal hold.
+- Business purpose.
+- Delegated authority.
 
-- Provider webhooks must be authenticated and protected against replay attacks.
-- Outbound communication must use approved provider accounts and sender identities.
-- Public URLs must never expose raw recordings, documents, or Customer content.
-- Email and message content must be scanned for malware, phishing, restricted data, and unsafe attachments.
-- Customer-facing AI content must pass policy, consent, and restricted-data checks before delivery.
-- Internal notes must remain inaccessible through Customer-facing APIs.
-- Content rendered as HTML must be sanitized against script injection.
-- Message templates must be versioned and approved.
+### Example Role Boundaries
 
-### Consent and Purpose Limitation
+#### Sales Consultant
 
-- Promotional communication requires valid and current permission.
-- Transactional communication must remain limited to its documented operational purpose.
-- Customer opt-out requests must be processed promptly and propagated to authoritative consent records.
-- Recording consent must be captured when required before recording begins.
-- Communication data must not be reused for unrelated marketing, model training, or profiling without lawful authority.
-- Consent checks must preserve:
-  - Customer identity
-  - Channel
-  - Purpose
-  - Consent status
-  - Consent version
-  - Policy version
-  - Timestamp
-  - Result
+May access permitted:
 
-### Audit Requirements
+- Assigned Customer communication.
+- Vehicle and Appointment discussion.
+- Customer-facing Quotation communication.
+- Approved follow-up.
+- General Deal coordination.
 
-- Every inbound provider event must preserve:
-  - Provider
-  - Provider account
-  - Provider message or event ID
-  - Authentication result
-  - Received timestamp
-  - Processing result
+Must not access without explicit authority:
 
-- Every outbound operation must preserve:
-  - Sender
-  - Recipients
-  - Purpose
-  - Consent-check result
-  - Policy version
-  - Message-template version
-  - Provider
-  - Actor or Agent
-  - Timestamp
+- Restricted finance documents.
+- Credit information.
+- Bank details.
+- Internal legal notes.
+- Compliance investigations.
+- Full recordings unrelated to assigned work.
+- Other Users’ restricted notes.
 
-- Every content change before completion must record:
-  - Previous content hash
-  - New content hash
-  - Actor
-  - Reason
-  - Timestamp
+#### Sales Manager
 
-- Every AI operation must preserve:
-  - Model reference
-  - Prompt version
-  - Authorized input scope
-  - Output
-  - Confidence
-  - Human approval status
-  - Timestamp
+May access permitted team Interactions and perform configured:
 
-- Every Customer opt-out must preserve:
-  - Customer identity
-  - Original Interaction
-  - Channel
-  - Evidence
-  - Processing result
-  - Timestamp
+- Escalation review.
+- Outbound approval.
+- Quality review.
+- Commitment review.
+- Complaint escalation.
+- Follow-up reassignment.
 
-- Every redaction or correction must preserve:
-  - Original Interaction ID
-  - Reason
-  - Authorized actor
-  - Approval reference
-  - Changed fields
-  - Timestamp
+Manager access does not automatically grant access to legal, finance, identity, or compliance-restricted content.
 
-- Every complaint, escalation, or legal hold must preserve:
-  - Triggering Interaction
-  - Classification
-  - Responsible User
-  - Actions taken
-  - Resolution status
-  - Timestamp
+#### Finance Specialist
 
-- Human overrides of AI recommendations must retain both the original recommendation and the final human decision.
-- Access to Customer content, recordings, transcripts, attachments, complaints, financial discussions, and consent data must be logged.
+May access only finance-related Interactions required for assigned Finance Applications, Financial Contracts, or funding workflows.
+
+#### Compliance or Legal Reviewer
+
+May access restricted Interactions required for an assigned review, complaint, dispute, or legal hold.
+
+Access must remain purpose-limited and audited.
+
+#### Contact-Center User
+
+May access assigned queues and permitted Customer contact data.
+
+Contact-center access does not grant access to unrestricted Deal margin, finance documents, or legal evidence.
+
+#### Quality Reviewer
+
+May access applicable Interactions, recordings, transcripts, and quality metadata according to assigned purpose and policy.
+
+#### Data Steward
+
+May review:
+
+- Identity-resolution conflicts.
+- Duplicate provider records.
+- Thread conflicts.
+- Source mappings.
+- Data-quality issues.
+- Reconciliation cases.
+
+Raw sensitive content access should remain minimized.
+
+#### AI Agent
+
+May access only the minimum Interaction context required for its approved task.
+
+AI access must be:
+
+- Tenant-scoped.
+- Purpose-limited.
+- Field-restricted.
+- Logged.
+- Time-limited where appropriate.
+- Prevented from cross-Tenant retrieval.
+- Prevented from unrestricted access to identity, finance, Payment, Contract, legal, compliance, recording, and internal-note data.
+
+#### Integration Service
+
+May access only fields required for an approved communication, recording, transcription, translation, document, CRM, or workflow integration.
+
+### Field-Level Protection
+
+Restricted fields must use:
+
+- Field-level authorization.
+- Encryption.
+- Tokenization where appropriate.
+- Masking.
+- Controlled evidence references.
+- Export restrictions.
+- AI-context restrictions.
+- Purpose limitation.
+- Audit logging.
+
+Restricted examples include:
+
+- Phone numbers.
+- Email addresses.
+- Social account identifiers.
+- Recording references.
+- Transcript content.
+- Internal notes.
+- Identity documents.
+- Payment instructions.
+- Finance documents.
+- Contract content.
+- Complaint evidence.
+- Provider credentials.
+
+### Contact-Point Protection
+
+Contact points must:
+
+- Use tokenization or equivalent protection where possible.
+- Be masked when full display is unnecessary.
+- Be restricted by purpose.
+- Be excluded from general Logs.
+- Be excluded from unrestricted embeddings.
+- Be protected against bulk export.
+- Preserve verification state.
+- Preserve source.
+- Not be treated as permanent Customer identity.
+
+### Communication Content Protection
+
+Communication content must:
+
+- Use encryption in transit and at rest.
+- Preserve content hashes.
+- Use controlled access.
+- Prevent public indexing.
+- Prevent unrestricted sharing.
+- Follow retention.
+- Support legal hold.
+- Support governed redaction.
+- Prevent Customer-visible exposure of internal notes.
+- Prevent cross-Customer content leakage.
+
+### Provider Credential Protection
+
+Provider credentials, API keys, tokens, signing secrets, and webhook secrets must:
+
+- Remain in approved secret-management systems.
+- Never appear in Interaction records.
+- Never appear in Prompts.
+- Never appear in ordinary Logs.
+- Use rotation.
+- Use least privilege.
+- Use audited service identities.
+
+### Webhook and Provider Security
+
+Provider webhooks must use applicable:
+
+- Signature verification.
+- Timestamp validation.
+- Replay protection.
+- Source validation.
+- Tenant routing.
+- Provider-account validation.
+- Payload-size limits.
+- Schema validation.
+- Deduplication.
+- Rate limiting.
+- Security logging.
+
+A provider event must not choose its own unrestricted `tenant_id`.
+
+Tenant routing must derive from trusted provider-account configuration.
+
+### Attachment Security
+
+Attachments must:
+
+- Be treated as untrusted.
+- Use controlled storage.
+- Be scanned for malware.
+- Be inspected for restricted data.
+- Be protected from public access.
+- Use non-predictable references.
+- Preserve hashes.
+- Prevent active-content execution.
+- Prevent unapproved AI training.
+- Follow retention and legal-hold policy.
+
+### Recording Security
+
+Recordings must:
+
+- Use controlled encrypted storage.
+- Preserve recording Consent.
+- Restrict playback and download.
+- Preserve access logs.
+- Protect Customer and employee privacy.
+- Prevent public links.
+- Follow jurisdictional retention.
+- Support legal hold.
+- Support governed deletion or redaction where lawful.
+- Be excluded from unrestricted AI context.
+
+### Transcript and Translation Security
+
+Transcripts and translations inherit the security classification of the source content unless a stricter classification applies.
+
+They must not be placed in lower-security storage solely because they are text.
+
+### Consent Enforcement
+
+Before outbound communication, deterministic controls must validate:
+
+- Recipient identity.
+- Contact point.
+- Purpose.
+- Communication classification.
+- Channel.
+- Consent.
+- Lawful basis.
+- Opt-out state.
+- Quiet hours.
+- Frequency.
+- Template.
+- Customer restrictions.
+- Human Approval or automation policy.
+
+Prompt text, sales urgency, or AI Recommendation must not bypass these controls.
+
+### Internal Note Security
+
+Internal notes must:
+
+- Use restricted visibility.
+- Remain excluded from Customer delivery.
+- Remain excluded from Customer exports unless legally required.
+- Prevent copy into outbound messages without explicit authorized review.
+- Preserve author and purpose.
+- Be subject to professional conduct and anti-discrimination rules.
+- Remain discoverable under lawful audit or legal requirements.
 
 ### Tenant Isolation
 
-- Every query must enforce the authenticated `dealership_id`.
-- Cross-tenant Customer, Lead, Opportunity, Appointment, Quotation, Trade-In, Finance Application, Deal, Vehicle, User, Agent, Campaign, or Interaction linking is prohibited.
-- Provider events must be mapped to exactly one authenticated tenant before processing.
-- AI Agents, Jobs, integrations, exports, analytics, and semantic retrieval must receive tenant scope through signed execution context.
-- Conversation Threads cannot contain participants or Interactions from different tenants.
-- Vector retrieval must enforce tenant, Customer, visibility, legal-hold, and permission filters.
+Tenant isolation must apply to:
 
-### Retention and Deletion
+- Database queries.
+- Contact-point matching.
+- Identity resolution.
+- Conversation threading.
+- Search.
+- Vector retrieval.
+- Provider events.
+- Queues.
+- Caches.
+- Attachments.
+- Recordings.
+- Transcripts.
+- Documents.
+- Analytics.
+- Exports.
+- Logs.
+- Backups.
+- AI context.
+- Support access.
 
-- Interaction retention must follow communication, privacy, contractual, financial, complaint, regulatory, and legal requirements.
-- Completed Customer-visible Interactions must remain immutable.
-- Records linked to Deals, Finance Applications, Payments, Contracts, complaints, disputes, or legal holds must not be hard-deleted while dependencies remain.
-- Legal hold overrides ordinary deletion and archival schedules.
-- Soft deletion is the operational default for eligible records.
-- Redaction should be used when specific sensitive content must be removed while preserving the existence and audit history of the Interaction.
-- Legally approved deletion requests must purge or anonymize permitted PII across:
-  - Interaction records
-  - Conversation Threads
-  - Participant records
-  - Attachments and documents
-  - Recordings and transcripts
-  - Provider metadata
-  - AI analysis and embeddings
-  - Search indexes
-  - Customer Journey summaries
-  - Analytics stores
-  - Audit references
-  - Backups, according to the approved retention policy
+Every query and Event Consumer must validate `tenant_id`.
+
+### Command Security
+
+Outbound communication Commands must include:
+
+- Authenticated service identity.
+- `tenant_id`.
+- Organizational scope.
+- Interaction identifier.
+- Current record version.
+- Content hash.
+- Recipient snapshot.
+- Purpose.
+- Permission snapshot.
+- Human Decision or automation-policy reference.
+- Provider.
+- Idempotency key.
+- Audit evidence.
+- External Confirmation requirement.
+
+The AI Intelligence Layer must not transmit provider Commands directly.
+
+### Audit Requirements
+
+Material Interaction activity must record:
+
+- `tenant_id`.
+- `interaction_id`.
+- Conversation Thread.
+- Customer and related Domain references.
+- Actor.
+- Role and permission.
+- Direction.
+- Channel.
+- Purpose.
+- Business purpose.
+- Content hash.
+- Participant snapshot reference.
+- Previous value or secure hash.
+- New value or secure hash.
+- Source.
+- Authority category.
+- Record version.
+- Consent and permission snapshot.
+- Human Decision.
+- Automation-policy reference.
+- AI involvement.
+- Recommendation.
+- Command.
+- Idempotency key.
+- Provider reference.
+- External Confirmation.
+- Evidence.
+- Timestamp.
+- Correlation identifier.
+- Causation identifier.
+- Related Events.
+
+### Security Events
+
+ASOS must detect and record:
+
+- Cross-Tenant Interaction access attempts.
+- Provider webhook authentication failure.
+- Provider event replay.
+- Provider-account Tenant-routing mismatch.
+- Duplicate provider ingestion anomalies.
+- Unauthorized Customer disclosure.
+- Internal-note exposure attempt.
+- Consent bypass.
+- Opt-out bypass.
+- Quiet-hours override attempt.
+- Frequency-limit bypass.
+- Unauthorized outbound communication.
+- Message-content substitution.
+- Content-hash mismatch.
+- Attachment malware.
+- Restricted-data exposure.
+- Recording without required Consent.
+- Unauthorized recording access.
+- Prompt injection.
+- AI access outside approved scope.
+- Bulk communication export.
+- Command replay.
+- External Confirmation mismatch.
+- Audit-log tampering.
+
+### Communication Integrity
+
+The platform must detect or prevent:
+
+- Sending to the wrong Customer.
+- Sending through the wrong Tenant account.
+- Sending the wrong content version.
+- Sending after approval expiration.
+- Sending after opt-out.
+- Sending internal notes to Customers.
+- Recording without required Consent.
+- Treating delivery as acceptance.
+- Treating AI interpretation as authoritative outcome.
+- Altering finalized inbound evidence.
+- Altering finalized outbound content.
+- Concealing corrections or redactions.
+- Duplicate provider-message creation.
+- Interaction status manipulation.
+
+### Privacy and Retention
+
+Interaction retention must follow:
+
+- Applicable law.
+- Tenant policy.
+- Communication-provider requirements.
+- Customer privacy rights.
+- Consent state.
+- Contractual requirements.
+- Complaint and dispute requirements.
+- Financial and regulatory obligations.
+- Legal holds.
+- Audit requirements.
+
+Privacy workflows must support applicable:
+
+- Access.
+- Correction.
+- Restriction.
+- Export.
+- Consent withdrawal.
+- Redaction.
+- Anonymization.
+- Deletion where lawful.
+- Dispute handling.
+
+Privacy actions must propagate to:
+
+- Search indexes.
+- Vector stores.
+- Caches.
+- Analytics projections.
+- Exports.
+- Non-authoritative replicas.
+- Document stores.
+- Media stores.
+- Communication providers where lawfully required.
+- Backups according to policy.
+
+Required contractual, security, complaint, legal, financial, and audit evidence may remain only where lawful.
+
+### Emergency Controls
+
+The platform must support immediate Tenant-scoped suspension of:
+
+- Outbound messaging.
+- Automated follow-up.
+- Marketing communication.
+- Provider webhooks.
+- Recording.
+- Transcription.
+- Translation.
+- AI Interaction analysis.
+- Attachment processing.
+- External write-back.
+- Interaction export.
+- Connector access.
+
+Emergency suspension must be deterministic, auditable, and reversible only by authorized roles.
+
+---
+
+## Governing Documents
+
+- [ASOS Constitution](../../../00_Constitution/Constitution.md)
+- [ASOS System Architecture](../../../05_Documentation/System_Architecture.md)
+- [ASOS Data Ownership and Systems of Record](../../../05_Documentation/Data_Ownership_and_Systems_of_Record.md)
+- [ASOS Canonical Domain Model](./README.md)
+- [ASOS Customer](./Customer.md)
+- [ASOS Lead](./Lead.md)
+- [ASOS Qualified Lead](./QualifiedLead.md)
+- [ASOS Opportunity](./Opportunity.md)
+- [ASOS Appointment](./Appointment.md)
+- [ASOS Quotation](./Quotation.md)
+- [ASOS Vehicle](./Vehicle.md)
+- [ASOS Inventory Record](./InventoryRecord.md)
+- [ASOS Trade-In](./TradeIn.md)
+- [ASOS Finance Application](./FinanceApplication.md)
+- [ASOS Financial Contract](./FinancialContract.md)
+- [ASOS Deal](./Deal.md)
+
+---
+
+## Current Status
+
+This document is the approved Canonical Interaction baseline.
+
+Interaction preserves communication evidence and does not independently create authoritative downstream business outcomes.
+
+Original inbound evidence and finalized outbound content are immutable.
+
+Internal notes remain separate from Customer-visible communication.
+
+Inbound communication does not automatically establish Customer identity or marketing Consent.
+
+Outbound communication requires deterministic permission controls and Human Approval or an applicable pre-approved automation policy.
+
+Provider acceptance does not prove delivery.
+
+Delivery does not prove Customer understanding or acceptance.
+
+AI intent, sentiment, summaries, and acceptance signals remain Derived Intelligence.
+
+Provider-event deduplication, ASOS Event Consumer deduplication using `event_id`, and Command retry protection using `idempotency_key` remain separate controls.
+
+Detailed Event names and Schemas will be governed by the Canonical Event Catalog.
+
+Detailed API Schemas will be governed by the API Contracts Catalog.
+
+Machine-readable storage and validation Schemas will be governed by the Data Schemas Catalog.
