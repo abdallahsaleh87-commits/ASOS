@@ -4,7 +4,7 @@
 **Status:** Approved Baseline  
 **Canonical Owner:** Inventory Domain Service  
 **Primary Isolation Boundary:** `tenant_id`  
-**Last Updated:** 2026-08-01  
+**Last Updated:** 2026-08-02  
 
 ---
 
@@ -12,96 +12,211 @@
 
 ### Business Purpose
 
-The Inventory Record Object represents one governed dealership Inventory holding or stock cycle for one specific physical Vehicle inside an ASOS Tenant.
+The Inventory Record Object represents one governed dealership stock cycle for one specific physical Vehicle inside one ASOS Tenant.
 
-It describes how a Vehicle is:
+It records how the Vehicle is:
 
-- Acquired or expected.
-- Held by a dealership.
-- Located.
+- Expected or acquired.
+- Accepted into dealership stock.
+- Assigned an Inventory identity.
+- Located and physically verified.
 - Inspected and prepared.
-- Priced.
-- Published.
+- Priced and published.
 - Made commercially available.
-- Reserved.
-- Allocated.
+- Reserved and allocated.
 - Transferred.
-- Sold.
-- Delivered.
-- Returned.
-- Retired from Inventory.
+- Sold and delivered.
+- Returned, retired, or archived.
 
 The Inventory Record answers operational questions such as:
 
-- Is the Vehicle physically present?
-- Which dealership and branch currently control it?
-- Is it commercially available?
-- Is it ready for sale or test drive?
+- Does a valid stock record exist for this Vehicle?
+- Which dealership, branch, and location currently control the stock cycle?
+- Was the Vehicle accepted through an OEM, supplier, transfer, Trade-In, consignment, or another approved intake source?
+- Is physical possession verified?
+- Is legal or operational acquisition evidence complete?
+- Is the Vehicle commercially available?
+- Is it ready for sale, test drive, allocation, or delivery?
 - Is it reserved or allocated?
-- What pricing authority applies?
-- Is a transfer in progress?
-- Is a sale or delivery externally confirmed?
-- Is the Inventory information current and verified?
-- Is a legal, safety, financial, quality, or compliance block active?
+- Is a transfer, sale, return, or exit workflow pending?
+- Is the Inventory projection current, confirmed, and reconciled?
+- Is a safety, quality, legal, financial, ownership, compliance, or data block active?
 
-### Vehicle and Inventory Separation
+### Vehicle, Trade-In, and Inventory Separation
 
-`Vehicle` defines the stable identity and specifications of the Vehicle.
+The following boundaries are mandatory:
 
-`Inventory Record` defines the commercial and operational dealership context of that Vehicle.
+```text
+Vehicle
+  = canonical physical Vehicle identity and technical specification
 
-The Vehicle Object owns:
+Trade-In
+  = appraisal, ownership verification, lien and payoff,
+    Customer offer, acquisition readiness, and legal acquisition workflow
+
+Inventory Record
+  = dealership-specific stock identity, intake acceptance,
+    stock lifecycle, location, availability, preparation,
+    pricing, Reservation, Allocation, transfer, sale, and exit context
+```
+
+The Vehicle Domain Service owns:
 
 - VIN and chassis identity.
-- Make.
-- Model.
-- Trim.
-- Variant.
-- Model year.
-- Technical specifications.
+- Make, model, trim, variant, and model year.
+- Technical specification.
 - Factory configuration.
-- Identity-verification evidence.
-- Odometer evidence.
+- Identity-resolution evidence.
+- Odometer evidence and identity-level conflicts.
 
-The Inventory Record owns or projects:
+The Trade-In Domain Service owns:
 
-- Inventory number.
-- Stock number.
-- Dealership and branch context.
-- Location.
-- Physical-presence state.
-- Acquisition context.
-- Ownership or holding arrangement.
+- Trade-In appraisal and appraisal versions.
+- Actual cash value.
+- Customer-facing Trade-In allowance.
+- Lien and payoff verification.
+- Positive and negative equity.
+- Customer acceptance of the Trade-In offer.
+- Acquisition readiness.
+- Legal acquisition workflow.
+- Ownership-transfer and payoff evidence.
+- The request for dealership Inventory intake after valid acquisition.
+- Read-only tracking of the resulting Inventory Record reference.
+
+The Inventory Domain Service owns:
+
+- Inventory-intake validation.
+- Intake-request acceptance or rejection.
+- Inventory-intake idempotency.
+- Creation of the canonical Inventory Record.
+- Activation of the current stock cycle.
+- Inventory number and stock-number governance.
+- Dealership, branch, and location stock context.
+- Physical-presence workflow.
 - Inventory lifecycle.
 - Commercial availability.
-- Pricing context.
-- Preparation state.
-- Publication state.
-- Reservation state.
-- Allocation state.
-- Inventory aging.
-- Transfer state.
-- Exit state.
+- Preparation and readiness.
+- Inventory pricing context.
+- Publication.
+- Reservation and Allocation workflow unless delegated to an approved dedicated service.
+- Transfer, sale, delivery, return, retirement, and archival projections.
+- Inventory reconciliation.
 
-The Inventory Record must not redefine authoritative Vehicle identity or technical specifications.
+The Trade-In Domain Service must not:
+
+- Create an Inventory Record directly.
+- Assign the authoritative `inventory_record_id`.
+- Assign the authoritative stock number.
+- Activate dealership stock.
+- Set authoritative Inventory lifecycle or availability state.
+- Publish authoritative Inventory Record-created or Inventory-activated Events.
+- Treat an intake request, API acknowledgement, or sent Command as proof that Inventory intake completed.
+
+The Inventory Domain Service must not:
+
+- Recalculate or overwrite the Trade-In appraisal.
+- Change the approved Trade-In allowance.
+- Decide payoff, lien, equity, or legal acquisition outcomes.
+- Represent incomplete Trade-In acquisition evidence as completed.
+- Treat a Trade-In intake request as sufficient evidence for stock activation.
+
+### Inventory Intake Ownership
+
+A Trade-In Vehicle becomes active dealership Inventory only through a governed Inventory intake workflow.
+
+The workflow must distinguish:
+
+```text
+Trade-In acquisition completed
+  ≠ Inventory intake requested
+
+Inventory intake requested
+  ≠ Inventory intake accepted
+
+Inventory intake accepted
+  ≠ Inventory Record created
+
+Inventory Record created
+  ≠ Inventory Record activated
+
+Inventory Record activated
+  ≠ Vehicle commercially available
+```
+
+For a Trade-In source, the Inventory Domain Service must validate at least:
+
+- Exact `trade_in_id`.
+- Exact Trade-In record version.
+- Exact accepted acquisition or handoff snapshot.
+- Canonical `vehicle_id`.
+- Tenant, dealership, branch, and legal-entity consistency.
+- Legal acquisition status.
+- Ownership-transfer evidence.
+- Lien, payoff, and release conditions.
+- Physical-possession evidence.
+- Approved intake authority.
+- Applicable inspection and quality requirements.
+- Acquisition-cost handoff and source authority.
+- Duplicate current-stock-cycle risk.
+- Required Human Decision or approved automation policy.
+- Idempotency key.
+- External system requirements.
+
+The Inventory Domain Service may:
+
+- Reject an incomplete or conflicting intake request.
+- Require Human Review.
+- Create a planned or inactive Inventory Record while external confirmation is pending.
+- Create a canonical Inventory Record after accepted internal authority.
+- Submit an idempotent external stock-creation Command where a DMS or Inventory Management System is authoritative.
+- Activate the stock cycle only after the configured activation evidence exists.
+- Return the accepted `inventory_record_id`, record version, and reconciliation references to Trade-In.
+
+### External Inventory Authority
+
+The configured DMS, Inventory Management System, accounting platform, OEM system, or another approved external authority may remain authoritative for selected facts, including:
+
+- External stock-record creation.
+- External stock number.
+- Physical receipt.
+- Legal ownership posting.
+- Acquisition cost posting.
+- Final posted pricing.
+- Reservation or Allocation completion.
+- Sale posting.
+- Delivery posting.
+- Transfer completion.
+- Accounting entries.
+
+When an external system is authoritative:
+
+- Inventory Domain Service owns the canonical Command workflow.
+- The Command must be persisted before transmission.
+- Safe retries must use one stable idempotency key.
+- Local state must remain pending until authoritative External Confirmation.
+- Transport success does not prove business completion.
+- Conflicting or delayed outcomes must enter reconciliation.
+- Inventory Domain Service publishes the accepted canonical projection after validation.
 
 ### Historical Stock Cycles
 
 A physical Vehicle may have multiple historical Inventory Records because of:
 
-- Stock transfer.
+- Dealer transfer.
 - Return and reacquisition.
 - Trade-In acquisition.
-- Repurchase.
+- Repurchase or buyback.
 - Consignment renewal.
 - Ownership change.
-- Dealer-group transfer.
+- Separate holding periods.
 - Data correction.
-- Separate Inventory holding periods.
+- Re-entry after delivery or disposal.
 
-Only one Inventory Record may claim the current physical possession and active commercial availability of the same physical Vehicle inside the same Tenant.
+Only one Inventory Record may normally claim current physical possession and active commercial control for the same physical Vehicle inside the same Tenant.
 
-A transfer workflow may temporarily create a planned destination record, but only one record may claim authoritative current physical possession at a time.
+A planned destination record may exist during transfer, but it must not claim current physical possession before accepted receiving evidence.
+
+A delivered, transferred-out, returned, retired, or archived stock cycle must not be reopened through an ordinary update. Re-entry normally requires a new Inventory Record linked through supersession or reacquisition lineage.
 
 ### System Purpose
 
@@ -111,60 +226,52 @@ The Inventory Record provides canonical Inventory context to:
 - Lead and Opportunity workflows.
 - Appointment and test-drive scheduling.
 - Quotation preparation.
-- Reservation workflows.
-- Allocation workflows.
-- Deal progression.
-- Trade-In acquisition.
-- Finance coordination.
+- Reservation and Allocation.
+- Deal execution.
+- Trade-In intake.
+- Finance and Financial Contract readiness.
 - Publication channels.
+- Pricing and markdown review.
 - Inventory aging analysis.
-- Pricing Recommendations.
 - Transfer workflows.
+- Delivery workflows.
+- Accounting and DMS integrations.
 - Management reporting.
 - AI Agents.
 - Audit and reconciliation services.
 
 The Inventory Record may contain:
 
+- External Authoritative Data.
 - ASOS Canonical Projections.
 - ASOS Authoritative Workflow State.
 - Derived Intelligence.
 - Authoritative Human Decisions.
 - External Confirmations.
 
-The configured DMS, Inventory Management System, accounting platform, or another approved external system may remain authoritative for:
-
-- Physical stock status.
-- Legal ownership.
-- Acquisition cost.
-- Final posted pricing.
-- Reservation completion.
-- Allocation completion.
-- Sale posting.
-- Delivery posting.
-- Transfer completion.
-- Accounting entries.
-
-ASOS must not represent an internal projection, Recommendation, Human Decision, or sent Command as an externally completed Inventory action without authoritative External Confirmation.
-
 ### Canonical Ownership Matrix
 
-| Information | Canonical Owner |
+| Information | Default Authority |
 | :--- | :--- |
-| Vehicle identity and technical specifications | Vehicle |
-| Dealership stock context | Inventory Record |
-| Current Inventory location | Inventory Record projection or configured external authority |
-| Commercial availability | Inventory Record |
-| Reservation workflow | Inventory Record or dedicated Reservation service |
-| Allocation workflow | Inventory Record or dedicated Allocation service |
-| Inventory pricing context | Inventory Record |
-| Customer-specific commercial offer | Quotation |
-| Final commercial Deal terms | Deal |
-| Customer Payment evidence | Payment or configured external authority |
-| Finance approval | Finance Application or lender |
-| Signed finance agreement | Financial Contract |
-| Vehicle delivery Confirmation | Delivery workflow and configured external authority |
-| Inventory demand and aging intelligence | Derived Intelligence associated with Inventory Record |
+| Vehicle identity and technical specification | Vehicle Domain Service |
+| Trade-In appraisal, payoff, equity, and acquisition workflow | Trade-In Domain Service and configured authorities |
+| Inventory-intake validation and acceptance | Inventory Domain Service |
+| Canonical Inventory Record creation and activation | Inventory Domain Service |
+| External stock posting | Configured DMS or Inventory authority |
+| Dealership stock identity and lifecycle | Inventory Domain Service |
+| Physical presence and location | Inventory workflow or configured external authority |
+| Commercial availability | Inventory Domain Service using accepted evidence |
+| Reservation and Allocation workflow | Inventory Domain Service or approved dedicated service |
+| Inventory pricing context | Inventory Domain Service and approved pricing authority |
+| Customer-specific commercial offer | Quotation Domain Service |
+| Final commercial transaction | Deal Domain Service |
+| Customer Payment evidence | Payment authority |
+| Finance approval | Lender through Finance Application |
+| Financial Contract and funding workflow | Financial Contract Domain Service |
+| Delivery outcome | Delivery workflow or configured external authority |
+| Accounting outcome | Configured accounting or DMS authority |
+| Inventory intelligence | Derived Intelligence |
+| External operation completion | Configured External Confirmation authority |
 
 ---
 
@@ -174,8 +281,9 @@ ASOS must not represent an internal projection, Recommendation, Human Decision, 
 
 - `inventory_record_id` — UUIDv4, required and immutable.
 - `tenant_id` — UUIDv4, required and immutable.
-- `vehicle_id` — UUIDv4, required.
+- `vehicle_id` — UUIDv4, required and immutable for the stock cycle.
 - `record_version` — Integer used for optimistic concurrency.
+- `inventory_cycle_number` — Integer or stable sequence for the Vehicle inside the Tenant.
 
 ### Organizational Context
 
@@ -183,43 +291,121 @@ ASOS must not represent an internal projection, Recommendation, Human Decision, 
 - `dealership_id`.
 - `branch_id`.
 - `location_id`.
+- `legal_entity_id`.
+- `inventory_department_id`.
 - `responsible_team_id`.
 - `assigned_inventory_user_id`.
+- `responsible_inventory_manager_user_id`.
 
-`dealership_id` is required because an Inventory Record represents dealership stock context.
+`tenant_id` is the primary isolation boundary.
 
-`branch_id` and `location_id` may remain null while the Vehicle is planned, ordered, or in transit.
+`dealership_id` is required for an active Inventory Record.
 
-They become required before confirmed physical receipt or commercial availability.
+`branch_id` and `location_id` may remain absent while stock is planned, ordered, externally pending, or in transit.
+
+They become required before confirmed physical receipt or ordinary commercial availability.
+
+### Related Domain Objects
+
+- `vehicle_id`.
+- `trade_in_id`.
+- `supplier_id`.
+- `oem_id`.
+- `acquisition_order_id`.
+- `source_inventory_record_id`.
+- `supersedes_inventory_record_id`.
+- `superseded_by_inventory_record_id`.
+- `current_reservation_id`.
+- `current_allocation_id`.
+- `allocated_customer_id`.
+- `allocated_opportunity_id`.
+- `allocated_deal_id`.
+- `sold_deal_id`.
+- `current_transfer_id`.
+- `delivery_reference`.
+- `accounting_reference`.
+- `compliance_case_id`.
+- `dispute_case_id`.
 
 ### Inventory Identity
 
 - `inventory_number`.
 - `stock_number`.
+- `external_stock_reference`.
 - `inventory_type`.
 - `ownership_type`.
 - `vehicle_condition`.
 - `status`.
 - `availability_status`.
 - `physical_presence_status`.
+- `workflow_authority_mode`.
+- `is_current_record`.
 - `data_quality_status`.
 - `conflict_status`.
-- `is_current_record`.
-- `supersedes_inventory_record_id`.
+- `review_status`.
+
+### Inventory Intake Context
+
+- `inventory_intake_request_id`.
+- `inventory_intake_status`.
+- `inventory_intake_source_type`.
+- `inventory_intake_source_id`.
+- `inventory_intake_source_record_version`.
+- `inventory_intake_snapshot`.
+- `inventory_intake_snapshot_hash`.
+- `inventory_intake_requested_at`.
+- `inventory_intake_requested_by_actor_type`.
+- `inventory_intake_requested_by_actor_id`.
+- `inventory_intake_validated_at`.
+- `inventory_intake_accepted_at`.
+- `inventory_intake_rejected_at`.
+- `inventory_intake_rejection_reasons`.
+- `inventory_intake_idempotency_key`.
+- `inventory_intake_command_id`.
+- `inventory_intake_confirmation_status`.
+- `inventory_intake_confirmation_reference`.
+- `inventory_intake_confirmation_source_record_version`.
+- `inventory_intake_reconciliation_status`.
+- `inventory_activated_at`.
+
+### Trade-In Intake Projection
+
+When the intake source is Trade-In, the Inventory Record or intake request may preserve:
+
+- `trade_in_id`.
+- `trade_in_record_version`.
+- `trade_in_acquisition_status_projection`.
+- `trade_in_acquisition_snapshot_hash`.
+- `trade_in_ownership_transfer_status_projection`.
+- `trade_in_payoff_status_projection`.
+- `trade_in_lien_release_status_projection`.
+- `trade_in_physical_possession_status_projection`.
+- `trade_in_acquisition_completed_at_projection`.
+- `trade_in_evidence_references`.
+- `trade_in_projection_observed_at`.
+- `trade_in_projection_freshness_status`.
+
+These values are evidence-backed projections.
+
+Inventory must not modify the authoritative Trade-In workflow.
 
 ### Vehicle Reference Projection
 
 - `vehicle_snapshot`.
+- `vehicle_snapshot_hash`.
 - `vin_projection`.
 - `make_projection`.
 - `model_projection`.
 - `trim_projection`.
+- `variant_projection`.
 - `model_year_projection`.
 - `odometer_projection`.
+- `odometer_unit_projection`.
+- `vehicle_identity_status_projection`.
+- `vehicle_source_record_version`.
+- `vehicle_projection_observed_at`.
 
-Vehicle projection fields are convenience snapshots.
-
-The authoritative identity remains with the Vehicle Object and its configured sources.
+The authoritative Vehicle identity remains with the Vehicle Domain Service.
 
 ### Acquisition Context
 
@@ -240,9 +426,15 @@ The authoritative identity remains with the Vehicle Object and its configured so
 - `other_acquisition_cost_amount`.
 - `landed_cost_amount`.
 - `acquisition_currency_code`.
+- `acquisition_cost_authority`.
 - `acquisition_evidence_references`.
+- `acquisition_reconciliation_status`.
 
-### Location Context
+Trade-In appraisal values must not automatically become Inventory acquisition-cost values.
+
+Cost handoff requires explicit authority, classification, and reconciliation.
+
+### Location and Physical Presence
 
 - `branch_id`.
 - `location_id`.
@@ -251,8 +443,13 @@ The authoritative identity remains with the Vehicle Object and its configured so
 - `display_zone`.
 - `storage_zone`.
 - `physical_presence_status`.
+- `presence_verification_id`.
+- `presence_verification_method`.
 - `last_location_verified_at`.
-- `last_location_verified_by`.
+- `last_location_verified_by_actor_id`.
+- `location_source_authority`.
+- `location_confirmation_status`.
+- `location_confirmation_reference`.
 - `current_transfer_id`.
 
 ### Availability and Blocking
@@ -260,12 +457,15 @@ The authoritative identity remains with the Vehicle Object and its configured so
 - `availability_status`.
 - `available_from`.
 - `available_until`.
-- `availability_block_reason`.
+- `availability_block_reason_codes`.
 - `availability_blocked_at`.
-- `availability_blocked_by`.
-- `availability_block_evidence`.
+- `availability_blocked_by_actor_id`.
+- `availability_block_evidence_references`.
 - `availability_freshness_status`.
+- `last_availability_evaluated_at`.
 - `last_availability_confirmed_at`.
+- `availability_rule_set_id`.
+- `availability_rule_set_version`.
 
 ### Reservation Projection
 
@@ -277,6 +477,7 @@ The authoritative identity remains with the Vehicle Object and its configured so
 - `reservation_expires_at`.
 - `reservation_authority_reference`.
 - `reservation_confirmation_status`.
+- `reservation_reconciliation_status`.
 
 Reservation history must remain in governed child records.
 
@@ -291,6 +492,7 @@ Reservation history must remain in governed child records.
 - `allocation_expires_at`.
 - `allocation_authority_reference`.
 - `allocation_confirmation_status`.
+- `allocation_reconciliation_status`.
 
 Allocation history must remain in governed child records.
 
@@ -308,6 +510,7 @@ Allocation history must remain in governed child records.
 - `estimated_gross_margin_percentage`.
 - `pricing_status`.
 - `pricing_rule_id`.
+- `pricing_rule_version`.
 - `price_effective_from`.
 - `price_effective_until`.
 - `price_authority_reference`.
@@ -326,12 +529,15 @@ The final Customer-specific price belongs to Quotation or Deal.
 - `insurance_readiness_status`.
 - `pre_delivery_inspection_status`.
 - `quality_hold_status`.
-- `quality_hold_reason`.
+- `quality_hold_reason_codes`.
 - `sale_readiness_status`.
 - `test_drive_readiness_status`.
 - `delivery_readiness_status`.
+- `readiness_evaluated_at`.
+- `readiness_rule_set_id`.
+- `readiness_rule_set_version`.
 
-Readiness status is not proof of sale or delivery.
+Readiness does not prove sale or delivery.
 
 ### Publication
 
@@ -342,6 +548,7 @@ Readiness status is not proof of sale or delivery.
 - `last_publication_sync_at`.
 - `publication_error_code`.
 - `publication_confirmation_status`.
+- `publication_reconciliation_status`.
 
 ### Floor-Plan and Holding-Cost Projection
 
@@ -356,10 +563,9 @@ Readiness status is not proof of sale or delivery.
 - `floor_plan_accrued_cost_amount`.
 - `financial_holding_cost_amount`.
 - `financial_authority_reference`.
+- `floor_plan_projection_observed_at`.
 
 These fields are restricted projections.
-
-The external financial or accounting platform may remain authoritative.
 
 ### Activity and Derived Intelligence
 
@@ -387,43 +593,49 @@ The external financial or accounting platform may remain authoritative.
 - `potential_gross_profit_amount`.
 - `potential_gross_margin_percentage`.
 - `requires_management_review`.
+- `derived_intelligence_expires_at`.
 
-Derived Intelligence must preserve:
+Every material derived output must preserve:
 
 - Model, formula, or algorithm version.
 - Prompt version where applicable.
 - Input-record versions.
 - Evidence references.
-- Freshness.
+- Data freshness.
 - Confidence where meaningful.
+- Assumptions.
+- Limitations.
 - Generation timestamp.
 - Expiration timestamp.
-- Required approval.
+- Action Class.
+- Required Human authority.
 
 ### Sale, Delivery, Transfer, and Exit Projection
 
 - `sold_deal_id`.
 - `sale_confirmation_status`.
+- `sale_confirmation_reference`.
 - `sold_at`.
 - `sold_price_amount`.
 - `delivery_confirmation_status`.
+- `delivery_confirmation_reference`.
 - `delivered_at`.
 - `transfer_confirmation_status`.
+- `transfer_confirmation_reference`.
 - `transfer_out_at`.
 - `returned_at`.
 - `retired_at`.
 - `archived_at`.
 - `exit_reason`.
 - `exit_reference`.
-- `external_confirmation_reference`.
-
-Sale price is a projection from the approved Deal or configured external authority.
+- `exit_reconciliation_status`.
 
 ### Source, Synchronization, and Audit
 
 - `source_system`.
 - `source_record_id`.
 - `source_authority`.
+- `source_record_version`.
 - `source_updated_at`.
 - `last_synced_at`.
 - `last_sync_status`.
@@ -444,78 +656,83 @@ Sale price is a projection from the approved Deal or configured external authori
 
 | Field | Type | Required | Authority | Description |
 | :--- | :--- | :---: | :--- | :--- |
-| `inventory_record_id` | UUID | Yes | ASOS | Immutable Canonical Inventory Record identifier. |
+| `inventory_record_id` | UUID | Yes | Inventory Domain Service | Immutable canonical Inventory Record identifier. |
 | `tenant_id` | UUID | Yes | Security Context | Primary Tenant-isolation boundary. |
-| `vehicle_id` | UUID | Yes | Canonical relationship | Physical Vehicle represented by the Inventory Record. |
-| `dealership_id` | UUID | Yes | Canonical Projection | Dealership holding or controlling the Inventory context. |
-| `branch_id` | UUID | Conditional | Canonical Projection | Responsible branch; required before confirmed receipt or availability. |
-| `location_id` | UUID | Conditional | Canonical Projection | Current controlled location; required when physical presence is confirmed. |
-| `inventory_number` | String | Yes | ASOS or external source | Stable Inventory Record reference. |
-| `stock_number` | String | Conditional | External source or ASOS | Operational dealership stock number. |
-| `inventory_type` | Enum | Yes | Canonical Projection | Commercial or operational Inventory type. |
-| `ownership_type` | Enum | Yes | External evidence | Legal or financial holding arrangement. |
-| `vehicle_condition` | Enum | Yes | Approved source | New, used, demonstrator, or another approved condition. |
-| `status` | Enum | Yes | Canonical lifecycle | Current Inventory lifecycle state. |
-| `availability_status` | Enum | Yes | Canonical Projection | Current permitted commercial availability. |
-| `physical_presence_status` | Enum | Yes | Verification workflow | Current physical-presence state. |
-| `data_quality_status` | Enum | Yes | ASOS Workflow State | Completeness, freshness, conflict, or quarantine status. |
-| `conflict_status` | Enum | Yes | ASOS Workflow State | Material data-conflict status. |
-| `is_current_record` | Boolean | Yes | ASOS | Identifies the current stock-cycle record. |
-| `record_version` | Integer | Yes | ASOS | Optimistic-concurrency version. |
+| `vehicle_id` | UUID | Yes | Vehicle relationship | Physical Vehicle represented by this stock cycle. |
+| `inventory_number` | String | Yes | Inventory Domain Service | Stable ASOS Inventory identity. |
+| `stock_number` | String | Conditional | Inventory Domain Service or external authority | Operational stock number after accepted creation or confirmation. |
+| `dealership_id` | UUID | Yes | Inventory context | Dealership controlling the stock cycle. |
+| `branch_id` | UUID | Conditional | Inventory context | Responsible branch; required before ordinary active stock use. |
+| `location_id` | UUID | Conditional | Inventory workflow | Current controlled location. |
+| `status` | Enum | Yes | Inventory Domain Service | Current Inventory lifecycle state. |
+| `availability_status` | Enum | Yes | Inventory Domain Service | Current permitted commercial availability. |
+| `is_current_record` | Boolean | Yes | Inventory Domain Service | Whether this is the active stock cycle for the Vehicle. |
+| `record_version` | Integer | Yes | Inventory Domain Service | Optimistic-concurrency version. |
+
+### Intake Fields
+
+| Field | Type | Required | Authority | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `inventory_intake_request_id` | UUID | Conditional | Inventory Domain Service | Canonical intake workflow identifier. |
+| `inventory_intake_status` | Enum | Yes | Inventory Domain Service | Current intake workflow state. |
+| `inventory_intake_source_type` | Enum | Yes | Inventory Domain Service | Source classification such as Trade-In, OEM, transfer, or supplier. |
+| `inventory_intake_source_id` | UUID or String | Conditional | Source relationship | Source workflow or external record. |
+| `inventory_intake_source_record_version` | String | Conditional | Source authority | Exact source version used for intake validation. |
+| `inventory_intake_snapshot_hash` | String | Conditional | Inventory Domain Service | Integrity hash of the accepted intake snapshot. |
+| `inventory_intake_idempotency_key` | String | Yes | Inventory Domain Service | Prevents duplicate intake and stock creation. |
+| `inventory_intake_command_id` | UUID | No | Inventory Domain Service | Command identifier for external stock creation. |
+| `inventory_intake_confirmation_status` | Enum | Yes | Confirmation workflow | External stock-creation Confirmation status. |
+| `inventory_intake_confirmation_reference` | String | No | External authority | Evidence supporting external acceptance. |
+| `inventory_activated_at` | Timestamp | No | Inventory Domain Service | Time the stock cycle became active. |
+
+### Trade-In Handoff Fields
+
+| Field | Type | Required | Authority | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `trade_in_id` | UUID | Conditional | Trade-In relationship | Trade-In that requested the intake. |
+| `trade_in_record_version` | Integer | Conditional | Trade-In Domain Service | Exact Trade-In version used. |
+| `trade_in_acquisition_snapshot_hash` | String | Conditional | Trade-In Domain Service | Integrity hash of the acquisition handoff. |
+| `trade_in_acquisition_status_projection` | Enum | Conditional | Trade-In projection | Observed legal acquisition status. |
+| `trade_in_ownership_transfer_status_projection` | Enum | Conditional | Trade-In projection | Observed ownership-transfer state. |
+| `trade_in_payoff_status_projection` | Enum | Conditional | Trade-In projection | Observed payoff state. |
+| `trade_in_physical_possession_status_projection` | Enum | Conditional | Trade-In projection | Observed possession handoff state. |
+| `trade_in_evidence_references` | Array | Conditional | Evidence repository | Evidence references required for intake validation. |
 
 ### Acquisition Fields
 
 | Field | Type | Required | Authority | Description |
 | :--- | :--- | :---: | :--- | :--- |
-| `acquisition_source` | Enum | Yes | External evidence | Source through which the Vehicle entered Inventory. |
-| `acquisition_status` | Enum | Yes | Canonical Projection | Current acquisition progress. |
-| `acquisition_date` | Date | Conditional | External evidence | Date responsibility or ownership was accepted. |
-| `acquisition_reference` | String | No | External source | External order, transfer, invoice, or acquisition reference. |
-| `purchase_price_amount` | Decimal | Conditional | Restricted external authority | Direct approved acquisition cost. |
+| `acquisition_source` | Enum | Yes | Inventory intake | Source through which the Vehicle entered the stock cycle. |
+| `acquisition_status` | Enum | Yes | Inventory projection | Inventory-side acquisition state. |
+| `acquisition_date` | Date | Conditional | Accepted source evidence | Date dealership responsibility or ownership was accepted. |
+| `acquisition_reference` | String | No | Source authority | Order, transfer, invoice, Trade-In, or acquisition reference. |
+| `purchase_price_amount` | Decimal | Conditional | Approved cost authority | Accepted direct acquisition cost. |
 | `landed_cost_amount` | Decimal | Conditional | Deterministic calculation | Approved total acquisition cost. |
-| `acquisition_currency_code` | String | Conditional | External authority | ISO 4217 currency code. |
-| `supplier_id` | UUID | No | Canonical relationship | Supplier or source party. |
-| `trade_in_id` | UUID | No | Canonical relationship | Trade-In workflow that created the stock unit. |
-| `acquisition_evidence_references` | Array | Conditional | Evidence repository | Supporting acquisition, ownership, or consignment evidence. |
-
-### Location and Presence Fields
-
-| Field | Type | Required | Authority | Description |
-| :--- | :--- | :---: | :--- | :--- |
-| `location_type` | Enum | Conditional | Approved source | Type of physical or controlled location. |
-| `parking_slot` | String | No | Operational source | Physical parking or storage reference. |
-| `display_zone` | String | No | Operational source | Showroom or display-zone reference. |
-| `physical_presence_status` | Enum | Yes | Verification workflow | Whether the Vehicle is verified present, absent, or in transit. |
-| `last_location_verified_at` | Timestamp | No | Verification evidence | Time of the latest accepted location verification. |
-| `last_location_verified_by` | UUID | No | Human or service identity | Actor responsible for the verification. |
-| `current_transfer_id` | UUID | No | Transfer workflow | Current transfer workflow identifier. |
+| `acquisition_currency_code` | String | Conditional | Cost authority | ISO 4217 currency code. |
+| `acquisition_evidence_references` | Array | Conditional | Evidence repository | Supporting ownership, possession, order, or acquisition evidence. |
 
 ### Availability Fields
 
 | Field | Type | Required | Authority | Description |
 | :--- | :--- | :---: | :--- | :--- |
-| `availability_status` | Enum | Yes | Canonical Projection | Permitted commercial availability state. |
-| `available_from` | Timestamp | No | Canonical Projection | Earliest approved commercial availability time. |
-| `available_until` | Timestamp | No | Canonical Projection | Optional availability end time. |
-| `availability_block_reason` | Enum | No | Human Decision or policy | Reason commercial use is blocked. |
-| `last_availability_confirmed_at` | Timestamp | No | External Confirmation | Latest authoritative availability verification. |
-| `availability_freshness_status` | Enum | Yes | Deterministic calculation | Whether availability remains within its Freshness SLA. |
+| `availability_status` | Enum | Yes | Inventory Domain Service | Permitted commercial availability state. |
+| `physical_presence_status` | Enum | Yes | Inventory verification workflow | Verified physical-presence state. |
+| `availability_freshness_status` | Enum | Yes | Deterministic calculation | Whether availability evidence remains current. |
+| `availability_block_reason_codes` | Array | No | Policy or Human Decision | Active reasons blocking commercial use. |
+| `last_availability_confirmed_at` | Timestamp | No | Accepted authority | Latest accepted availability evidence time. |
 
 ### Reservation and Allocation Fields
 
 | Field | Type | Required | Authority | Description |
 | :--- | :--- | :---: | :--- | :--- |
 | `current_reservation_id` | UUID | No | Reservation workflow | Current active Reservation. |
-| `reservation_status` | Enum | Yes | Workflow projection | Current Reservation state. |
-| `reserved_for_customer_id` | UUID | No | Workflow projection | Customer associated with the Reservation. |
-| `reserved_for_opportunity_id` | UUID | No | Workflow projection | Opportunity associated with the Reservation. |
-| `reservation_expires_at` | Timestamp | No | Approved policy | Expiration time for a time-limited Reservation. |
-| `reservation_confirmation_status` | Enum | Yes | Workflow projection | External Confirmation status of the Reservation. |
+| `reservation_status` | Enum | Yes | Inventory or delegated service | Current Reservation projection. |
+| `reservation_expires_at` | Timestamp | No | Approved policy | Expiration for a time-limited Reservation. |
+| `reservation_confirmation_status` | Enum | Yes | Confirmation workflow | External Reservation Confirmation state. |
 | `current_allocation_id` | UUID | No | Allocation workflow | Current active Allocation. |
-| `allocation_status` | Enum | Yes | Workflow projection | Current Allocation state. |
-| `allocated_deal_id` | UUID | No | Workflow projection | Deal receiving the Allocation. |
-| `allocation_expires_at` | Timestamp | No | Approved policy | Allocation expiration time where applicable. |
-| `allocation_confirmation_status` | Enum | Yes | Workflow projection | External Confirmation status of the Allocation. |
+| `allocation_status` | Enum | Yes | Inventory or delegated service | Current Allocation projection. |
+| `allocated_deal_id` | UUID | No | Deal relationship | Deal receiving the Allocation. |
+| `allocation_confirmation_status` | Enum | Yes | Confirmation workflow | External Allocation Confirmation state. |
 
 ### Pricing Fields
 
@@ -523,54 +740,23 @@ Sale price is a projection from the approved Deal or configured external authori
 | :--- | :--- | :---: | :--- | :--- |
 | `currency_code` | String | Conditional | Pricing authority | ISO 4217 currency code. |
 | `list_price_amount` | Decimal | Conditional | Approved pricing authority | Standard dealership list price. |
-| `advertised_price_amount` | Decimal | Conditional | Approved pricing authority | Current permitted advertised price. |
-| `target_sale_price_amount` | Decimal | No | Approved pricing authority | Internal commercial target. |
+| `advertised_price_amount` | Decimal | Conditional | Approved pricing authority | Current Customer-visible advertised price. |
 | `minimum_authorized_price_amount` | Decimal | No | Restricted pricing authority | Lowest price permitted without additional approval. |
-| `maximum_discount_amount` | Decimal | No | Restricted pricing authority | Maximum discount within delegated authority. |
-| `current_discount_amount` | Decimal | No | Deterministic calculation | Current approved or advertised discount. |
+| `maximum_discount_amount` | Decimal | No | Restricted pricing authority | Delegated discount boundary. |
 | `market_reference_price_amount` | Decimal | No | Market Intelligence | Evidence-backed market reference. |
-| `estimated_gross_profit_amount` | Decimal | No | Derived Intelligence | Estimated profit using approved inputs. |
 | `pricing_status` | Enum | Yes | Pricing workflow | Current pricing validity and approval state. |
-| `price_effective_from` | Timestamp | No | Pricing authority | Start of price validity. |
-| `price_effective_until` | Timestamp | No | Pricing authority | End of price validity. |
-| `price_authority_reference` | String | No | Evidence | Rule, Decision, or external-source reference supporting the price. |
+| `price_authority_reference` | String | No | Evidence repository | Policy, Decision, or external source supporting the price. |
 
-### Readiness Fields
+### Readiness and Exit Fields
 
 | Field | Type | Required | Authority | Description |
 | :--- | :--- | :---: | :--- | :--- |
-| `inspection_status` | Enum | Yes | Inspection workflow | Current inspection status. |
-| `reconditioning_status` | Enum | Yes | Preparation workflow | Current reconditioning status. |
-| `documentation_status` | Enum | Yes | Document workflow | Required-document readiness. |
-| `quality_hold_status` | Enum | Yes | Policy or Human Decision | Whether a quality hold exists. |
-| `sale_readiness_status` | Enum | Yes | Deterministic projection | Whether sale-readiness requirements are satisfied. |
-| `test_drive_readiness_status` | Enum | Yes | Deterministic projection | Whether test-drive requirements are satisfied. |
-| `delivery_readiness_status` | Enum | Yes | Deterministic projection | Whether delivery-readiness requirements are satisfied. |
-
-### Exit Fields
-
-| Field | Type | Required | Authority | Description |
-| :--- | :--- | :---: | :--- | :--- |
-| `sold_deal_id` | UUID | No | Deal relationship | Deal through which the Vehicle was sold. |
-| `sale_confirmation_status` | Enum | Yes | External Confirmation projection | Whether the sale is authoritatively confirmed. |
-| `sold_at` | Timestamp | No | External authority | Authoritative sale time. |
-| `sold_price_amount` | Decimal | No | Deal or external authority | Final sale-price projection. |
-| `delivery_confirmation_status` | Enum | Yes | External Confirmation projection | Current delivery Confirmation status. |
-| `delivered_at` | Timestamp | No | External authority | Authoritative delivery time. |
-| `exit_reason` | Enum | No | Approved workflow | Reason the Inventory Record left active stock. |
-| `exit_reference` | String | No | External or internal evidence | Supporting sale, transfer, return, or retirement reference. |
-
-### Derived Intelligence Fields
-
-| Field | Type | Required | Authority | Description |
-| :--- | :--- | :---: | :--- | :--- |
-| `days_in_inventory` | Integer | Yes | Deterministic calculation | Calendar days in the current stock cycle. |
-| `aging_status` | Enum | Yes | Deterministic policy | Configured Inventory-aging classification. |
-| `demand_score` | Decimal | No | Derived Intelligence | Normalized observed or predicted demand. |
-| `stock_pressure_score` | Decimal | No | Derived Intelligence | Normalized urgency for review or commercial action. |
-| `recommended_markdown_amount` | Decimal | No | Derived Intelligence | Suggested markdown requiring applicable approval. |
-| `recommended_action` | String | No | Derived Intelligence | Suggested Inventory action. |
-| `requires_management_review` | Boolean | Yes | Deterministic or derived | Indicates whether configured review criteria are met. |
+| `sale_readiness_status` | Enum | Yes | Deterministic Inventory workflow | Whether sale-readiness requirements pass. |
+| `test_drive_readiness_status` | Enum | Yes | Deterministic Inventory workflow | Whether test-drive requirements pass. |
+| `delivery_readiness_status` | Enum | Yes | Deterministic Inventory workflow | Whether Inventory-side delivery requirements pass. |
+| `sale_confirmation_status` | Enum | Yes | Deal or external projection | Whether the sale outcome is confirmed. |
+| `delivery_confirmation_status` | Enum | Yes | Delivery projection | Whether delivery is confirmed. |
+| `exit_reason` | Enum | No | Inventory workflow | Reason this stock cycle left active Inventory. |
 
 ---
 
@@ -600,6 +786,46 @@ Sale price is a projection from the approved Deal or configured external authori
 - `RETIRED`
 - `ARCHIVED`
 
+### InventoryIntakeStatus
+
+- `NOT_REQUIRED`
+- `REQUESTED`
+- `VALIDATION_PENDING`
+- `VALIDATED`
+- `COMMAND_PENDING`
+- `PENDING_EXTERNAL_CONFIRMATION`
+- `ACCEPTED`
+- `RECORD_CREATED`
+- `ACTIVATION_PENDING`
+- `ACTIVATED`
+- `REJECTED`
+- `FAILED`
+- `CANCELLED`
+- `RECONCILIATION_REQUIRED`
+
+### InventoryIntakeSourceType
+
+- `OEM_ALLOCATION`
+- `OEM_ORDER`
+- `SUPPLIER_PURCHASE`
+- `DEALER_TRANSFER`
+- `TRADE_IN`
+- `CUSTOMER_BUYBACK`
+- `AUCTION`
+- `FLEET_RETURN`
+- `LEASE_RETURN`
+- `CONSIGNMENT`
+- `IMPORT`
+- `MANUAL_GOVERNED_INTAKE`
+- `OTHER`
+
+### WorkflowAuthorityMode
+
+- `ASOS_AUTHORITATIVE`
+- `EXTERNAL_DMS_AUTHORITATIVE`
+- `EXTERNAL_INVENTORY_SYSTEM_AUTHORITATIVE`
+- `GOVERNED_BIDIRECTIONAL`
+
 ### InventoryType
 
 - `RETAIL_STOCK`
@@ -623,21 +849,10 @@ Sale price is a projection from the approved Deal or configured external authori
 - `OEM_OWNED`
 - `SUPPLIER_OWNED`
 - `CONSIGNMENT`
-- `CUSTOMER_OWNED`
+- `CUSTOMER_OWNED_PENDING_ACQUISITION`
 - `LEASED`
 - `DEMONSTRATION_LOAN`
 - `OTHER`
-
-### InventoryCondition
-
-- `NEW`
-- `USED`
-- `CERTIFIED_PRE_OWNED`
-- `DEMONSTRATOR`
-- `DAMAGED`
-- `RECONDITIONED`
-- `SALVAGE`
-- `UNKNOWN`
 
 ### InventoryAvailabilityStatus
 
@@ -656,49 +871,18 @@ Sale price is a projection from the approved Deal or configured external authori
 - `RETURNED`
 - `RETIRED`
 
-### InventoryAcquisitionSource
-
-- `OEM_ALLOCATION`
-- `OEM_ORDER`
-- `DEALER_TRANSFER`
-- `SUPPLIER_PURCHASE`
-- `AUCTION`
-- `TRADE_IN`
-- `CUSTOMER_BUYBACK`
-- `FLEET_RETURN`
-- `LEASE_RETURN`
-- `CONSIGNMENT`
-- `IMPORT`
-- `MANUAL_ENTRY`
-- `OTHER`
-
 ### InventoryAcquisitionStatus
 
 - `NOT_STARTED`
 - `PENDING`
-- `ORDERED`
+- `EVIDENCE_PENDING`
 - `IN_TRANSIT`
 - `RECEIVED`
 - `CONFIRMED`
 - `REJECTED`
 - `CANCELLED`
+- `DISPUTED`
 - `RECONCILIATION_REQUIRED`
-
-### InventoryLocationType
-
-- `SHOWROOM`
-- `WAREHOUSE`
-- `PARKING_YARD`
-- `TRANSIT_HUB`
-- `SERVICE_CENTER`
-- `BODY_SHOP`
-- `DETAILING_CENTER`
-- `TEST_DRIVE_ZONE`
-- `CUSTOMER_DELIVERY_AREA`
-- `EXTERNAL_STORAGE`
-- `SUPPLIER_LOCATION`
-- `IN_TRANSIT`
-- `OTHER`
 
 ### PhysicalPresenceStatus
 
@@ -746,6 +930,15 @@ Sale price is a projection from the approved Deal or configured external authori
 - `RECONCILIATION_REQUIRED`
 - `DISPUTED`
 
+### InventoryReadinessStatus
+
+- `NOT_READY`
+- `PARTIALLY_READY`
+- `READY`
+- `BLOCKED`
+- `EXPIRED`
+- `REQUIRES_REVIEW`
+
 ### InventoryPreparationStatus
 
 - `NOT_STARTED`
@@ -757,15 +950,6 @@ Sale price is a projection from the approved Deal or configured external authori
 - `BLOCKED`
 - `EXPIRED`
 - `MANUAL_REVIEW_REQUIRED`
-
-### InventoryReadinessStatus
-
-- `NOT_READY`
-- `PARTIALLY_READY`
-- `READY`
-- `BLOCKED`
-- `EXPIRED`
-- `REQUIRES_REVIEW`
 
 ### InventoryPublicationStatus
 
@@ -795,32 +979,13 @@ Sale price is a projection from the approved Deal or configured external authori
 - `CONFLICTED`
 - `RECONCILIATION_REQUIRED`
 
-### InventoryAgingStatus
-
-- `FRESH`
-- `NORMAL`
-- `MATURING`
-- `AGED`
-- `CRITICAL`
-- `EXEMPT`
-
-The thresholds for these values must remain dealership-configurable.
-
-### FloorPlanStatus
-
-- `NOT_APPLICABLE`
-- `PENDING`
-- `ACTIVE`
-- `MATURING`
-- `MATURED`
-- `PAYMENT_DUE`
-- `SETTLED`
-- `DEFAULTED`
-- `DISPUTED`
-- `CANCELLED`
-
 ### InventoryBlockReason
 
+- `INTAKE_INCOMPLETE`
+- `TRADE_IN_ACQUISITION_INCOMPLETE`
+- `OWNERSHIP_EVIDENCE_MISSING`
+- `PAYOFF_OR_LIEN_UNRESOLVED`
+- `PHYSICAL_POSSESSION_UNCONFIRMED`
 - `QUALITY_HOLD`
 - `SAFETY_RECALL`
 - `COMPLIANCE_HOLD`
@@ -829,7 +994,6 @@ The thresholds for these values must remain dealership-configurable.
 - `DAMAGE_DETECTED`
 - `PRICE_REVIEW_REQUIRED`
 - `OWNERSHIP_DISPUTE`
-- `PAYMENT_OR_LIEN_ISSUE`
 - `TRANSFER_IN_PROGRESS`
 - `LEGAL_HOLD`
 - `FRAUD_REVIEW`
@@ -864,6 +1028,16 @@ The thresholds for these values must remain dealership-configurable.
 - `EXPIRED`
 - `RECONCILIATION_REQUIRED`
 
+### ReconciliationStatus
+
+- `NOT_REQUIRED`
+- `CURRENT`
+- `PENDING`
+- `IN_PROGRESS`
+- `RESOLVED`
+- `FAILED`
+- `MANUAL_REVIEW_REQUIRED`
+
 ### FreshnessStatus
 
 - `CURRENT`
@@ -887,14 +1061,16 @@ The thresholds for these values must remain dealership-configurable.
 - `UNDER_REVIEW`
 - `RESOLVED`
 
-### SynchronizationStatus
+### ReviewStatus
 
-- `NOT_SYNCED`
+- `NOT_REQUIRED`
 - `PENDING`
-- `SYNCED`
-- `FAILED`
-- `CONFLICTED`
-- `RECONCILIATION_REQUIRED`
+- `IN_REVIEW`
+- `APPROVED`
+- `REJECTED`
+- `ESCALATED`
+- `CANCELLED`
+- `EXPIRED`
 
 ---
 
@@ -904,192 +1080,254 @@ The thresholds for these values must remain dealership-configurable.
 
 - `tenant_id` is required and immutable.
 - `tenant_id` must come from the authenticated security context.
-- A client must not override `tenant_id` through a request body.
-- `dealership_id` must belong to the authenticated Tenant.
-- `branch_id` must belong to the selected dealership and Tenant.
-- `location_id` must belong to the authorized organizational scope.
-- All child records must use the same `tenant_id` as the parent Inventory Record.
-- Cross-Tenant Inventory access, matching, reservation, allocation, or transfer is prohibited unless governed by an approved and auditable mechanism.
+- Request bodies must not override `tenant_id`.
+- All related Domain Objects must belong to the permitted Tenant.
+- Dealership, branch, location, legal entity, team, User, and authority references must belong to the permitted organizational scope.
+- Background Jobs, Event Consumers, connectors, and AI Agents must receive trusted Tenant execution context.
+- Cross-Tenant Inventory matching, intake, creation, Reservation, Allocation, transfer, publication, or reconciliation is prohibited unless governed by an approved and auditable mechanism.
 
 ### Vehicle Relationship Rules
 
 - Every Inventory Record must reference one physical Vehicle.
-- A catalog-only Vehicle configuration must not be used as a physical Inventory Record.
-- The referenced Vehicle must belong to the permitted Tenant scope.
-- Vehicle identity fields inside Inventory Record are projections only.
-- A Vehicle identity conflict may block commercial use.
-- A Vehicle merge must trigger Inventory relationship reconciliation.
+- A catalog-only Vehicle configuration must not create a physical Inventory Record.
+- Vehicle identity fields inside Inventory remain projections.
+- A material Vehicle identity conflict must block intake activation and commercial availability.
+- Vehicle merge or identity correction must trigger Inventory reconciliation.
+- Inventory lifecycle changes must not rewrite Vehicle identity.
+
+### Inventory Intake Rules
+
+An Inventory intake request must contain:
+
+- Source type.
+- Source identifier.
+- Source record version.
+- Vehicle identifier.
+- Target dealership and legal entity.
+- Requested Inventory type.
+- Acquisition or holding basis.
+- Required evidence references.
+- Source snapshot hash.
+- Stable idempotency key.
+- Requesting actor and authority.
+- Expected external authority mode.
+
+Inventory Domain Service must validate:
+
+- Tenant and organizational consistency.
+- Vehicle identity and duplicate current-stock-cycle risk.
+- Source workflow authority.
+- Acquisition and possession evidence.
+- Ownership, lien, payoff, title, legal, and compliance conditions where applicable.
+- Source-data freshness.
+- Cost authority and currency where cost is supplied.
+- Required approval.
+- External integration requirements.
+
+An intake request must not directly choose the final `inventory_record_id`.
+
+A duplicate retry with the same source intent and idempotency key must return the existing intake result.
+
+A materially changed source version must use a new governed intake version or correction workflow.
+
+### Trade-In Intake Rules
+
+A Trade-In intake request may be accepted only when:
+
+- Exact `trade_in_id` and record version exist.
+- Canonical `vehicle_id` matches.
+- Trade-In acquisition status satisfies policy.
+- Required Customer and dealership transaction references match.
+- Ownership-transfer evidence is accepted.
+- Required payoff or lien conditions are satisfied or explicitly governed.
+- Physical possession is accepted or an approved pending-possession model applies.
+- Required inspection and damage information is available.
+- No blocking legal, fraud, compliance, title, or identity conflict exists.
+- Required Human authority or approved policy exists.
+- Intake snapshot and evidence are immutable and traceable.
+
+Trade-In appraisal, allowance, and equity values are not authoritative Inventory costs by default.
+
+Inventory must not create active commercial stock from a Trade-In that remains only:
+
+- Appraised.
+- Offered.
+- Customer accepted.
+- Deal associated.
+- Payoff requested.
+- Acquisition pending.
+- Possession unconfirmed.
+
+### Inventory Record Creation Rules
+
+Only Inventory Domain Service may create the canonical Inventory Record.
+
+Creation must:
+
+- Use a new immutable `inventory_record_id`.
+- Preserve the intake request.
+- Preserve source record versions.
+- Preserve Vehicle and organizational references.
+- Set one initial lifecycle state.
+- Set `availability_status = NOT_AVAILABLE` unless a separately approved future-stock policy applies.
+- Prevent duplicate current-stock cycles.
+- Preserve creation authority and evidence.
+- Publish an accepted Inventory-created Event.
+
+When external stock creation is authoritative:
+
+- Inventory must persist the request and Command before transmission.
+- Inventory must remain pending.
+- External stock reference and source version must be preserved.
+- Rejected or conflicting confirmation must not create active stock.
+- Reconciliation must resolve duplicate or mismatched external records.
+
+### Inventory Activation Rules
+
+Inventory activation is distinct from record creation.
+
+Activation requires:
+
+- Valid current Inventory Record.
+- Accepted intake.
+- Required external stock-creation Confirmation where applicable.
+- Valid dealership and branch context.
+- Accepted acquisition or holding evidence.
+- No unresolved duplicate current-stock-cycle conflict.
+- No blocking ownership, legal, compliance, quality, financial, or data conflict.
+- Activation Decision or approved deterministic policy.
+- Activation timestamp and evidence.
+
+Activation does not automatically make the Vehicle available for sale.
 
 ### Current Record Rules
 
-- Only one Inventory Record may claim current physical possession of the same Vehicle inside the Tenant.
-- Only one current Inventory Record may claim active commercial availability for the same Vehicle.
-- `is_current_record = true` must be protected by concurrency and uniqueness controls.
-- A superseded, transferred-out, returned, retired, or archived record must not remain commercially available.
-- A destination transfer record may be planned before transfer completion but must not claim verified physical possession.
+- Only one Inventory Record may normally claim current physical possession for one Vehicle inside a Tenant.
+- Only one current record may claim active commercial control.
+- `is_current_record = true` must be concurrency-protected.
+- Planned destination transfer records must not claim current physical possession.
+- Transferred-out, returned, retired, delivered, or archived records must not remain active.
+- Re-entry after a completed stock cycle normally requires a new linked record.
 
-### Acquisition Rules
+### Acquisition and Cost Rules
 
 - Acquisition source is required.
 - Acquisition evidence is required before ownership-dependent commercial use.
-- Trade-In stock must not become available before required:
-  - Ownership evidence.
-  - Lien or payoff evidence.
-  - Inspection.
-  - Acquisition approval.
-- Cost fields must be zero or greater.
+- Cost values must be zero or greater.
+- Currency is required when cost exists.
 - `landed_cost_amount` must use an approved deterministic formula.
+- Trade-In appraisal or allowance must not silently become purchase cost.
+- Restricted cost values must remain access-controlled.
 - AI must not create authoritative cost values.
-- Restricted financial values must not be exposed to unauthorized Users.
+- Cost corrections must preserve original values, authority, reason, and evidence.
 
 ### Location and Presence Rules
 
 - A Vehicle must not be marked physically present without accepted evidence.
-- `branch_id` and `location_id` are required before confirmed receipt.
-- Physical location conflicts must block dependent high-risk activity where required.
-- A Vehicle in transit must not be represented as physically present at the destination.
-- Customer-facing availability must not rely on stale or unverified location data.
-- Location changes requiring external write-back remain pending until authoritative Confirmation.
+- Branch and location are required before confirmed receipt unless policy explicitly permits otherwise.
+- A Vehicle in transit must not be represented as present at the destination.
+- Stale or conflicting location data must block Customer-facing availability where required.
+- External location changes remain pending until Confirmation.
+- Secure location data must not be exposed to unauthorized Users or public channels.
 
 ### Availability Rules
 
 A Vehicle may become `AVAILABLE_FOR_SALE` only when:
 
+- Inventory Record is current and activated.
 - Physical presence is verified or an approved future-stock policy applies.
-- Required ownership or holding evidence exists.
-- Required inspection and preparation checks pass.
-- Valid approved pricing exists.
-- Availability data is within its Freshness SLA.
-- No active safety, legal, compliance, ownership, payment, quality, fraud, or data-conflict block exists.
-- No incompatible active Reservation or Allocation exists.
+- Acquisition or holding evidence is valid.
+- Required inspection and preparation pass.
+- Approved current pricing exists.
+- Availability evidence is within its Freshness SLA.
+- No incompatible Reservation or Allocation exists.
+- No active safety, quality, legal, ownership, lien, financial, compliance, fraud, or data block exists.
 
 A Vehicle may become `AVAILABLE_FOR_TEST_DRIVE` only when:
 
 - Physical presence is verified.
 - Test-drive readiness is `READY`.
-- Applicable insurance, registration, safety, and operational requirements pass.
-- No incompatible active Reservation, Allocation, or block exists.
+- Insurance, registration, safety, preparation, and operational requirements pass.
+- No incompatible Reservation, Allocation, or block exists.
 
-### Reservation Rules
+### Reservation and Allocation Rules
 
-- Reservation creation must use an atomic concurrency-safe operation.
-- A Vehicle must not have more than one incompatible active Reservation.
-- A Reservation must identify its Customer or permitted business purpose.
-- A time-limited Reservation must include an expiration time.
-- Expired Reservations must not continue blocking stock.
-- Reservation approval does not prove that the external Inventory system accepted the Reservation.
-- When the external system is authoritative, Reservation remains `PENDING_CONFIRMATION` until Confirmation arrives.
-- Reservation release must also use a controlled and idempotent operation.
-- AI Agents must not independently reserve stock outside an applicable approved automation policy.
-- Action Class 2 Reservation activity requires:
-  - Explicit Human Approval; or
-  - An applicable pre-approved automation policy.
-
-### Allocation Rules
-
-- Allocation must use an atomic concurrency-safe operation.
-- A Vehicle must not be allocated to more than one active Deal.
-- Allocation must reference an authorized Opportunity or Deal.
-- Allocation does not prove:
-  - Payment.
-  - Finance approval.
-  - Contract completion.
-  - Sale.
-  - Delivery.
-- When an external system is authoritative, Allocation remains pending until External Confirmation.
-- Releasing an Allocation must preserve history and reason.
-- Action Class 3 Allocation or override decisions require the configured Authoritative Human Decision.
+- Reservation and Allocation must use atomic concurrency-safe operations.
+- A Vehicle must not have incompatible active Reservations.
+- A Vehicle must not be allocated to multiple active Deals.
+- Time-limited holds must include expiration.
+- External Reservation or Allocation authority requires Confirmation.
+- Approval does not prove external completion.
+- Release and expiration must preserve history.
+- Allocation override requires an Authoritative Human Decision.
+- AI Agents must not independently reserve or allocate outside approved policy.
 
 ### Pricing Rules
 
-- `currency_code` is required when a price is present.
 - Price and cost amounts must be zero or greater.
-- `minimum_authorized_price_amount` must not exceed the approved list-price boundary without explicit policy.
-- Advertised price must comply with pricing, advertising, tax, and consumer-protection rules.
+- Currency is required when a price exists.
 - Final Customer-specific price belongs to Quotation or Deal.
-- Advertised price must not be represented as a final accepted Deal price.
-- Restricted price floors, margins, costs, and discount limits must remain access-controlled.
-- AI pricing outputs are Recommendations until approved.
-- A high-confidence Recommendation does not create pricing authority.
-- Price changes must record:
-  - Previous value.
-  - New value.
-  - Authority.
-  - Reason.
-  - Effective period.
-  - Approval.
-  - Evidence.
-- Restricted pricing changes are Action Class 3 decisions.
+- Advertised price must not be represented as an accepted Deal price.
+- Price floors, margins, costs, and discount limits are restricted.
+- AI pricing output remains a Recommendation until approved.
+- Material price changes must preserve previous value, new value, authority, reason, effective period, approval, evidence, and record version.
 
-### Preparation and Readiness Rules
+### Preparation, Publication, Sale, and Delivery Rules
 
-- Readiness statuses must be derived from approved deterministic requirements.
-- A single AI output must not set sale, test-drive, or delivery readiness.
-- Quality, safety, compliance, and legal blocks must override commercial readiness.
-- Delivery readiness does not confirm delivery.
-- Sale readiness does not confirm sale.
-- Readiness must expire when dependent evidence becomes stale.
-
-### Publication Rules
-
-- Only approved Customer-visible fields may be published.
-- Publication must not expose:
-  - Acquisition cost.
-  - Landed cost.
-  - Internal margin.
-  - Minimum authorized price.
-  - Floor-plan details.
-  - Customer-specific Reservation or Allocation information.
-- Published availability and price must match sufficiently current approved sources.
-- Publication success must remain pending until provider Confirmation where required.
-- Failed or stale publication must create reconciliation or review.
-
-### Sale and Delivery Rules
-
-- `SOLD` requires an approved Deal and authoritative sale Confirmation where applicable.
-- A sent Deal-posting Command does not make the Inventory Record `SOLD`.
-- `DELIVERED` requires authoritative delivery Confirmation.
-- Payment, contract, registration, preparation, and release conditions must be validated before delivery authorization.
-- A sold Vehicle must not return to `AVAILABLE` through an ordinary state update.
+- Readiness must derive from deterministic requirements.
+- Safety, quality, legal, and compliance blocks override commercial readiness.
+- Publication must expose only approved Customer-visible fields.
+- Publication remains pending until provider Confirmation where required.
+- `SOLD` requires accepted Deal or configured external sale evidence.
+- A Deal-posting Command does not prove sale.
+- `DELIVERED` requires authoritative delivery evidence.
+- A sold or delivered record must not return to `AVAILABLE` through an ordinary update.
 - Sale cancellation, return, repurchase, or reacquisition requires a controlled workflow.
-- A delivered Vehicle requires a new Inventory Record before re-entering active stock.
 
 ### Transfer Rules
 
-- Transfer must identify:
-  - Source location.
-  - Destination location.
-  - Responsible authority.
-  - Vehicle.
-  - Transfer evidence.
-  - Expected timing.
-- Transfer initiation does not prove destination receipt.
-- Source physical possession remains authoritative until accepted transfer evidence changes it.
-- Destination receipt requires External Confirmation or accepted physical-verification evidence.
-- Transfer retries must not create duplicate destination Inventory Records.
-
-### Conflict and Authority Rules
-
-- Lower-authority values must not silently overwrite higher-authority values.
-- Material conflicts must create a controlled review or reconciliation workflow.
-- Inventory conflicts involving availability, ownership, location, price, Reservation, Allocation, sale, or delivery may block commercial action.
-- Human Approval does not prove external execution.
-- External Confirmation must remain distinct from Human Decision.
-- Stale authoritative data must not support high-risk Customer-facing claims.
+- Transfer must identify source, destination, Vehicle, responsible authority, expected timing, and evidence.
+- Transfer initiation does not prove departure or destination receipt.
+- Source possession remains authoritative until accepted departure evidence.
+- Destination possession requires accepted receipt evidence.
+- Retry must not create duplicate destination Inventory Records.
+- Completed transfer must reconcile current-record ownership.
 
 ### Concurrency and Idempotency Rules
 
 - Every mutation must validate `record_version`.
 - Stale updates must return a version conflict.
-- Reservation and Allocation must use atomic locking, compare-and-swap, or an equivalent controlled mechanism.
-- Retryable Commands must use an approved `idempotency_key`.
-- Duplicate Command retries must not create duplicate:
+- Intake creation, Inventory creation, Reservation, Allocation, transfer, publication, and external writes must support idempotency.
+- Duplicate retries must not create duplicate:
+  - Intake requests.
+  - Inventory Records.
+  - Stock numbers.
   - Reservations.
   - Allocations.
   - Transfers.
   - Publications.
   - External updates.
-- Event Consumers must prevent duplicate effects using `event_id`.
+- Event Consumers must prevent duplicate business effects using `event_id`.
+
+### Human Review Requirements
+
+Human Review is required according to policy for:
+
+- Duplicate current-stock-cycle risk.
+- Vehicle identity conflict.
+- Trade-In acquisition mismatch.
+- Ownership, title, lien, or payoff conflict.
+- Physical-possession conflict.
+- Acquisition-cost mismatch.
+- External stock-record mismatch.
+- Location conflict.
+- Reservation or Allocation conflict.
+- Pricing exception.
+- Safety, quality, legal, compliance, or fraud block.
+- Transfer conflict.
+- Sale or delivery conflict.
+- Reopening a completed stock cycle.
+- Another material operational, financial, legal, or data risk.
 
 ---
 
@@ -1121,15 +1359,20 @@ RETIRED
 ARCHIVED
 ```
 
+Inventory intake is a separate workflow and must not be confused with the Inventory Record lifecycle.
+
 ### Principal Allowed Transitions
 
 ```text
 PLANNED → ORDERED
+PLANNED → ACQUIRED
+PLANNED → BLOCKED
 PLANNED → RETIRED
 
 ORDERED → IN_TRANSIT
 ORDERED → ACQUIRED
 ORDERED → RETURN_PENDING
+ORDERED → BLOCKED
 ORDERED → RETIRED
 
 IN_TRANSIT → RECEIVED
@@ -1138,6 +1381,7 @@ IN_TRANSIT → RETURN_PENDING
 
 ACQUIRED → RECEIVED
 ACQUIRED → INSPECTION_PENDING
+ACQUIRED → PREPARATION_IN_PROGRESS
 ACQUIRED → BLOCKED
 
 RECEIVED → INSPECTION_PENDING
@@ -1196,14 +1440,15 @@ RETURNED → ARCHIVED
 RETIRED → ARCHIVED
 ```
 
-Returning from `BLOCKED` requires evidence that the blocking reason was formally cleared.
+Returning from `BLOCKED` requires accepted evidence that the blocking condition was cleared.
 
 ### Forbidden Ordinary Transitions
 
 ```text
-PLANNED → AVAILABLE
+PLANNED → AVAILABLE without activation and readiness
 ORDERED → SOLD
 IN_TRANSIT → AVAILABLE without receipt or approved future-stock policy
+ACQUIRED → AVAILABLE without required intake, preparation, and readiness
 AVAILABLE → DELIVERED
 RESERVED → SOLD without sale workflow
 ALLOCATED → DELIVERED
@@ -1216,78 +1461,91 @@ RETIRED → AVAILABLE
 ARCHIVED → AVAILABLE
 ```
 
-A new Inventory Record is normally required when a delivered, transferred-out, returned, retired, or archived Vehicle re-enters Inventory.
+### Entering PLANNED
+
+Requires:
+
+- Canonical Inventory Record created by Inventory Domain Service.
+- Valid Vehicle.
+- Tenant and organizational scope.
+- Accepted intake or approved planned-stock basis.
+- No duplicate current-stock-cycle conflict.
+- Creation authority.
+- Audit evidence.
+
+### Entering ACQUIRED
+
+Requires:
+
+- Accepted acquisition or holding basis.
+- Source and evidence.
+- Required Trade-In, supplier, OEM, transfer, or external references.
+- Cost authority where applicable.
+- No blocking ownership conflict.
+
+### Entering RECEIVED
+
+Requires:
+
+- Accepted physical receipt or approved external Confirmation.
+- Dealership, branch, and location.
+- Physical-presence evidence.
+- Receipt timestamp.
+- Reconciliation with expected stock.
 
 ### Entering AVAILABLE
 
 Requires:
 
-- Valid current Inventory Record.
-- Approved acquisition or holding evidence.
+- Current activated Inventory Record.
 - Required physical-presence or future-stock evidence.
-- Completed required preparation.
+- Valid acquisition or holding evidence.
+- Completed required inspection and preparation.
 - Approved current pricing.
 - Current availability evidence.
 - No incompatible Reservation or Allocation.
-- No active blocking condition.
+- No active block.
 
 ### Entering RESERVED
 
 Requires:
 
-- Current commercial availability.
-- Atomic Reservation creation.
-- Valid Reservation purpose.
+- Eligible current Inventory Record.
+- Atomic Reservation.
+- Valid Customer or business purpose.
 - Required approval or automation policy.
-- Expiration where required.
-- External Confirmation where the external system is authoritative.
+- Expiration where applicable.
+- External Confirmation where required.
 
 ### Entering ALLOCATED
 
 Requires:
 
-- Current Inventory eligibility.
-- Atomic Allocation creation.
+- Eligible current Inventory Record.
+- Atomic Allocation.
 - Valid Opportunity or Deal.
 - Required Human authority.
-- External Confirmation where the external system is authoritative.
-
-### Entering SALE_PENDING
-
-Requires:
-
-- Valid Deal workflow.
-- Vehicle and Inventory relationship validation.
-- Required Quotation and approval evidence.
-- No incompatible Reservation or Allocation.
-- Required pricing authorization.
+- External Confirmation where required.
 
 ### Entering SOLD
 
 Requires:
 
-- Authoritative approved Deal.
-- Required Human Decision.
-- External sale Confirmation where applicable.
-- Recorded final sale reference.
-- Reconciliation of Reservation and Allocation.
-
-### Entering DELIVERY_PENDING
-
-Requires:
-
-- Confirmed sale.
-- Delivery workflow created.
-- Required Payment, contract, registration, preparation, and release checks.
+- Valid Deal.
+- Accepted sale evidence.
+- Required Human or external authority.
+- Final sale reference.
+- Reservation and Allocation reconciliation.
 
 ### Entering DELIVERED
 
 Requires:
 
+- Confirmed sale.
+- Authorized Vehicle release.
 - Authoritative delivery evidence.
-- Authorized release.
 - Delivery timestamp.
-- External Confirmation where applicable.
+- Required external Confirmation.
 - Inventory exit reconciliation.
 
 ### Entering TRANSFERRED_OUT
@@ -1296,17 +1554,36 @@ Requires:
 
 - Approved transfer.
 - Confirmed departure.
-- Destination or receiving authority evidence where applicable.
+- Destination or receiving authority evidence where required.
 - Removal of active commercial availability.
+- Current-record reconciliation.
 
 ### Terminal States
+
+For an ordinary stock cycle:
 
 - `DELIVERED`
 - `TRANSFERRED_OUT`
 - `RETURNED`
 - `ARCHIVED`
 
-`RETIRED` is inactive and normally progresses to `ARCHIVED`.
+`RETIRED` is inactive and normally proceeds to `ARCHIVED`.
+
+A terminal stock cycle must not be reopened through an ordinary lifecycle transition.
+
+### Correction and Re-entry
+
+Correcting a material Inventory outcome requires:
+
+- Authorized Human Decision or approved correction authority.
+- Reason and evidence.
+- Source and external impact assessment.
+- New immutable Events.
+- Preserved original history.
+- Reconciliation.
+- New Inventory Record where a new stock cycle begins.
+
+AI Agents must not independently reopen, activate, sell, deliver, transfer, return, or retire Inventory.
 
 ### Transition Evidence
 
@@ -1317,13 +1594,16 @@ Every material transition must preserve:
 - Reason.
 - Actor.
 - Authority.
+- Applied policy.
+- Record version.
+- Inventory and intake snapshot.
 - Human Decision or automation-policy reference.
 - Evidence.
 - Related Command.
 - External Confirmation.
-- Record version.
 - Timestamp.
 - Correlation identifier.
+- Causation identifier.
 - Related Event.
 
 ---
@@ -1334,105 +1614,79 @@ Every material transition must preserve:
 
 - Every Inventory Record belongs to exactly one `tenant_id`.
 - All relationships must remain inside authorized Tenant scope.
-- Cross-Tenant transfer requires an approved and auditable transfer or data-sharing mechanism.
-
-### Dealership and Branch
-
-- Every Inventory Record belongs to one responsible dealership.
-- A branch may become responsible for the Inventory Record.
-- Branch changes must preserve history.
-- Physical location and organizational responsibility are separate concepts.
+- Cross-Tenant stock transfer requires an approved legal and technical mechanism.
 
 ### Vehicle
 
-- Every Inventory Record references exactly one physical Vehicle.
-- Vehicle identity and specification fields remain authoritative in Vehicle.
-- Inventory Record may preserve historical Vehicle snapshots for audit.
-- Inventory status must not update Vehicle identity status to `SOLD` or `DELIVERED`.
-
-### Customer
-
-- A Customer may be associated through Reservation, Allocation, Quotation, Opportunity, or Deal.
-- Customer identity does not belong directly to the Inventory Record outside governed relationship references.
-- Restricted Customer information must not enter public Inventory projections.
-
-### Lead and Qualified Lead
-
-- Leads may indicate interest in the Inventory Record.
-- Lead interest does not reserve or allocate the Vehicle.
-- Aggregate Lead counts may be derived.
-
-### Opportunity
-
-- An Opportunity may reference one or more matching Inventory Records.
-- Opportunity priority does not create Inventory authority.
-- Allocation requires a separate controlled workflow.
-
-### Appointment
-
-- Appointments and test drives may reference an Inventory Record.
-- Appointment scheduling does not prove availability unless the required Inventory checks pass.
-- External Appointment Confirmation does not reserve the Vehicle unless a Reservation workflow exists.
-
-### Quotation
-
-- A Quotation may reference an Inventory Record.
-- Customer-specific pricing belongs to Quotation.
-- Quotation approval does not automatically allocate or sell the Vehicle.
-
-### Reservation
-
-- Reservation history must remain separate and auditable.
-- Only the current active Reservation may be projected into the Inventory Record.
-- Reservation expiration or release must not erase history.
-
-### Allocation
-
-- Allocation history must remain separate and auditable.
-- Only the current active Allocation may be projected into the Inventory Record.
-- Allocation must reference an authorized Opportunity or Deal.
+- Every Inventory Record references one physical Vehicle.
+- Vehicle owns identity and specifications.
+- Inventory preserves historical Vehicle snapshots.
+- Inventory lifecycle must not rewrite Vehicle identity.
 
 ### Trade-In
 
-- A Trade-In workflow may create an Inventory Record after approved acquisition conditions pass.
-- Trade-In appraisal values do not automatically become Inventory acquisition costs.
-- Vehicle ownership and lien evidence must remain traceable.
+- Trade-In may request Inventory intake after its acquisition conditions pass.
+- Trade-In owns appraisal, payoff, equity, acquisition readiness, and legal acquisition.
+- Inventory owns intake validation, Inventory Record creation, activation, and stock lifecycle.
+- Inventory returns the accepted Inventory Record reference and status to Trade-In.
+- Trade-In stores only request, Confirmation, reference, and reconciliation projections.
+- A Trade-In appraisal must not automatically become Inventory acquisition cost.
 
-### Deal
+### Dealership, Branch, and Location
 
-- A Deal may reference one Inventory Record and Vehicle.
-- Final sale terms belong to Deal.
-- Sale Confirmation may update the Inventory Record projection.
-- A cancelled Deal must use a controlled Reservation, Allocation, and Inventory release workflow.
+- Every active Inventory Record belongs to one responsible dealership.
+- Branch responsibility and physical location are separate.
+- Changes must preserve history.
+- Secure location values require restricted access.
 
-### Financial Contract and Finance Application
+### Opportunity and Appointment
 
-- Finance eligibility and lender Decisions do not belong to Inventory Record.
-- Finance or contract status may contribute to delivery readiness.
-- Restricted finance information must not be copied unnecessarily into Inventory.
+- Opportunity interest does not reserve or allocate a Vehicle.
+- Appointment scheduling does not prove Inventory availability.
+- A test drive requires current Inventory and readiness checks.
 
-### Market Intelligence
+### Quotation and Deal
 
-- Market Intelligence may support:
-  - Market-reference pricing.
-  - Demand scoring.
-  - Aging analysis.
-  - Markdown Recommendations.
-  - Transfer Recommendations.
-- Market evidence must not silently change authoritative pricing or availability.
+- Quotation may reference an Inventory Record and approved pricing projection.
+- Customer-specific price belongs to Quotation.
+- Deal owns the final commercial transaction.
+- Deal requests or consumes Reservation, Allocation, sale, and delivery projections.
+- Deal must not create an Inventory Record.
 
-### Interaction
+### Finance Application and Financial Contract
 
-- Customer Interactions may contribute to demand metrics.
-- Interaction content is not authoritative Reservation or Allocation evidence.
+- Finance approval and contract state do not belong to Inventory.
+- Finance and contract projections may contribute to allocation or delivery readiness.
+- Restricted finance data must not be copied into Inventory unnecessarily.
+
+### Reservation and Allocation
+
+- Reservation and Allocation history remain separate and auditable.
+- Only current active projections appear on the Inventory Record.
+- Release, expiration, rejection, and conversion must preserve history.
+
+### External Inventory and Accounting Systems
+
+External systems may own selected operational or financial facts.
+
+Inventory Domain Service must:
+
+- Preserve source authority.
+- Use Commands and idempotency.
+- Wait for External Confirmation where required.
+- Reconcile conflicts.
+- Publish accepted canonical projections.
 
 ### Supporting Child Records
 
-Inventory Record may own or govern:
+Inventory Domain Service may own or govern:
 
+- Inventory intake requests.
+- Intake validation records.
+- Inventory creation Commands.
 - Acquisition records.
 - Location history.
-- Physical-verification records.
+- Presence verifications.
 - Reservation history.
 - Allocation history.
 - Pricing history.
@@ -1443,24 +1697,25 @@ Inventory Record may own or govern:
 - Exit records.
 - Data-quality issues.
 - Reconciliation cases.
-- Derived metrics.
+- Derived Intelligence.
 - Audit records.
 
-### Supersession
+### Supersession and Stock-Cycle Lineage
 
-A replacement Inventory Record should reference:
+A replacement or later stock cycle should preserve:
 
 ```text
 supersedes_inventory_record_id
+superseded_by_inventory_record_id
 ```
 
-Historical records must remain traceable and must not be silently overwritten.
+Historical Inventory Records must remain immutable and traceable.
 
 ---
 
 ## 8. Domain Events
 
-The Canonical Event Catalog is the authoritative source for final:
+The Canonical Event Catalog is authoritative for final:
 
 - Event names.
 - Event versions.
@@ -1469,9 +1724,33 @@ The Canonical Event Catalog is the authoritative source for final:
 - Producers.
 - Consumers.
 - Compatibility rules.
-- Correction and reversal behaviour.
+- Correction and reversal behavior.
 
-The following are required Inventory Event concepts and do not replace the Event Catalog.
+The following are required Event concepts and do not replace the Event Catalog.
+
+### Inventory Intake Event Concepts
+
+- Inventory intake requested.
+- Inventory intake validation started.
+- Inventory intake validated.
+- Inventory intake rejected.
+- Inventory intake Command created.
+- Inventory intake Command transmitted.
+- Inventory intake external Confirmation received.
+- Inventory intake external Confirmation rejected.
+- Inventory intake accepted.
+- Inventory intake reconciliation required.
+- Inventory Record created.
+- Inventory Record activation requested.
+- Inventory Record activated.
+- Inventory Record activation failed.
+
+Producer boundaries:
+
+- Trade-In Domain Service may publish that it requested Inventory intake.
+- Inventory Domain Service publishes intake acceptance, rejection, reconciliation, Inventory Record creation, and activation facts.
+- External adapters publish normalized observations and Confirmations.
+- Trade-In Domain Service must not publish authoritative Inventory Record-created or activated Events.
 
 ### Inventory Lifecycle Event Concepts
 
@@ -1489,72 +1768,33 @@ The following are required Inventory Event concepts and do not replace the Event
 - Inventory retired.
 - Inventory archived.
 
-### Location and Presence Event Concepts
+### Location, Availability, Reservation, and Allocation Event Concepts
 
 - Inventory location updated.
 - Physical presence verified.
-- Physical absence verified.
 - Location mismatch detected.
-- Location conflict resolved.
-
-### Availability Event Concepts
-
 - Availability changed.
 - Availability became stale.
-- Availability Confirmation received.
-- Availability conflict detected.
-- Availability blocked.
-
-### Reservation Event Concepts
-
 - Reservation requested.
-- Reservation approved.
-- Reservation Command sent.
-- Reservation Confirmation received.
-- Reservation rejected.
+- Reservation confirmed.
 - Reservation expired.
-- Reservation release requested.
 - Reservation released.
-- Reservation reconciliation required.
-
-### Allocation Event Concepts
-
 - Allocation requested.
-- Allocation approved.
-- Allocation Command sent.
-- Allocation Confirmation received.
-- Allocation rejected.
+- Allocation confirmed.
 - Allocation released.
 - Allocation converted to sale.
-- Allocation reconciliation required.
+- Reconciliation required.
 
-### Pricing Event Concepts
+### Pricing, Publication, Transfer, and Exit Event Concepts
 
 - Inventory price proposed.
 - Inventory price approved.
 - Inventory price activated.
-- Inventory price expired.
-- Inventory pricing conflict detected.
 - Markdown Recommendation generated.
-
-### Preparation and Publication Event Concepts
-
-- Inspection completed.
-- Quality hold applied.
-- Quality hold cleared.
-- Sale readiness changed.
-- Test-drive readiness changed.
-- Delivery readiness changed.
 - Publication requested.
 - Publication confirmed.
 - Publication failed.
-- Publication reconciliation required.
-
-### Transfer and Exit Event Concepts
-
 - Transfer requested.
-- Transfer approved.
-- Transfer Command sent.
 - Transfer departure confirmed.
 - Transfer receipt confirmed.
 - Sale pending.
@@ -1570,10 +1810,13 @@ The following are required Inventory Event concepts and do not replace the Event
 - Stock-pressure score updated.
 - Aging classification changed.
 - Inventory action Recommendation generated.
-- Management review requested.
+- Management review recommended.
 
 Derived Intelligence Events must not imply:
 
+- Intake acceptance.
+- Inventory Record creation.
+- Activation.
 - Pricing approval.
 - Reservation.
 - Allocation.
@@ -1583,11 +1826,13 @@ Derived Intelligence Events must not imply:
 
 ### Event Producer Rules
 
-- Inventory Domain Service publishes accepted Inventory canonical and workflow-state changes.
-- Integration services may publish normalized external-source observations.
-- Reservation, Allocation, Transfer, or Publication services may publish their workflow Events according to approved service boundaries.
-- AI Agents may publish Agent-run, analysis, or Recommendation Events.
-- AI Agents must not publish authoritative availability, Reservation, Allocation, sale, delivery, or transfer Confirmation Events merely because they suggested an action.
+- Inventory Domain Service publishes accepted Inventory canonical and workflow facts.
+- Vehicle Domain Service publishes accepted Vehicle identity facts.
+- Trade-In Domain Service publishes accepted Trade-In and intake-request facts it owns.
+- Deal Domain Service publishes accepted transaction facts.
+- Integration services publish normalized external observations.
+- AI Agents may publish Agent-run, analysis, anomaly, prediction, or Recommendation Events.
+- AI Agents must not publish authoritative Inventory execution Events merely because they predicted or recommended an outcome.
 
 ### Event Requirements
 
@@ -1598,27 +1843,31 @@ Every material Inventory Event must preserve, where applicable:
 - `event_version`.
 - `tenant_id`.
 - `inventory_record_id`.
+- `inventory_intake_request_id`.
 - `vehicle_id`.
-- Dealership and branch context.
+- Trade-In or source reference.
+- Dealership, branch, and legal entity.
 - Occurrence timestamp.
 - Recording timestamp.
 - Producer.
 - Actor.
 - Authority category.
 - Record version.
+- Intake or Inventory snapshot hash.
 - Correlation identifier.
 - Causation identifier.
+- Applied policy.
+- Human Decision or automation-policy reference.
+- Command.
+- External Confirmation.
 - Evidence references.
-- Related Decision.
-- Related Command.
-- Related External Confirmation.
 - Security classification.
 
 Events are immutable.
 
-Correction, reversal, release, cancellation, and revocation must use new Events linked to the original Event.
+Correction, reversal, release, cancellation, rejection, and revocation must use new Events linked to prior Events.
 
-The Event Backbone may deliver the same Event more than once.
+The Event Backbone may deliver an Event more than once.
 
 Consumers must prevent duplicate business effects using `event_id`.
 
@@ -1630,202 +1879,163 @@ Consumers must prevent duplicate business effects using `event_id`.
 
 AI Agents may assist with:
 
-- Inventory matching.
-- Demand analysis.
-- Aging analysis.
-- Stock-pressure analysis.
-- Markdown Recommendations.
-- Transfer Recommendations.
-- Publication-content drafting.
-- Preparation-summary generation.
-- Data-quality issue detection.
+- Intake-completeness analysis.
+- Trade-In-to-Inventory handoff comparison.
+- Duplicate stock-cycle risk detection.
+- Vehicle and source mismatch detection.
 - Location-conflict detection.
 - Availability-risk detection.
+- Demand and aging analysis.
+- Markdown Recommendations.
+- Transfer Recommendations.
+- Publication drafting.
+- Preparation summaries.
 - Reservation-expiry risk.
 - Allocation-stall detection.
-- Deal-risk detection.
-- Inventory-performance summarization.
+- Reconciliation summarization.
 - Management-priority generation.
 
 ### Prohibited Independent AI Actions
 
 AI Agents must not independently:
 
-- Create authoritative acquisition cost.
-- Change restricted pricing.
+- Accept Inventory intake.
+- Create or activate an Inventory Record.
+- Assign a stock number.
+- Confirm acquisition or physical possession.
+- Change restricted cost or pricing.
 - Approve a discount.
-- Confirm physical presence.
 - Confirm commercial availability.
-- Reserve a Vehicle outside an approved policy.
-- Allocate a Vehicle to a Deal.
-- Remove a legal, safety, compliance, ownership, financial, or quality block.
-- Confirm a sale.
-- Confirm delivery.
-- Confirm transfer completion.
-- Represent stale data as current.
-- Represent a sent Command as completed.
-- Access restricted Inventory data outside authorized Tenant and role scope.
+- Reserve or allocate outside approved policy.
+- Remove a safety, quality, legal, ownership, financial, or compliance block.
+- Confirm sale, delivery, or transfer.
+- Represent a Command as completed.
+- Access restricted Inventory data outside authorized scope.
 
-### Recommendation Requirements
+### AI Output Requirements
 
-Every material Inventory Recommendation must preserve:
+Every material AI output must preserve:
 
-- Recommendation type.
-- Inventory Record identifier and version.
+- Output type.
+- Inventory Record or intake identifier.
 - Vehicle identifier.
-- Supporting evidence.
-- Source authority.
-- Input freshness.
+- Source references.
+- Input-record versions.
+- Evidence.
+- Data freshness.
 - Applied Business Rules.
 - Model, algorithm, or formula version.
 - Prompt version where applicable.
 - Confidence where meaningful.
 - Assumptions.
-- Expected commercial impact.
-- Important risks.
+- Limitations.
+- Expected impact.
 - Action Class.
-- Required Human authority or automation policy.
-- Expiration time.
-
-### Availability Reasoning
-
-AI must distinguish between:
-
-- Vehicle identity.
-- Physical presence.
-- Commercial availability.
-- Reservation.
-- Allocation.
-- Sale.
-- Delivery.
-- Transfer.
-- External Confirmation.
-
-AI must not describe a Vehicle as available merely because:
-
-- A Vehicle record exists.
-- An old Inventory Record exists.
-- A previous price exists.
-- A source update was sent.
-- No active Deal was found.
-- The AI predicted likely availability.
-
-### Pricing Reasoning
-
-AI may recommend:
-
-- Price review.
-- Markdown amount.
-- Campaign inclusion.
-- Transfer.
-- Wholesale review.
-- Management escalation.
-
-AI must not:
-
-- Activate a restricted price.
-- Expose internal pricing floors to unauthorized Users.
-- Represent a market-reference price as an approved Customer price.
-- Represent predicted demand as guaranteed demand.
+- Required Human authority.
+- Expiration.
 
 ### Action Class 2
 
-Controlled Customer-facing or external actions may proceed through:
+Controlled low-risk operational actions may proceed through:
 
 - Explicit Human Approval; or
 - An applicable pre-approved automation policy.
 
 The deterministic Policy Engine must validate:
 
-- Tenant scope.
-- Customer eligibility.
-- Consent.
-- Template.
-- Channel.
-- Frequency.
+- Tenant and organizational scope.
+- Resource eligibility.
+- Current source versions.
 - Inventory freshness.
 - Availability.
-- Pricing authority.
+- Customer permission where relevant.
+- Template and channel.
+- Frequency.
 - Revocation.
 - Risk limits.
+- Audit requirements.
 
 ### Action Class 3
 
-Binding or high-impact actions require an Authoritative Human Decision.
+Binding or high-impact Inventory actions require an Authoritative Human Decision or External Authoritative Decision.
 
 Examples include:
 
+- Intake exception approval.
+- Inventory activation exception.
 - Restricted price approval.
-- Discount override.
 - Allocation override.
-- Inventory release for sale.
+- Stock release for sale.
 - Transfer approval.
-- Block removal.
+- Legal or safety block removal.
 - Delivery authorization.
 - Financial or ownership override.
 
 ### AI Context and Embeddings
 
-Restricted Inventory information must not enter general-purpose embeddings.
+Restricted Inventory information must not enter unrestricted embeddings.
 
 Normally excluded fields include:
 
 - Acquisition cost.
 - Landed cost.
 - Internal price floor.
-- Maximum discount.
-- Gross-profit values.
-- Floor-plan details.
+- Discount limits.
+- Gross profit.
+- Floor-plan information.
 - Supplier financial terms.
-- Customer-specific Reservation information.
-- Customer-specific Allocation information.
-- Secure location information.
-- Ownership evidence.
-- Legal or compliance documents.
+- Trade-In ownership, payoff, and lien evidence.
+- Customer-specific Reservation or Allocation data.
+- Secure location data.
+- Legal and compliance evidence.
+- External credentials or Commands.
 
-Approved non-sensitive context may include:
+Approved context may include:
 
 - Customer-visible Vehicle description.
 - Approved advertised price.
 - Non-sensitive availability summary.
 - Preparation summary.
 - Public location description.
-- Inventory-age band.
+- Inventory age band.
 - Demand category.
-- Customer-visible features.
+- Redacted blocker category.
 
-Every vector entry must enforce:
+Every vector record must enforce:
 
 - `tenant_id`.
-- Organizational access scope.
+- Organizational scope.
 - Source references.
+- Record version.
 - Freshness.
 - Security classification.
-- Retention policy.
+- Retention.
+- Expiration.
 - Deletion and supersession propagation.
 
-### Explainability
+### Untrusted Input and Prompt Injection
 
-Inventory Recommendations must explain:
+Trade-In documents, acquisition evidence, supplier files, inspection reports, DMS notes, and external messages are untrusted input.
 
-- Data used.
-- Authority of the data.
-- Current Inventory version.
-- Freshness.
-- Material conflicts.
-- Calculation or model.
-- Expected impact.
-- Required approval.
-- Why execution may remain pending.
-- Whether External Confirmation is required.
+Their content must not:
+
+- Change system policy.
+- Grant permissions.
+- Override Tenant scope.
+- Trigger Commands.
+- Create Inventory.
+- Activate stock.
+- Change price or availability.
+- Remove a block.
+- Alter audit evidence.
 
 ---
 
 ## 10. API Contract
 
-Detailed API request, response, error, and Schema definitions will become authoritative in the API Contracts Catalog.
+Detailed API operations and Schemas will become authoritative in the API Contracts Catalog.
 
-This section defines required Inventory API behaviour.
+This section defines required Inventory API behavior.
 
 ### REST Resources
 
@@ -1835,97 +2045,132 @@ POST   /api/v1/inventory-records
 GET    /api/v1/inventory-records/{inventory_record_id}
 PATCH  /api/v1/inventory-records/{inventory_record_id}
 
+GET    /api/v1/inventory-intake-requests
+POST   /api/v1/inventory-intake-requests
+GET    /api/v1/inventory-intake-requests/{inventory_intake_request_id}
+POST   /api/v1/inventory-intake-requests/{inventory_intake_request_id}/validation-requests
+POST   /api/v1/inventory-intake-requests/{inventory_intake_request_id}/acceptance-decisions
+POST   /api/v1/inventory-intake-requests/{inventory_intake_request_id}/external-confirmations
+POST   /api/v1/inventory-intake-requests/{inventory_intake_request_id}/reconciliation-requests
+
+POST   /api/v1/inventory-records/{inventory_record_id}/activation-requests
 POST   /api/v1/inventory-records/{inventory_record_id}/receive
 POST   /api/v1/inventory-records/{inventory_record_id}/location-verifications
 POST   /api/v1/inventory-records/{inventory_record_id}/inspection-requests
 POST   /api/v1/inventory-records/{inventory_record_id}/preparation-actions
 POST   /api/v1/inventory-records/{inventory_record_id}/make-available
 POST   /api/v1/inventory-records/{inventory_record_id}/blocks
-POST   /api/v1/inventory-records/{inventory_record_id}/block-releases
+POST   /api/v1/inventory-records/{inventory_record_id}/block-release-requests
 
 POST   /api/v1/inventory-records/{inventory_record_id}/reservation-requests
-POST   /api/v1/inventory-records/{inventory_record_id}/reservation-releases
+POST   /api/v1/inventory-records/{inventory_record_id}/reservation-release-requests
 POST   /api/v1/inventory-records/{inventory_record_id}/allocation-requests
-POST   /api/v1/inventory-records/{inventory_record_id}/allocation-releases
+POST   /api/v1/inventory-records/{inventory_record_id}/allocation-release-requests
 
 POST   /api/v1/inventory-records/{inventory_record_id}/price-proposals
 POST   /api/v1/inventory-records/{inventory_record_id}/price-approvals
 POST   /api/v1/inventory-records/{inventory_record_id}/publication-requests
 
 POST   /api/v1/inventory-records/{inventory_record_id}/transfer-requests
-POST   /api/v1/inventory-records/{inventory_record_id}/sale-confirmations
-POST   /api/v1/inventory-records/{inventory_record_id}/delivery-confirmations
-POST   /api/v1/inventory-records/{inventory_record_id}/retirement
+POST   /api/v1/inventory-records/{inventory_record_id}/retirement-requests
 
 GET    /api/v1/inventory-records/{inventory_record_id}/history
 GET    /api/v1/inventory-records/{inventory_record_id}/reconciliation
 ```
 
-### Tenant Context
+Sale and delivery outcomes should normally be ingested from Deal, Delivery, DMS, or another configured authority rather than accepted through unrestricted public confirmation mutations.
 
-- `tenant_id` must come from the authenticated security context.
-- Request bodies must not override `tenant_id`.
-- Dealership, branch, and location scope must be validated against authenticated permissions.
-- Cross-Tenant queries must be blocked by default.
+### Inventory Intake Mutation Ownership
 
-### Example Create Request
+Only Inventory Domain Service may expose the canonical Inventory-intake mutation.
+
+Trade-In APIs may request the workflow through Inventory Domain Service, but they must not expose an independent mutation that creates or activates an Inventory Record.
+
+Deal, Finance Application, Financial Contract, and AI APIs must not create Inventory Records.
+
+### Example Trade-In Intake Request
 
 ```json
 {
+  "source_type": "TRADE_IN",
+  "source_id": "4a97e40a-37bb-45bd-a6fa-31e84639df73",
+  "source_record_version": 18,
   "vehicle_id": "550e8400-e29b-41d4-a716-446655440000",
   "dealership_id": "2dc50e3c-392a-44d7-9dc4-8fd7e586ff03",
   "branch_id": "6835ea02-a8df-4d3d-a1ec-4e309ea9ac38",
-  "inventory_type": "RETAIL_STOCK",
+  "inventory_type": "TRADE_IN_STOCK",
   "ownership_type": "DEALERSHIP_OWNED",
-  "vehicle_condition": "NEW",
-  "acquisition_source": "OEM_ALLOCATION",
-  "acquisition_status": "CONFIRMED",
-  "acquisition_date": "2026-07-15",
-  "currency_code": "EGP",
-  "source": {
-    "source_system": "DMS",
-    "source_record_id": "DMS-STOCK-4521",
-    "source_authority": "EXTERNAL_SYSTEM_OF_RECORD"
-  }
+  "acquisition_snapshot_hash": "sha256:62f15a4e...",
+  "requested_activation_mode": "AFTER_EXTERNAL_CONFIRMATION",
+  "evidence_references": [
+    "evidence://trade-ins/4a97e40a/acquisition",
+    "evidence://trade-ins/4a97e40a/ownership-transfer",
+    "evidence://trade-ins/4a97e40a/physical-possession"
+  ]
 }
 ```
 
-### Example Response
+The request must use:
+
+```text
+Idempotency-Key: 5c972c8e-06e4-4ae1-a2b8-2ac6f3216849
+```
+
+### Example Pending Intake Response
 
 ```json
 {
-  "inventory_record_id": "123e4567-e89b-12d3-a456-426614174000",
-  "vehicle_id": "550e8400-e29b-41d4-a716-446655440000",
-  "dealership_id": "2dc50e3c-392a-44d7-9dc4-8fd7e586ff03",
-  "branch_id": "6835ea02-a8df-4d3d-a1ec-4e309ea9ac38",
-  "inventory_number": "INV-2026-004521",
-  "status": "ACQUIRED",
+  "inventory_intake_request_id": "9d557671-a5d1-4b33-975c-c717041c73ae",
+  "source_type": "TRADE_IN",
+  "source_id": "4a97e40a-37bb-45bd-a6fa-31e84639df73",
+  "status": "PENDING_EXTERNAL_CONFIRMATION",
+  "inventory_record_id": "30a9bbf9-b02a-4fbf-ad55-cc5ae742514f",
+  "inventory_record_status": "PLANNED",
   "availability_status": "NOT_AVAILABLE",
-  "physical_presence_status": "NOT_VERIFIED",
-  "sale_readiness_status": "NOT_READY",
-  "data_quality_status": "INCOMPLETE",
-  "record_version": 1,
-  "created_at": "2026-08-01T17:00:00Z"
+  "command_id": "44d94aa1-c0dd-497f-920e-c9bd93daebc0",
+  "record_version": 1
 }
 ```
+
+This response does not prove activation or commercial availability.
+
+### Example Activated Response
+
+```json
+{
+  "inventory_intake_request_id": "9d557671-a5d1-4b33-975c-c717041c73ae",
+  "status": "ACTIVATED",
+  "inventory_record_id": "30a9bbf9-b02a-4fbf-ad55-cc5ae742514f",
+  "inventory_number": "INV-2026-004521",
+  "stock_number": "STK-009174",
+  "inventory_record_status": "ACQUIRED",
+  "availability_status": "NOT_AVAILABLE",
+  "external_stock_reference": "DMS-STOCK-9174",
+  "confirmation_reference": "dms://stock-confirmations/9174",
+  "record_version": 3,
+  "activated_at": "2026-08-02T11:30:00Z"
+}
+```
+
+Activation still does not prove that the Vehicle is available for sale.
 
 ### Mutation Requirements
 
 Every mutation must enforce:
 
 - Authentication.
-- Tenant scope.
-- Organizational scope.
+- Tenant and organizational scope.
 - Authorization.
 - Record-version validation.
 - Field-authority validation.
 - Lifecycle validation.
-- Concurrency control.
-- Freshness requirements.
-- Conflict checks.
+- Source-version validation.
+- Concurrency.
+- Idempotency where required.
+- Duplicate current-stock-cycle checks.
 - Required Human Decision or automation policy.
-- Audit evidence.
-- Event publication after an accepted state change.
+- Audit recording.
+- Event publication after accepted state change.
 - External Confirmation tracking where applicable.
 
 ### Optimistic Concurrency
@@ -1938,27 +2183,15 @@ If-Match: <record_version>
 
 A stale version must return a conflict response.
 
-### Reservation and Allocation Concurrency
-
-Reservation and Allocation APIs must use:
-
-- Atomic conditional update.
-- Database lock.
-- Compare-and-swap.
-- Distributed lock.
-- Another approved concurrency mechanism.
-
-A successful HTTP response must not be returned as final business completion when authoritative external Confirmation remains pending.
-
 ### Idempotency
 
-Retryable create, Reservation, Allocation, transfer, publication, and external-write operations must support:
+Retryable intake, create, activation, Reservation, Allocation, transfer, publication, and external-write operations must support:
 
 ```text
 Idempotency-Key
 ```
 
-The same idempotency key and request intent must not create duplicate effects.
+The same key and request intent must not create duplicate business effects.
 
 ### Pending External Confirmation
 
@@ -1968,12 +2201,12 @@ Operations requiring an external authority may return:
 {
   "operation_status": "PENDING_CONFIRMATION",
   "command_id": "44d94aa1-c0dd-497f-920e-c9bd93daebc0",
-  "inventory_record_id": "123e4567-e89b-12d3-a456-426614174000",
-  "record_version": 8
+  "inventory_record_id": "30a9bbf9-b02a-4fbf-ad55-cc5ae742514f",
+  "record_version": 2
 }
 ```
 
-The API must not describe the action as confirmed until authoritative evidence is received.
+The API must not describe the operation as complete until authoritative evidence is accepted.
 
 ### Error Categories
 
@@ -1985,8 +2218,16 @@ The API must distinguish at least:
 - `ORGANIZATIONAL_SCOPE_VIOLATION`
 - `VALIDATION_FAILED`
 - `VERSION_CONFLICT`
-- `INVENTORY_CONFLICT`
+- `SOURCE_VERSION_MISMATCH`
+- `INVENTORY_INTAKE_NOT_ELIGIBLE`
+- `TRADE_IN_ACQUISITION_INCOMPLETE`
+- `TRADE_IN_OWNERSHIP_EVIDENCE_MISSING`
+- `TRADE_IN_PAYOFF_OR_LIEN_UNRESOLVED`
+- `PHYSICAL_POSSESSION_NOT_CONFIRMED`
 - `VEHICLE_ALREADY_HAS_ACTIVE_INVENTORY`
+- `DUPLICATE_INTAKE_REQUEST`
+- `EXTERNAL_STOCK_CONFLICT`
+- `INVENTORY_ACTIVATION_NOT_PERMITTED`
 - `STALE_AVAILABILITY`
 - `LOCATION_NOT_VERIFIED`
 - `INVENTORY_BLOCKED`
@@ -2007,6 +2248,8 @@ GraphQL implementations must enforce the same:
 
 - Tenant isolation.
 - Field authority.
+- Source authority.
+- Intake ownership.
 - Concurrency.
 - Idempotency.
 - Lifecycle.
@@ -2014,7 +2257,7 @@ GraphQL implementations must enforce the same:
 - External Confirmation.
 - Audit controls.
 
-Resolvers must not bypass Inventory Domain Service or deterministic policy controls.
+Resolvers must not bypass Inventory Domain Service, Policy Engine, Command Orchestration, or authoritative source services.
 
 ---
 
@@ -2023,7 +2266,11 @@ Resolvers must not bypass Inventory Domain Service or deterministic policy contr
 ### Recommended Tables
 
 ```text
+inventory_intake_requests
+inventory_intake_validations
+inventory_intake_commands
 inventory_records
+inventory_record_lineage
 inventory_acquisitions
 inventory_locations
 inventory_location_history
@@ -2034,7 +2281,7 @@ inventory_pricing
 inventory_price_history
 inventory_preparation
 inventory_publications
-inventory_floor_plan
+inventory_floor_plan_projections
 inventory_activity_metrics
 inventory_transfers
 inventory_exits
@@ -2046,34 +2293,64 @@ inventory_record_versions
 inventory_audit_log
 ```
 
-### Inventory Records Table
+### Inventory Intake Requests
 
-The `inventory_records` table should contain:
+`inventory_intake_requests` should preserve:
+
+- Intake identifier.
+- Tenant and organization.
+- Source type, source identifier, and source version.
+- Vehicle.
+- Target dealership, branch, and legal entity.
+- Requested Inventory type and ownership type.
+- Intake snapshot and hash.
+- Status.
+- Validation results.
+- Human Decision or automation-policy reference.
+- Idempotency key.
+- Command.
+- External Confirmation.
+- Resulting Inventory Record.
+- Rejection, failure, or cancellation reason.
+- Reconciliation state.
+- Created and updated times.
+- Related Events.
+
+A uniqueness control should prevent duplicate active intake for the same immutable source intent.
+
+### Inventory Records
+
+`inventory_records` should contain:
 
 - Canonical identifiers.
 - Tenant and organizational scope.
-- Vehicle relationship.
-- Current stock-cycle identity.
-- Current lifecycle status.
-- Current availability status.
-- Current location projection.
-- Current Reservation projection.
-- Current Allocation projection.
-- Current pricing projection.
-- Current preparation and readiness projection.
+- Vehicle and stock-cycle lineage.
+- Current intake and source references.
+- Current lifecycle and availability.
+- Current location and presence.
+- Current Reservation and Allocation projections.
+- Current pricing and readiness.
 - Current publication state.
-- Current sale, delivery, transfer, and exit projection.
-- Source and synchronization status.
+- Current sale, delivery, transfer, return, and exit projections.
+- Synchronization and reconciliation.
 - Record version.
 - Audit timestamps.
 
 Historical detail must remain in child or history tables.
 
-### Primary Key
+### Primary Keys
+
+```text
+PRIMARY KEY (inventory_intake_request_id)
+```
+
+for `inventory_intake_requests`.
 
 ```text
 PRIMARY KEY (inventory_record_id)
 ```
+
+for `inventory_records`.
 
 ### Tenant Protection
 
@@ -2083,7 +2360,7 @@ Every Inventory-related table must include:
 tenant_id
 ```
 
-Tenant consistency must be enforced using:
+Tenant consistency must be enforced through:
 
 - Composite Tenant-aware foreign keys; or
 - Equivalent database and service controls.
@@ -2093,6 +2370,12 @@ Row-Level Security should be used where supported.
 ### Recommended Indexes
 
 ```text
+idx_inventory_intake_tenant_source
+  (tenant_id, inventory_intake_source_type, inventory_intake_source_id)
+
+idx_inventory_intake_tenant_status
+  (tenant_id, inventory_intake_status)
+
 idx_inventory_tenant_status
   (tenant_id, status)
 
@@ -2101,6 +2384,9 @@ idx_inventory_tenant_availability
 
 idx_inventory_tenant_vehicle_current
   (tenant_id, vehicle_id, is_current_record)
+
+idx_inventory_tenant_trade_in
+  (tenant_id, trade_in_id)
 
 idx_inventory_tenant_dealership_branch
   (tenant_id, dealership_id, branch_id)
@@ -2120,8 +2406,8 @@ idx_inventory_active_allocation
 idx_inventory_aging
   (tenant_id, dealership_id, aging_status, days_in_inventory)
 
-idx_inventory_sync_status
-  (tenant_id, last_sync_status, reconciliation_status)
+idx_inventory_reconciliation
+  (tenant_id, reconciliation_status)
 
 idx_inventory_updated_at
   (tenant_id, updated_at)
@@ -2139,9 +2425,23 @@ UNIQUE (tenant_id, inventory_number)
 UNIQUE (tenant_id, source_system, source_record_id)
 ```
 
-where the external source guarantees uniqueness.
+where the source guarantees uniqueness.
 
-A partial unique constraint or equivalent service control should prevent more than one current active physical-possession record for the same Vehicle:
+An intake uniqueness constraint or service control should normally enforce:
+
+```text
+UNIQUE (
+  tenant_id,
+  inventory_intake_source_type,
+  inventory_intake_source_id,
+  inventory_intake_source_record_version,
+  dealership_id
+)
+```
+
+for the same immutable intake intent.
+
+A partial unique constraint or equivalent concurrency-safe service control should prevent multiple current physical-possession records:
 
 ```text
 UNIQUE (tenant_id, vehicle_id)
@@ -2154,129 +2454,57 @@ WHERE is_current_record = true
   )
 ```
 
-The exact implementation may differ according to the database and transfer model.
+### Reservation, Allocation, and History Storage
 
-### Reservation Storage
+Reservation, Allocation, pricing, location, transfer, and exit tables must preserve:
 
-`inventory_reservations` should preserve:
-
-- `reservation_id`.
-- `tenant_id`.
-- `inventory_record_id`.
-- Customer and Opportunity references.
+- Stable child identifier.
+- Inventory Record.
+- Tenant.
 - Status.
-- Requested time.
-- Approved time.
-- Expiration.
+- Requested and accepted times.
+- Authority.
 - Human Decision or automation-policy reference.
-- Command.
-- Idempotency key.
+- Command and idempotency key where applicable.
 - External Confirmation.
-- Release or expiration reason.
+- Evidence.
+- Reconciliation.
 - Record version.
 - Related Events.
-
-Reservation history must remain append-only or versioned.
-
-### Allocation Storage
-
-`inventory_allocations` should preserve:
-
-- `allocation_id`.
-- `tenant_id`.
-- `inventory_record_id`.
-- Customer, Opportunity, and Deal references.
-- Status.
-- Requested time.
-- Approved time.
-- Expiration.
-- Human Decision.
-- Command.
-- Idempotency key.
-- External Confirmation.
-- Release or conversion reason.
-- Record version.
-- Related Events.
-
-### Pricing History
-
-`inventory_price_history` must preserve:
-
-- Previous price.
-- New price.
-- Currency.
-- Price type.
-- Effective period.
-- Pricing authority.
-- Human Decision.
-- Business Rule.
-- Recommendation reference.
-- Reason.
-- Actor.
-- Timestamp.
-- Record version.
-
-Restricted pricing values must remain separately access-controlled.
-
-### Location History
-
-`inventory_location_history` must preserve:
-
-- Previous location.
-- New location.
-- Physical-presence state.
-- Transfer reference.
-- Verification evidence.
-- Actor.
-- Source.
-- Timestamp.
-- External Confirmation.
-- Record version.
 
 ### Derived Intelligence Storage
 
-Derived metrics should remain separate from authoritative operational fields.
+Derived records must remain separate from authoritative intake, lifecycle, cost, availability, and execution fields.
 
-Each derived record should preserve:
+Each record should preserve:
 
-- Metric type.
-- Metric value.
-- Algorithm, model, or formula version.
+- Output type.
+- Value.
+- Model, formula, or algorithm version.
 - Prompt version where applicable.
 - Input-record versions.
 - Evidence.
 - Confidence.
 - Generated time.
-- Expiration time.
-- Recommendation reference.
+- Expiration.
+- Review status.
 
 ### Audit Storage
 
 Inventory audit records must be append-only or protected through an equivalent immutable-audit mechanism.
 
-Audit storage should use secure hashes instead of raw sensitive values where full-value retention is unnecessary.
-
-### Partitioning
-
-Large deployments may partition by:
-
-- `tenant_id`.
-- Region.
-- Dealership.
-- Retention class.
-- Time for Event, history, and audit data.
-
-Partitioning must not weaken Tenant isolation.
+Secure hashes should replace raw financial, ownership, identity, or location values where full retention is unnecessary.
 
 ### Hard Deletion
 
-An Inventory Record must not be hard-deleted when referenced by:
+An Inventory intake or Inventory Record must not be hard-deleted when referenced by:
 
+- Trade-In.
+- Vehicle.
 - Reservation.
 - Allocation.
 - Appointment.
 - Quotation.
-- Trade-In.
 - Finance Application.
 - Financial Contract.
 - Deal.
@@ -2285,9 +2513,13 @@ An Inventory Record must not be hard-deleted when referenced by:
 - Transfer.
 - Publication.
 - External Confirmation.
+- Reconciliation.
+- Human Decision.
+- AI Agent Run.
+- Command.
 - Audit evidence.
 
-Supersession, retirement, archival, or governed redaction must be used instead.
+Rejection, cancellation, supersession, retirement, archival, anonymization, governed redaction, or legally required deletion workflows must be used instead.
 
 ---
 
@@ -2295,29 +2527,22 @@ Supersession, retirement, archival, or governed redaction must be used instead.
 
 ### Security Classification
 
-Recommended classifications include:
-
 | Classification | Example Fields |
 | :--- | :--- |
 | `PUBLIC_VEHICLE_INFORMATION` | Approved make, model, trim, year, public features |
-| `OPERATIONAL_INVENTORY` | Availability, branch, preparation, publication |
-| `SENSITIVE_ASSET_LOCATION` | Parking slot, secure storage location |
+| `OPERATIONAL_INVENTORY` | Lifecycle, availability, branch, preparation, publication |
+| `SENSITIVE_ASSET_LOCATION` | Parking slot, secure storage location, movement plan |
 | `COMMERCIAL_CONFIDENTIAL` | Cost, internal price floor, discount limit, margin |
 | `FINANCIAL_CONFIDENTIAL` | Floor-plan and holding-cost information |
+| `TRADE_IN_RESTRICTED` | Ownership, lien, payoff, acquisition evidence |
 | `CUSTOMER_RESTRICTED` | Reservation and Allocation Customer references |
-| `LEGAL_OR_COMPLIANCE` | Ownership evidence, legal holds, safety blocks |
+| `LEGAL_OR_COMPLIANCE` | Legal holds, safety blocks, disputes |
 | `DERIVED_INTELLIGENCE` | Scores, forecasts, Recommendations |
-| `AUDIT_EVIDENCE` | Actor, Decisions, Commands, Confirmations, history |
+| `AUDIT_EVIDENCE` | Actors, Decisions, Commands, Confirmations, history |
 
-### Authentication
+### Authentication and Authorization
 
-Every Inventory operation requires an authenticated Human or service identity.
-
-Anonymous access to internal Inventory records is prohibited.
-
-Approved public inventory feeds must expose only permitted Customer-visible projections.
-
-### Authorization
+Every internal Inventory operation requires an authenticated Human or service identity.
 
 Authorization must consider:
 
@@ -2326,65 +2551,45 @@ Authorization must consider:
 - Dealership.
 - Branch.
 - Location.
-- Role.
-- Team.
+- Legal entity.
+- Role and team.
 - Resource.
-- Requested field.
-- Requested action.
+- Requested field and action.
 - Value threshold.
-- Workflow state.
+- Lifecycle state.
 - Data classification.
 - Delegated authority.
 - Business purpose.
+- Legal hold.
+
+Approved public feeds may expose only explicitly permitted Customer-visible projections.
 
 ### Example Role Boundaries
 
 #### Sales Consultant
 
-May access approved Customer-visible:
+May access approved:
 
-- Vehicle specifications.
-- Availability.
-- Advertised pricing.
+- Customer-visible Vehicle specification.
+- Availability summary.
+- Advertised price.
 - Appointment and test-drive readiness.
 
-A Sales Consultant must not independently access or change:
+Must not independently:
 
-- Acquisition cost.
-- Internal margin.
-- Minimum authorized price.
-- Floor-plan information.
-- Restricted location.
-- Reservation override.
-- Allocation override.
-- Sale Confirmation.
-- Delivery Confirmation.
-
-#### Sales Manager
-
-May access permitted:
-
-- Reservations.
-- Allocations.
-- Availability.
-- Pricing approvals.
-- Aging and performance.
-- Assigned dealership Inventory.
-
-Manager access does not automatically authorize:
-
-- Legal-hold removal.
-- Safety-block removal.
-- Financial override.
-- Cross-Tenant transfer.
-- Final delivery Confirmation.
+- Access restricted acquisition or Trade-In evidence.
+- Access internal cost or margin.
+- Override Reservation or Allocation.
+- Activate Inventory.
+- Confirm sale or delivery.
 
 #### Inventory User
 
 May perform permitted:
 
+- Intake preparation.
 - Receipt.
-- Location update.
+- Location updates.
 - Inspection coordination.
 - Preparation.
 - Physical verification.
@@ -2393,36 +2598,25 @@ May perform permitted:
 
 #### Inventory Manager
 
-May perform permitted:
+May perform configured:
 
-- Inventory oversight.
+- Intake acceptance review.
+- Activation review.
 - Transfer approval.
 - Aging review.
 - Operational block management.
-- Inventory reconciliation.
-- Authorized pricing review.
+- Reconciliation.
+- Pricing review.
 
-#### Finance Specialist
+#### Finance, Compliance, Legal, and Accounting Roles
 
-May access restricted cost or floor-plan information only where required by approved responsibilities.
+May access only the restricted fields required by assigned responsibilities.
 
-#### Compliance or Legal Reviewer
-
-May access legal, ownership, safety, fraud, and compliance evidence required for an assigned review.
-
-#### Data Steward
-
-May review:
-
-- Data conflicts.
-- Duplicate records.
-- Source provenance.
-- Synchronization failures.
-- Reconciliation cases.
+Their access does not automatically grant Inventory activation, availability, sale, delivery, or cross-Tenant authority.
 
 #### AI Agent
 
-May access only the minimum Inventory context required for its approved task.
+May access only minimum approved context.
 
 AI access must be:
 
@@ -2431,46 +2625,43 @@ AI access must be:
 - Field-restricted.
 - Logged.
 - Time-limited where appropriate.
-- Prevented from retrieving cross-Tenant information.
-- Prevented from accessing restricted cost or margin data unless specifically approved.
+- Prevented from accessing restricted cost, payoff, lien, ownership, secure location, or legal data unless specifically approved.
 
-### Pricing and Cost Protection
+### Field-Level Protection
 
-Restricted commercial values must use:
+Restricted fields must use:
 
 - Field-level authorization.
+- Encryption.
+- Tokenization where applicable.
 - Masking.
-- Encryption where appropriate.
-- Audit logging.
+- Controlled document references.
 - Export restrictions.
 - AI-context restrictions.
+- Purpose limitation.
+- Audit logging.
 
-Minimum authorized price, maximum discount, acquisition cost, landed cost, and internal margin must not appear in:
+Restricted values must not appear in:
 
 - Public APIs.
-- Public search indexes.
-- Public Inventory feeds.
+- Public feeds.
 - Customer communications.
 - Unrestricted Logs.
 - General-purpose embeddings.
-
-### Location Protection
-
-Exact secure storage locations, parking slots, access instructions, and movement schedules must be limited to authorized operational roles.
-
-Customer-facing location descriptions must use approved public values.
 
 ### Tenant Isolation
 
 Tenant isolation must apply to:
 
 - Database queries.
+- Intake and duplicate detection.
 - APIs.
 - Search.
 - Vector retrieval.
 - Events.
 - Queues.
 - Caches.
+- Documents.
 - Analytics.
 - Exports.
 - Logs.
@@ -2485,14 +2676,15 @@ Every query and Event Consumer must validate `tenant_id`.
 Outbound Inventory Commands must include:
 
 - Authenticated service identity.
-- Tenant scope.
-- Organizational scope.
-- Field-level write authority.
-- Applicable Human Decision or automation-policy reference.
+- Tenant and organizational scope.
+- Inventory intake or Inventory Record identifier.
+- Current source and record versions.
+- Requested action.
+- Field-level authority.
+- Human Decision or automation-policy reference.
 - Idempotency key.
-- Current record version.
 - Audit evidence.
-- Confirmation requirements.
+- External Confirmation requirement.
 
 The AI Intelligence Layer must not transmit external Commands directly.
 
@@ -2502,62 +2694,75 @@ Material Inventory activity must record:
 
 - `tenant_id`.
 - `inventory_record_id`.
+- `inventory_intake_request_id`.
 - `vehicle_id`.
-- Dealership and branch.
+- Source workflow and source version.
+- Trade-In reference where applicable.
+- Dealership, branch, location, and legal entity.
 - Actor.
 - Role and permission.
-- Action.
-- Business purpose.
+- Action and business purpose.
 - Previous value or secure hash.
 - New value or secure hash.
 - Record version.
-- Source.
-- Authority category.
-- Human Decision.
-- Automation-policy reference.
-- Command.
-- Idempotency key.
+- Source and authority category.
+- Applied Business Rules.
+- Human Decision or automation-policy reference.
+- AI involvement.
+- Command and idempotency key.
 - External Confirmation.
 - Evidence.
 - Timestamp.
-- Correlation identifier.
-- Causation identifier.
+- Correlation and causation identifiers.
 - Related Events.
 
 ### Security Events
 
 ASOS must detect and record:
 
-- Cross-Tenant Inventory access attempts.
+- Cross-Tenant Inventory access.
+- Unauthorized intake acceptance.
+- Unauthorized Inventory Record creation or activation.
+- Duplicate stock-cycle attempts.
+- Trade-In evidence substitution.
+- Vehicle substitution.
+- Stock-number manipulation.
 - Unauthorized Reservation or Allocation.
-- Duplicate Reservation or Allocation attempts.
-- Restricted pricing access.
-- Unauthorized cost export.
+- Restricted pricing or cost access.
 - Availability manipulation.
 - Location tampering.
-- Block-removal attempts.
-- AI access outside approved scope.
+- Unauthorized block removal.
+- False sale or delivery Confirmation.
 - Command replay.
 - External Confirmation mismatch.
+- Suspicious transfer.
+- AI access outside approved scope.
+- Prompt injection inside evidence or documents.
 - Audit-log tampering.
-- Repeated reconciliation failure.
-- Suspicious Inventory transfer.
 
-### Evidence Protection
+### Transaction Integrity
 
-Ownership, acquisition, inspection, safety, transfer, sale, and delivery evidence must:
+The platform must detect or prevent:
 
-- Use controlled storage.
-- Preserve integrity hashes where required.
-- Restrict access.
-- Preserve provenance.
-- Prevent unauthorized deletion.
-- Follow retention and legal-hold requirements.
+- Multiple active current records for one Vehicle.
+- Inventory creation from the wrong Trade-In or source version.
+- Activation without accepted intake.
+- Activation without required external Confirmation.
+- Trade-In appraisal treated as authoritative Inventory cost.
+- Availability before required acquisition and readiness evidence.
+- Reservation and Allocation conflict.
+- Sale or delivery inferred from a sent Command.
+- Transfer receipt before evidence.
+- Re-entry without a new governed stock cycle.
+- Lifecycle or authority manipulation.
 
 ### Emergency Controls
 
-The platform must support immediate suspension of:
+The platform must support immediate Tenant-scoped suspension of:
 
+- Inventory intake.
+- Inventory creation.
+- Inventory activation.
 - Reservation.
 - Allocation.
 - Publication.
@@ -2566,9 +2771,12 @@ The platform must support immediate suspension of:
 - Sale release.
 - Delivery release.
 - External Inventory write-back.
-- AI Agent access.
+- Automated Customer communication.
+- AI Inventory analysis.
+- Export.
+- Connector access.
 
-Emergency suspension must be deterministic, Tenant-scoped, auditable, and reversible only by authorized roles.
+Emergency suspension must be deterministic, auditable, and reversible only by authorized roles.
 
 ---
 
@@ -2579,6 +2787,14 @@ Emergency suspension must be deterministic, Tenant-scoped, auditable, and revers
 - [ASOS Data Ownership and Systems of Record](../../../05_Documentation/Data_Ownership_and_Systems_of_Record.md)
 - [ASOS Canonical Domain Model](./README.md)
 - [ASOS Vehicle](./Vehicle.md)
+- [ASOS Trade-In](./TradeIn.md)
+- [ASOS Opportunity](./Opportunity.md)
+- [ASOS Quotation](./Quotation.md)
+- [ASOS Finance Application](./FinanceApplication.md)
+- [ASOS Financial Contract](./FinancialContract.md)
+- [ASOS Deal](./Deal.md)
+- [ASOS Appointment](./Appointment.md)
+- [ASOS Interaction](./Interaction.md)
 
 ---
 
@@ -2586,7 +2802,21 @@ Emergency suspension must be deterministic, Tenant-scoped, auditable, and revers
 
 This document is the approved Canonical Inventory Record baseline.
 
-Inventory context remains separate from Vehicle identity.
+Inventory Domain Service is the sole canonical owner of Inventory-intake acceptance, Inventory Record creation, Inventory activation, stock identity, lifecycle, and commercial availability.
+
+Trade-In Domain Service owns appraisal, payoff, equity, acquisition readiness, legal acquisition, and the request for Inventory intake.
+
+Trade-In, Deal, Finance Application, Financial Contract, and AI services must not create or activate an Inventory Record directly.
+
+A Trade-In intake request does not prove intake acceptance.
+
+Intake acceptance does not prove Inventory Record creation.
+
+Inventory Record creation does not prove activation.
+
+Activation does not prove physical receipt or commercial availability.
+
+External stock posting remains pending until accepted External Confirmation where the configured DMS or Inventory system is authoritative.
 
 Detailed Event names and Schemas will be governed by the Canonical Event Catalog.
 
