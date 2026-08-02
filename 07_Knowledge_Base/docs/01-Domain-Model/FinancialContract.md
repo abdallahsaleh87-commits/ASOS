@@ -4,7 +4,7 @@
 **Status:** Approved Baseline  
 **Canonical Owner:** Financial Contract Domain Service  
 **Primary Isolation Boundary:** `tenant_id`  
-**Last Updated:** 2026-08-01  
+**Last Updated:** 2026-08-02  
 
 ---
 
@@ -46,8 +46,9 @@ The Financial Contract provides a governed process for:
 - Determining contractual effectiveness.
 - Tracking cooling-off or rescission periods.
 - Registering security interests or liens where required.
-- Supporting Lender funding requests.
-- Projecting authoritative funding outcomes.
+- Orchestrating governed Lender funding requests after Contract eligibility is established.
+- Creating and tracking Funding Commands, External Confirmations, partial funding, shortfalls, failures, reversals, and reconciliation.
+- Projecting externally authoritative funding outcomes without inventing or overriding them.
 - Preserving the contractual payment schedule.
 - Referencing servicing and settlement outcomes.
 - Managing amendments.
@@ -57,7 +58,7 @@ The Financial Contract provides a governed process for:
 
 ### Financial Contract Domain Boundary
 
-The Financial Contract owns the governed contractual agreement and its execution lifecycle.
+The Financial Contract owns the governed contractual agreement, its execution lifecycle, and the funding-request workflow that follows valid Contract eligibility.
 
 It does not independently represent:
 
@@ -69,7 +70,7 @@ It does not independently represent:
 - A Vehicle Reservation.
 - A Vehicle Allocation.
 - A Deal payment.
-- Cleared Lender funding.
+- The externally authoritative Lender or bank funding outcome.
 - A completed Vehicle sale.
 - A completed delivery.
 - Vehicle registration.
@@ -81,14 +82,17 @@ The following boundaries must remain explicit:
 ```text
 Finance Application
   = Applicant data, Consent, verification, Lender submissions,
-    underwriting Decisions, selected offer, and funding readiness
+    underwriting Decisions, selected offer, funding readiness,
+    and governed Financial Contract handoff
 
 Financial Contract
   = approved contractual terms, disclosures, documents,
-    signatures, effectiveness, amendments, and legal lifecycle
+    signatures, effectiveness, governed funding-request orchestration,
+    activation, amendments, and legal lifecycle
 
 Deal
-  = governed automotive commercial transaction
+  = governed automotive commercial transaction,
+    completion gates, and non-owning funding projection
 
 Payment
   = Customer or third-party payment and settlement evidence
@@ -100,6 +104,10 @@ Servicing Authority
   = authoritative installment, arrears, settlement,
     balance, and contract-servicing outcomes
 ```
+
+The Financial Contract Domain Service owns Funding Command creation, idempotency, pending workflow state, External Confirmation tracking, shortfall handling, reversal handling, and reconciliation.
+
+The configured Lender, bank, or funding authority remains authoritative for whether funding actually occurred.
 
 ### Financial Contract and Finance Application Separation
 
@@ -114,10 +122,15 @@ The Finance Application preserves:
 - Lender submissions.
 - Lender Decisions.
 - Customer-selected offer.
-- Funding readiness.
+- Contract-readiness and funding-readiness assessments.
+- The immutable contracting-handoff snapshot.
+- Handoff idempotency and acceptance status.
+- The resulting Financial Contract reference.
+- Read-only Contract and funding projections after handoff.
 
-The Financial Contract preserves:
+The Financial Contract accepts the governed handoff and preserves:
 
+- The exact Finance Application version and handoff snapshot.
 - The exact selected Lender Decision.
 - The exact accepted finance terms.
 - The exact contractual parties.
@@ -125,6 +138,10 @@ The Financial Contract preserves:
 - Contract document versions.
 - Signatures.
 - Contract effectiveness.
+- The governed funding-request workflow.
+- Funding Commands and idempotency.
+- External funding Confirmation and reconciliation.
+- Contract activation.
 - Contractual payment schedule.
 - Security-interest requirements.
 - Amendments.
@@ -132,7 +149,11 @@ The Financial Contract preserves:
 
 A Financial Contract must not alter the authoritative Lender Decision.
 
-A material mismatch between the Financial Contract and the selected Lender Decision must block generation, signature, effectiveness, and funding.
+A material mismatch between the Financial Contract, the accepted handoff, or the selected Lender Decision must block generation, signature, effectiveness, funding, and activation.
+
+The Finance Application Domain Service must not create or transmit a Funding Command.
+
+The Financial Contract Domain Service is the sole canonical owner of the funding-request mutation after a valid Financial Contract exists.
 
 ### Financial Contract and Quotation Separation
 
@@ -165,9 +186,9 @@ A material change to the commercial terms may require:
 
 ### Financial Contract and Deal Separation
 
-The Deal owns the overall governed commercial transaction.
+The Deal owns the overall governed commercial transaction, commercial completion gates, and the funding status needed to determine whether the transaction may complete.
 
-The Financial Contract owns the financial agreement associated with that transaction.
+The Financial Contract owns the financial agreement and the governed funding-request workflow associated with that transaction.
 
 A signed Financial Contract does not independently prove:
 
@@ -180,9 +201,24 @@ A signed Financial Contract does not independently prove:
 - Vehicle delivery.
 - Deal completion.
 
-The Deal must preserve the Financial Contract reference and its authoritative state.
+The Deal must preserve:
 
-The Financial Contract must preserve the associated Deal reference.
+- The Financial Contract reference.
+- The current authoritative Financial Contract state.
+- A read-only funding-status projection.
+- Funding-related completion blockers.
+- Funding Confirmation and reconciliation references required for Deal completion.
+
+The Deal must not:
+
+- Create or transmit a Funding Command.
+- Own a funding idempotency key.
+- Publish authoritative funding-request, funding-confirmed, funding-failed, or funding-reversed Events.
+- Treat a request acknowledgement as proof of funding.
+
+The Financial Contract must preserve the associated Deal reference and publish accepted funding-workflow facts.
+
+The configured Lender, bank, or funding authority remains authoritative for the funding outcome.
 
 ### Contract Generation and Execution Separation
 
@@ -243,15 +279,32 @@ Effectiveness may additionally require:
 
 `EFFECTIVE` means the Financial Contract became legally or operationally effective according to its approved terms and governing policy.
 
-`FUNDING_PENDING` means a funding request has been submitted or is awaiting authoritative outcome.
+`FUNDING_PENDING` means the Financial Contract Domain Service created or transmitted a governed Funding Command and is awaiting an authoritative outcome or reconciliation.
+
+`PARTIALLY_FUNDED`, `FUNDED`, `FAILED`, and `REVERSED` are funding-workflow sub-statuses. They do not independently replace the aggregate Financial Contract lifecycle state.
 
 `ACTIVE` means the Financial Contract is effective and all configured activation conditions have been authoritatively confirmed.
 
-For products requiring Lender funding, activation normally requires confirmed funding.
+For products requiring Lender funding, activation normally requires accepted authoritative funding Confirmation and resolved reconciliation.
 
 For products not requiring an external funding event, activation requirements must remain configurable.
 
-A successful API request or funding Command does not prove funding.
+The Financial Contract Domain Service owns:
+
+- Funding-readiness validation at Contract level.
+- Funding-request creation.
+- Funding Command creation and idempotency.
+- Pending-state tracking.
+- External Confirmation ingestion.
+- Partial-funding and shortfall handling.
+- Failure, reversal, and reconciliation workflows.
+- Activation evaluation.
+
+The configured Lender, bank, or funding authority owns the authoritative funding outcome.
+
+A successful API request, transport acknowledgement, or Funding Command does not prove funding.
+
+Funding Confirmation does not automatically prove Contract activation unless every configured activation condition is also satisfied.
 
 ### Contractual Payment Schedule and Payment Servicing Separation
 
@@ -369,12 +422,14 @@ The Financial Contract may contain:
 | Trade-In equity and payoff | Trade-In Domain Service and approved external authorities |
 | Legal template | Approved Legal Template Registry |
 | Required disclosures | Approved legal, regulatory, Lender, and policy sources |
-| Canonical Financial Contract workflow | Financial Contract Domain Service |
+| Canonical Financial Contract and funding-request workflow | Financial Contract Domain Service |
+| Funding Command creation, idempotency, and reconciliation | Financial Contract Domain Service |
 | Generated contract document | Controlled Document Service |
 | Signature completion | Approved Signature Provider or legally accepted physical-signature process |
 | Contract effectiveness | Configured legal and contractual authority |
 | Lien or security registration | Government, Lender, registration, or approved external authority |
 | Funding outcome | Lender, bank, or configured funding authority |
+| Deal funding projection and completion gate | Deal Domain Service |
 | Payment and servicing outcomes | Payment or contract-servicing authority |
 | Predictions and Recommendations | Derived Intelligence |
 | Legal interpretation and high-impact Decisions | Authorized Human legal, compliance, finance, or management role |
@@ -880,7 +935,7 @@ Each signer record may contain:
 - `activated_at`.
 - `activation_evidence_references`.
 
-### Funding Projection
+### Funding Workflow and Outcome Projection
 
 - `funding_required`.
 - `funding_readiness_status`.
@@ -890,17 +945,33 @@ Each signer record may contain:
 - `funding_command_id`.
 - `funding_idempotency_key`.
 - `funding_amount_requested`.
-- `funded_amount`.
 - `funding_currency_code`.
+- `funding_authority_id`.
+- `funding_authority_reference`.
+- `funded_amount`.
 - `funding_received_at`.
 - `funding_confirmation_status`.
 - `funding_confirmation_reference`.
+- `funding_confirmation_source_record_version`.
 - `funding_shortfall_amount`.
+- `funding_failure_reason`.
 - `funding_reconciliation_status`.
 - `funding_reversal_status`.
+- `funding_reversal_request_reference`.
+- `funding_reversal_command_id`.
+- `funding_reversal_idempotency_key`.
 - `funding_reversal_reference`.
+- `funding_projection_observed_at`.
+- `funding_projection_last_synced_at`.
+- `funding_projection_freshness_status`.
 
-Funding authority remains outside the Financial Contract Domain Service.
+The Financial Contract Domain Service owns the funding-request workflow, Funding Commands, idempotency, pending state, shortfall handling, reversal workflow, and reconciliation.
+
+The configured Lender, bank, or funding authority owns the authoritative funding outcome.
+
+Outcome fields must preserve source authority, source record version, observation time, Confirmation evidence, and reconciliation state.
+
+Finance Application and Deal may consume read-only projections from this workflow but must not recreate it.
 
 ### Servicing Projection
 
@@ -1257,14 +1328,27 @@ Every material derived output must preserve:
 | Field | Type | Required | Authority | Description |
 | :--- | :--- | :---: | :--- | :--- |
 | `funding_required` | Boolean | Yes | Finance product and Lender policy | Whether external funding is required. |
-| `funding_readiness_status` | Enum | Yes | Deterministic workflow | Current funding readiness. |
-| `funding_status` | Enum | Yes | Funding authority projection | Current external funding state. |
-| `funding_amount_requested` | Decimal | No | Contract and Deal | Amount requested from the funding authority. |
+| `funding_readiness_status` | Enum | Yes | Financial Contract workflow | Contract-level readiness to create a Funding Command. |
+| `funding_status` | Enum | Yes | Financial Contract workflow plus external outcome projection | Current governed request and observed outcome state. |
+| `funding_request_reference` | String | No | Financial Contract workflow | Stable canonical reference for the funding request. |
+| `funding_command_id` | UUID | No | Financial Contract workflow | Command identifier created by the owning Domain Service. |
+| `funding_idempotency_key` | String | No | Financial Contract workflow | Key preventing duplicate funding requests. |
+| `funding_amount_requested` | Decimal | No | Financial Contract workflow | Amount requested using the accepted Contract and Lender terms. |
+| `funding_currency_code` | String | No | Financial Contract and Lender terms | Currency of the request and Confirmation. |
+| `funding_authority_reference` | String | No | Funding authority | External funding reference. |
 | `funded_amount` | Decimal | No | Funding authority | Authoritatively confirmed funded amount. |
-| `funding_received_at` | Timestamp | No | Funding authority | Time funds were confirmed received. |
-| `funding_confirmation_status` | Enum | Yes | Workflow Projection | Current External Confirmation state. |
-| `funding_reconciliation_status` | Enum | Yes | Reconciliation workflow | Funding reconciliation state. |
+| `funding_received_at` | Timestamp | No | Funding authority | Time funds were authoritatively confirmed. |
+| `funding_confirmation_status` | Enum | Yes | Financial Contract Confirmation workflow | Current External Confirmation state. |
+| `funding_confirmation_reference` | String | No | Funding authority or Confirmation adapter | Evidence reference supporting the observed outcome. |
+| `funding_confirmation_source_record_version` | String | No | Funding authority projection | Source version used for freshness and reconciliation. |
+| `funding_reconciliation_status` | Enum | Yes | Financial Contract workflow | Funding reconciliation state. |
 | `funding_shortfall_amount` | Decimal | Yes | Deterministic calculation | Difference between required and confirmed funding. |
+| `funding_failure_reason` | String | No | Funding authority projection | Normalized externally supported failure reason. |
+| `funding_reversal_status` | Enum | Yes | Financial Contract workflow plus external projection | Current reversal workflow and observed result. |
+| `funding_reversal_reference` | String | No | Funding authority | External reversal evidence. |
+| `funding_projection_freshness_status` | Enum | Yes | Projection metadata | Whether the external outcome projection is current enough for dependent decisions. |
+
+The Finance Application and Deal Domain Services must not own the Funding Command, funding idempotency key, or authoritative funding transaction state.
 
 ---
 
@@ -2244,9 +2328,13 @@ Where insurance is required:
 
 ### Funding Rules
 
+The Financial Contract Domain Service is the sole canonical owner of the funding-request workflow.
+
 A funding request may occur only when:
 
-- Contract is effective or otherwise eligible under the approved product.
+- The Finance Application handoff was accepted.
+- The exact Finance Application version and selected Lender Decision remain valid.
+- The Contract is effective or otherwise eligible under the approved product.
 - Funding readiness is `READY`.
 - Financial Contract terms match the Lender Decision.
 - Required signatures and documents exist.
@@ -2254,10 +2342,21 @@ A funding request may occur only when:
 - Required Customer contribution is confirmed where applicable.
 - Required Lender conditions are satisfied or waived by the Lender.
 - Required insurance and security controls pass.
-- Request is idempotent.
 - No blocking conflict exists.
+- Required Human authority or an approved automation policy exists.
+- The request uses a stable idempotency key.
 
-A successful API or transport response does not prove funding.
+For every funding request, the Financial Contract Domain Service must:
+
+- Create and persist one canonical funding-request record.
+- Create and persist the Funding Command before transmission.
+- Reuse the same idempotency key for safe retries.
+- Preserve the exact Contract, Finance Application, Lender Decision, Deal, amount, currency, and source versions.
+- Remain pending until accepted External Confirmation or a governed terminal outcome.
+- Reconcile duplicate, delayed, partial, conflicting, failed, or reversed outcomes.
+- Publish immutable workflow Events.
+
+A successful API, transport, or provider acknowledgement does not prove funding.
 
 `FUNDED` requires authoritative evidence containing:
 
@@ -2266,13 +2365,21 @@ A successful API or transport response does not prove funding.
 - Currency.
 - Timestamp.
 - Source authority.
+- Source record version where available.
 - Contract reference.
 - Deal reference.
+- Confirmation evidence.
 - Reconciliation result.
 
-Partial funding must remain explicit.
+Partial funding must remain explicit and must calculate a shortfall.
 
-Funding reversal must use a new Event and reconciliation workflow.
+A funding failure must preserve the external reason, evidence, and retry or escalation eligibility.
+
+Funding reversal must use a separate governed request or observation, a new Event, preserved original Confirmation, and complete reconciliation.
+
+Finance Application and Deal receive read-only funding projections. They must not create Funding Commands or publish authoritative funding outcomes.
+
+The Financial Contract Domain Service may publish an accepted canonical funding-confirmed, funding-failed, or funding-reversed fact only after preserving the external authority and Confirmation evidence.
 
 ### Activation Rules
 
@@ -2495,6 +2602,10 @@ DISPUTED
 ARCHIVED
 ```
 
+`FUNDING_PENDING` is the aggregate Financial Contract state while the governed funding workflow is unresolved.
+
+`PARTIALLY_FUNDED`, `FUNDED`, `FAILED`, and `REVERSED` remain values of `ContractFundingStatus`.
+
 ### Principal Allowed Transitions
 
 ```text
@@ -2592,6 +2703,10 @@ SUPERSEDED → ARCHIVED
 ```
 
 Returning from `DISPUTED` requires an accepted resolution and supporting evidence.
+
+`FUNDING_PENDING → ACTIVE` requires accepted authoritative funding Confirmation and every other configured activation condition.
+
+`FUNDING_PENDING → EFFECTIVE` is permitted only through a governed failed, cancelled, reversed, short-funded, or reconciliation outcome that leaves the Contract effective but not active.
 
 ### Forbidden Ordinary Transitions
 
@@ -2788,13 +2903,24 @@ Requires:
 Requires:
 
 - Effective or otherwise eligible Contract.
-- Funding readiness.
-- Valid funding request.
+- Accepted Finance Application handoff.
+- Current selected Lender Decision.
+- Funding readiness `READY`.
+- Valid canonical funding-request record.
 - Required Lender conditions.
 - Required Customer contribution.
-- Idempotency key.
-- Funding Command.
+- Funding amount and currency.
+- Stable funding idempotency key.
+- Persisted Funding Command.
+- Required Human authority or approved automation policy.
 - No blocking conflict.
+- Audit evidence.
+
+The Financial Contract Domain Service creates and owns the Funding Command.
+
+The Contract must remain `FUNDING_PENDING` until authoritative Confirmation, failure, reversal, cancellation, or reconciliation supports the next transition.
+
+A provider acknowledgement does not support `ACTIVE` or `FUNDED`.
 
 ### Entering ACTIVE
 
@@ -3071,15 +3197,41 @@ The Financial Contract maintains a Canonical Projection and reconciliation state
 
 ### Payment and Funding
 
-Payments and Lender funding remain separate authoritative transactions.
+Customer or third-party Payments and Lender funding remain separate workflows.
 
-Financial Contract stores only required:
+Payment Domain Service or the configured payment authority owns:
 
-- References.
-- Projections.
-- Confirmed amounts.
-- Confirmation state.
-- Reconciliation status.
+- Customer payment instructions.
+- Payment authorization.
+- Settlement and clearing.
+- Refund and chargeback outcomes.
+- Authoritative Customer-payment Confirmation.
+
+Financial Contract Domain Service owns:
+
+- Contract-level funding readiness.
+- Canonical funding-request creation.
+- Funding Commands and idempotency.
+- Pending workflow state.
+- External Confirmation tracking.
+- Partial funding and shortfall handling.
+- Failure, reversal, and reconciliation workflow.
+- Activation evaluation based on accepted evidence.
+
+The configured Lender, bank, or funding authority owns whether funding actually occurred.
+
+Financial Contract preserves:
+
+- Request and Command references.
+- Requested amount and currency.
+- External funding references.
+- Confirmed amount and timestamp.
+- Confirmation evidence.
+- Failure, shortfall, and reversal evidence.
+- Reconciliation state.
+- Source and freshness metadata.
+
+Finance Application and Deal consume only the projections required by their own workflows.
 
 ### Contract Servicing
 
@@ -3155,7 +3307,7 @@ Financial Contract may own or govern:
 - Signature evidence.
 - Effectiveness conditions.
 - Activation conditions.
-- Funding projections.
+- Funding workflow requests, Commands, Confirmations, and outcome projections.
 - Security-interest records.
 - Payment-schedule snapshots.
 - Amendments.
@@ -3269,17 +3421,29 @@ The following are required Financial Contract Event concepts and do not replace 
 ### Funding and Activation Event Concepts
 
 - Contract funding readiness evaluated.
-- Contract funding requested.
-- Contract funding Command sent.
+- Contract funding request created.
+- Contract Funding Command persisted.
+- Contract Funding Command sent.
+- Contract funding acknowledgement received.
+- Contract funding Confirmation pending.
 - Contract partially funded.
 - Contract funding confirmed.
 - Contract funding failed.
 - Contract funding reversed.
 - Contract funding reconciliation required.
+- Contract funding reconciliation resolved.
 - Contract activation requested.
 - Contract activated.
 - Contract activation failed.
 - Contract activation reversed.
+
+Financial Contract Domain Service publishes funding-request and funding-workflow facts.
+
+Funding integrations publish normalized external observations.
+
+Financial Contract Domain Service may publish accepted canonical outcome facts only after validating and preserving the external authority, Confirmation evidence, source version, and reconciliation result.
+
+Finance Application and Deal Domain Services must not publish authoritative Financial Contract funding-request or funding-outcome Events.
 
 ### Amendment Event Concepts
 
@@ -3343,15 +3507,18 @@ Derived Intelligence Events must not imply:
 
 ### Producer Rules
 
-- Financial Contract Domain Service publishes accepted canonical and workflow-state changes.
-- Finance Application Domain Service publishes accepted finance facts.
+- Financial Contract Domain Service publishes accepted canonical Contract changes, funding-request workflow changes, and reconciled funding outcome facts.
+- Finance Application Domain Service publishes accepted application, underwriting, readiness, and contracting-handoff facts.
+- Finance Application Domain Service must not publish authoritative funding-request, funding-confirmed, funding-failed, or funding-reversed Events.
 - Quotation Domain Service publishes accepted commercial-offer facts.
-- Deal Domain Service publishes accepted Deal facts.
+- Deal Domain Service publishes accepted Deal facts and non-owning completion-gate changes.
+- Deal Domain Service must not publish authoritative funding-request or funding-outcome Events.
 - Vehicle and Inventory Domain Services publish accepted eligibility facts.
 - Trade-In Domain Service publishes accepted Trade-In facts.
 - Document Service publishes accepted generation and storage facts.
 - Signature integrations publish normalized provider observations.
 - Funding, servicing, lien, and registration integrations publish normalized external observations.
+- The configured external funding authority remains authoritative for the funding outcome.
 - AI Agents may publish Agent-run, extraction, analysis, anomaly, or Recommendation Events.
 - AI Agents must not publish authoritative signature, effectiveness, funding, activation, amendment, termination, or completion Events merely because they predicted or recommended the outcome.
 
@@ -3726,6 +3893,8 @@ POST   /api/v1/financial-contracts/{financial_contract_id}/effectiveness-evaluat
 POST   /api/v1/financial-contracts/{financial_contract_id}/activation-requests
 POST   /api/v1/financial-contracts/{financial_contract_id}/funding-readiness-checks
 POST   /api/v1/financial-contracts/{financial_contract_id}/funding-requests
+POST   /api/v1/financial-contracts/{financial_contract_id}/funding-reversal-requests
+POST   /api/v1/financial-contracts/{financial_contract_id}/funding-reconciliation-requests
 POST   /api/v1/financial-contracts/{financial_contract_id}/security-registration-requests
 
 POST   /api/v1/financial-contracts/{financial_contract_id}/amendment-requests
@@ -3747,6 +3916,24 @@ GET    /api/v1/financial-contracts/{financial_contract_id}/amendments
 GET    /api/v1/financial-contracts/{financial_contract_id}/history
 GET    /api/v1/financial-contracts/{financial_contract_id}/reconciliation
 ```
+
+### Funding Mutation Ownership
+
+`POST /api/v1/financial-contracts/{financial_contract_id}/funding-requests` is the canonical funding-request mutation.
+
+Finance Application and Deal APIs must not expose a funding-request mutation.
+
+The mutation must:
+
+- Validate the current Financial Contract, Finance Application handoff, Lender Decision, Deal, amount, currency, and funding-readiness snapshot.
+- Require the expected Financial Contract record version.
+- Require a stable idempotency key.
+- Create and persist the Funding Command through the Financial Contract Domain Service.
+- Return pending workflow state without claiming funding occurred.
+- Await authoritative External Confirmation.
+- Preserve reconciliation evidence.
+
+Read-only Finance Application and Deal endpoints may expose funding projections received from Financial Contract.
 
 ### Tenant Context
 
@@ -3962,11 +4149,12 @@ A successful response may be:
   "lender_decision_id": "c82a9da1-80e7-4464-8610-c77831acb0de",
   "funding_amount_requested": 1650000,
   "currency_code": "EGP",
+  "funding_readiness_snapshot_hash": "sha256:4f2e78ab...",
   "expected_record_version": 16
 }
 ```
 
-The request must use an idempotency key.
+The request must use a stable idempotency key.
 
 A pending response may be:
 
@@ -3975,28 +4163,36 @@ A pending response may be:
   "financial_contract_id": "31174606-d6ec-45d4-a4a1-30213fd5daa6",
   "status": "FUNDING_PENDING",
   "funding_status": "PENDING_CONFIRMATION",
-  "command_id": "4cf52c54-f0c2-494f-b87f-09314193a354",
+  "funding_request_reference": "FUND-REQ-2026-000441",
+  "funding_command_id": "4cf52c54-f0c2-494f-b87f-09314193a354",
+  "funding_confirmation_status": "PENDING",
   "record_version": 17
 }
 ```
 
-A confirmed response may be:
+The pending response proves only that the governed funding workflow accepted the request.
+
+After authoritative funding Confirmation and reconciliation, a response may be:
 
 ```json
 {
   "financial_contract_id": "31174606-d6ec-45d4-a4a1-30213fd5daa6",
-  "status": "ACTIVE",
+  "status": "EFFECTIVE",
   "funding_status": "FUNDED",
   "funded_amount": 1650000,
   "funding_currency_code": "EGP",
   "funding_received_at": "2026-08-06T11:30:00Z",
   "funding_confirmation_status": "RECEIVED",
+  "funding_confirmation_reference": "LENDER-FUND-889144",
   "funding_reconciliation_status": "RESOLVED",
-  "activation_status": "ACTIVE",
-  "activated_at": "2026-08-06T11:35:00Z",
+  "activation_status": "READY",
   "record_version": 20
 }
 ```
+
+Funding Confirmation does not automatically move the Contract to `ACTIVE`.
+
+A separate governed activation evaluation or request must confirm every configured activation condition.
 
 ### Example Amendment Request
 
@@ -4189,7 +4385,7 @@ financial_contract_signers
 financial_contract_signature_evidence
 financial_contract_effectiveness_conditions
 financial_contract_activation_conditions
-financial_contract_funding_projections
+financial_contract_funding_workflows
 financial_contract_security_registrations
 financial_contract_servicing_projections
 financial_contract_amendments
@@ -4237,7 +4433,7 @@ The `financial_contracts` table should contain:
 - Contract version.
 - Current-version indicator.
 - Current lifecycle state.
-- Current document, disclosure, signature, effectiveness, funding, activation, and servicing projections.
+- Current document, disclosure, signature, effectiveness, funding-workflow, funding-outcome, activation, and servicing projections.
 - Current amendment, cancellation, void, termination, settlement, and dispute projections.
 - Source and synchronization state.
 - Data-quality and conflict state.
@@ -4630,26 +4826,36 @@ Effectiveness and activation tables should preserve:
 
 ### Funding Storage
 
-Funding projection tables should preserve:
+`financial_contract_funding_workflows` should preserve:
 
-- Funding identifier.
-- Contract.
-- Finance Application.
-- Lender Decision.
+- Funding workflow identifier.
+- Tenant.
+- Financial Contract and Contract version.
+- Finance Application and accepted handoff version.
+- Lender Decision and version.
 - Deal.
-- Requested amount.
-- Currency.
-- Command.
-- Idempotency key.
-- Requested time.
-- Confirmed amount.
-- Confirmed time.
-- External authority.
+- Funding authority.
+- Requested amount and currency.
+- Funding request reference.
+- Funding Command.
+- Funding idempotency key.
+- Request creation and transmission times.
+- Transport acknowledgement.
+- Pending and retry state.
+- External authority reference.
 - External Confirmation.
-- Shortfall.
-- Reversal.
+- Source record version.
+- Confirmed amount and time.
+- Partial-funding and shortfall state.
+- Failure reason and evidence.
+- Reversal request, Command, idempotency key, and outcome.
 - Reconciliation state.
+- Projection observation, synchronization, and freshness state.
 - Related Events.
+
+Funding Commands and idempotency belong to Financial Contract Domain Service.
+
+Authoritative funding outcomes remain external and must be stored as source-attributed projections with Confirmation evidence.
 
 ### Security Registration Storage
 
@@ -5075,17 +5281,21 @@ Disclosure packages and acknowledgement evidence must:
 
 ### Funding and Banking Protection
 
-Funding data must use:
+Financial Contract funding data must use:
 
 - Encryption.
 - Tokenized account references where applicable.
 - Field-level authorization.
-- Controlled Payment instructions.
+- Controlled Payment and banking instructions.
 - Export restrictions.
 - Command approval.
 - Idempotency protection.
 - External Confirmation.
+- Source-version validation.
+- Reconciliation controls.
 - Audit logging.
+
+The Financial Contract Domain Service may create governed Funding Commands but must not invent or overwrite the external funding outcome.
 
 Funding or banking instructions must never be copied into:
 
@@ -5308,7 +5518,17 @@ Emergency suspension must be deterministic, auditable, and reversible only by au
 
 This document is the approved Canonical Financial Contract baseline.
 
-Financial Contract remains separate from Finance Application, Quotation, Deal, Payment, funding, and servicing.
+Financial Contract remains separate from Finance Application, Quotation, Deal, Customer Payment, external funding authority, and servicing authority.
+
+Finance Application owns underwriting, readiness, and the governed contracting handoff.
+
+Financial Contract owns the contractual lifecycle and the canonical funding-request workflow after a valid Contract exists.
+
+Financial Contract Domain Service creates Funding Commands, owns funding idempotency, tracks pending state, processes accepted External Confirmations, handles partial funding, failure, reversal, and reconciliation, and evaluates activation.
+
+The configured Lender, bank, or funding authority owns the authoritative funding outcome.
+
+Deal owns commercial completion gates and stores only a non-owning funding projection and reconciliation references.
 
 Contract generation does not prove Customer delivery.
 
@@ -5317,6 +5537,8 @@ Disclosure acknowledgement does not prove Contract signature.
 A fully signed Contract is not automatically effective.
 
 An effective Contract is not automatically funded or active.
+
+Funding Confirmation does not automatically prove activation.
 
 Executed Contract versions are immutable.
 
