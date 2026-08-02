@@ -2,8 +2,8 @@
 
 ## AI Sales Operating System
 
-**Repository Baseline:** `1.1.0`  
-**Baseline Status:** Active Foundation Baseline  
+**Repository Baseline:** `1.2.0`  
+**Baseline Status:** Active Governed Foundation Baseline  
 **Delivery Status:** Implementation and controlled expansion in progress  
 **Primary Market Context:** Automotive retail and dealership operations  
 **Last Updated:** 2026-08-02  
@@ -237,13 +237,13 @@ A provider acknowledgement does not prove the authoritative business outcome unl
 | Directory | Responsibility |
 | :--- | :--- |
 | [`00_Constitution`](./00_Constitution/) | Constitutional principles, authority boundaries, and non-negotiable governance rules. |
-| [`01_Playbooks`](./01_Playbooks/) | Operational Playbooks for dealership Users and approved AI-assisted workflows. |
-| [`02_Business_Rules`](./02_Business_Rules/) | Governed business logic, eligibility rules, thresholds, and approval policies. |
-| [`03_Prompts`](./03_Prompts/) | Versioned AI Prompts, Agent instructions, and structured-output templates. |
-| [`04_Data`](./04_Data/) | Approved reference data, mappings, synthetic examples, and non-Production datasets. |
+| [`01_Playbooks`](./01_Playbooks/) | Governance baseline and future operational Playbooks for Human and approved AI-assisted workflows. |
+| [`02_Business_Rules`](./02_Business_Rules/) | Governance baseline and future deterministic Business Rules, eligibility logic, thresholds, and approval constraints. |
+| [`03_Prompts`](./03_Prompts/) | Governance baseline and future versioned Prompts, Agent instructions, and structured-output templates. |
+| [`04_Data`](./04_Data/) | Governance baseline for reference data, mappings, synthetic examples, test fixtures, evaluation datasets, and other non-Production Data assets. |
 | [`05_Documentation`](./05_Documentation/) | Product Vision, System Architecture, governance policies, Pilot framework, decisions, and roadmap. |
-| [`06_Assets`](./06_Assets/) | Diagrams, images, templates, and supporting visual resources. |
-| [`07_Knowledge_Base`](./07_Knowledge_Base/) | Canonical implementation contracts, including Domain Models, Event governance, APIs, Schemas, Agent Contracts, and Integration Contracts. |
+| [`06_Assets`](./06_Assets/) | Governance baseline and future diagrams, images, templates, and supporting visual Assets. |
+| [`07_Knowledge_Base`](./07_Knowledge_Base/) | Approved Domain and Event contracts plus governed locations for future API, Schema, Agent, and Integration Contracts. |
 
 Folder numbering represents repository organization.
 
@@ -258,10 +258,10 @@ Each type of knowledge must have one authoritative location.
 - Constitutional rules belong in `00_Constitution`.
 - Operational Playbooks belong in `01_Playbooks`.
 - Business Rules belong in `02_Business_Rules`.
-- Production and evaluation Prompts belong in `03_Prompts`.
-- Reference data and safe examples belong in `04_Data`.
+- Governed Prompt assets belong in `03_Prompts`.
+- Reference data, mappings, synthetic examples, test fixtures, and evaluation datasets belong in `04_Data`.
 - Product, architecture, governance, and Pilot documentation belong in `05_Documentation`.
-- Visual assets belong in `06_Assets`.
+- Visual and document-support Assets belong in `06_Assets`.
 - Canonical implementation contracts belong in `07_Knowledge_Base`.
 
 Documents may link to each other.
@@ -430,13 +430,32 @@ Every implementation must preserve:
 - Canonical Domain Model `v1.1.0`.
 - Canonical Event Catalog Governance `v1.0.0`.
 
+### Approved Repository Governance and Index Baselines
+
+- Constitution index and governance guidance `v1.1.0`.
+- Playbooks governance `v1.0.0`.
+- Business Rules governance `v1.0.0`.
+- Prompt governance `v1.0.0`.
+- Data governance `v1.0.0`.
+- Documentation index `v1.1.0`.
+- Assets governance `v1.0.0`.
+- Knowledge Base index `v1.1.0`.
+- Canonical Documentation index `v1.2.0`.
+
+These baselines govern their directories and content types.
+
+They do not by themselves approve individual Production Playbooks, Business Rules, Prompts, Data assets, visual Assets, automation policies, integrations, or deployments.
+
 ### Current Delivery Work
 
 - Establish detailed API Contracts.
 - Establish machine-readable Data Schemas.
 - Establish Agent Contracts.
 - Establish Integration Contracts.
-- Align Business Rules and Playbooks.
+- Create, test, and approve Domain-specific Business Rules.
+- Create, test, and approve operational Playbooks.
+- Develop, evaluate, and approve individual Prompts.
+- Introduce governed Data and visual Assets only when actual controlled content is required.
 - Define deployment profiles.
 - Configure controlled Pilot environments.
 - Implement, test, evaluate, observe, and reconcile workflows.
@@ -454,5 +473,9 @@ It does not mean:
 - Every dealership deployment uses the same configuration.
 - Every proposed Agent or automation policy is approved.
 - Migration, testing, security review, and release controls are complete.
+
+A repository commit does not automatically make a document, contract, Business Rule, Playbook, Prompt, Data asset, visual Asset, automation policy, integration, or deployment effective in Production.
+
+Applicable approval, configuration, migration, testing, release, monitoring, reconciliation, and rollback controls remain required.
 
 The repository remains under active implementation and controlled expansion.
