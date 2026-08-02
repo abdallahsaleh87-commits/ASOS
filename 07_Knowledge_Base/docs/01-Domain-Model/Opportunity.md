@@ -4,7 +4,7 @@
 **Status:** Approved Baseline  
 **Canonical Owner:** Opportunity Domain Service  
 **Primary Isolation Boundary:** `tenant_id`  
-**Last Updated:** 2026-08-01  
+**Last Updated:** 2026-08-02  
 
 ---
 
@@ -26,7 +26,7 @@ An Opportunity may support:
 - Lease.
 - Fleet purchase.
 - Factory order.
-- Vehicle reservation preparation.
+- Vehicle Reservation preparation.
 - Another approved automotive sales journey.
 
 The Opportunity provides a governed workspace for:
@@ -40,8 +40,8 @@ The Opportunity provides a governed workspace for:
 - Negotiation tracking.
 - Trade-In coordination.
 - Finance Application coordination.
-- Next-action management.
-- Follow-up management.
+- Next-action planning.
+- Follow-up planning.
 - Pipeline forecasting.
 - Risk and exception detection.
 - Win and loss analysis.
@@ -62,10 +62,37 @@ Qualified Lead
   = governed qualification outcome
 
 Opportunity
-  = active commercial pursuit
+  = active commercial pursuit,
+    requirement versions, stage, ownership,
+    forecast, commitment, next-action planning,
+    Action Class 2 authorization context,
+    and Deal-conversion coordination
+
+Interaction and Communication
+  = Customer communication content, execution,
+    provider delivery, receipt, response,
+    Consent enforcement, and communication evidence
+
+Appointment
+  = Appointment request, scheduling,
+    external Confirmation, attendance, and outcome
 
 Quotation
   = governed Customer-specific commercial offer
+
+Inventory Record
+  = availability, Reservation, Allocation,
+    stock lifecycle, and Inventory execution
+
+Trade-In
+  = appraisal, payoff, acquisition, and intake request
+
+Finance Application
+  = finance application, lender Decision,
+    offer selection, and funding readiness
+
+Financial Contract
+  = contractual lifecycle and funding workflow
 
 Deal
   = governed commercial transaction
@@ -80,6 +107,8 @@ It is not:
 - A lender Decision.
 - A Vehicle Reservation.
 - A Vehicle Allocation.
+- A sent or delivered Customer communication.
+- A confirmed Appointment.
 - A confirmed sale.
 - A confirmed delivery.
 - A finalized accounting transaction.
@@ -108,6 +137,254 @@ Changes to Customer requirements after Opportunity creation must be stored as Op
 
 They must not silently rewrite the original qualification evidence.
 
+### Opportunity and Action Execution Separation
+
+The Opportunity Domain Service owns:
+
+- Opportunity lifecycle.
+- Sales assignment.
+- Customer-requirement versions.
+- Vehicle and Inventory selection projections.
+- Pipeline stage.
+- Forecast.
+- Commitment evidence references.
+- Next-action planning.
+- Next-action Recommendations.
+- Required Action Class.
+- Action-authorization requirement.
+- References to Human Approval or automation policy.
+- Read-only Command, execution, and Confirmation projections.
+- Deal-conversion coordination.
+
+The Opportunity Domain Service does not own:
+
+- Customer communication execution.
+- Communication-provider delivery.
+- Appointment creation or scheduling execution.
+- External CRM write execution.
+- Inventory Reservation or Allocation execution.
+- Quotation issuance.
+- Trade-In approval.
+- Finance Decision.
+- Financial Contract funding.
+- Payment execution.
+- Deal completion.
+- Delivery execution.
+
+The responsible execution service owns the Command, idempotency, provider response, External Confirmation, and reconciliation for the action it executes.
+
+Examples:
+
+```text
+Opportunity recommends SEND_MESSAGE
+  → Opportunity owns the Recommendation and authorization requirement
+  → Communication or Interaction Service owns execution
+
+Opportunity recommends SCHEDULE_APPOINTMENT
+  → Opportunity owns the Recommendation and authorization requirement
+  → Appointment Service owns scheduling execution
+
+Opportunity requests CRM stage write-back
+  → Opportunity owns the requested stage and local pending projection
+  → Command Orchestration and CRM Connector own external execution
+
+Opportunity selects Inventory
+  → Opportunity owns the selection
+  → Inventory Service owns Reservation and Allocation
+```
+
+### Action Class 2 Authority Boundary
+
+Action Class 2 covers controlled Customer-facing or external operations such as:
+
+- Sending an approved follow-up.
+- Sending approved Vehicle options.
+- Requesting or scheduling an Appointment.
+- Requesting a test drive.
+- Submitting an approved reversible CRM update.
+- Issuing another reversible operational Command within approved limits.
+
+Every Action Class 2 execution requires exactly one valid execution-authority path:
+
+```text
+Path A
+  = Explicit Human Approval for the exact action instance
+
+or
+
+Path B
+  = Active pre-approved automation policy
+    covering the exact action instance
+```
+
+No third path exists.
+
+The following do not create execution authority:
+
+- AI Recommendation.
+- AI confidence.
+- Opportunity priority.
+- Opportunity stage.
+- Customer temperature.
+- Forecast category.
+- Task assignment.
+- User-interface button visibility.
+- Previous approval for a materially different action.
+- Provider availability.
+- A draft.
+- A Command request.
+- An internal workflow state.
+
+The Opportunity Domain Service owns Recommendation and authorization context, but it does not own execution of Customer-facing or external Action Class 2 operations.
+
+The deterministic Policy and Authorization layer must validate authority before Command creation and again before execution when material context may have changed.
+
+### Explicit Human Approval Path
+
+Explicit Human Approval must be bound to the exact proposed action.
+
+The approval must identify:
+
+- `tenant_id`.
+- `opportunity_id`.
+- Customer or external target.
+- Action type.
+- Purpose.
+- Channel.
+- Recipient.
+- Approved content, template version, or content hash.
+- Approved fields.
+- Applicable limits.
+- Expected execution window.
+- Approving Human.
+- Role and permission.
+- Organizational scope.
+- Approval timestamp.
+- Expiration.
+- Revocation state.
+- Evidence.
+- Opportunity record version.
+- Recommendation version where applicable.
+
+A material change requires new approval.
+
+Material changes include:
+
+- Different recipient.
+- Different channel.
+- Different purpose.
+- Different template or material content.
+- Different Vehicle, Inventory Record, price, or commercial claim.
+- Different Appointment time or location.
+- Different external fields.
+- Different Opportunity stage when policy requires revalidation.
+- Expired or revoked Consent.
+- New complaint, restriction, legal hold, or risk.
+- Expired approval.
+
+### Pre-Approved Automation Policy Path
+
+A pre-approved automation policy is a governed authorization instrument.
+
+It must define at least:
+
+- Policy identifier and version.
+- Policy owner.
+- Effective date.
+- Expiration.
+- Revocation mechanism.
+- Allowed action types.
+- Allowed Customer or workflow conditions.
+- Allowed Opportunity stages.
+- Tenant, dealership, branch, team, and role scope.
+- Approved purposes.
+- Approved channels.
+- Approved templates and template versions.
+- Permitted dynamic fields.
+- Prohibited content and claims.
+- Recipient-resolution rules.
+- Consent or lawful-basis requirements.
+- Contact restrictions.
+- Frequency limits.
+- Time-of-day limits.
+- Quiet periods.
+- Inventory-freshness requirements.
+- Pricing-authority requirements.
+- Appointment-capacity requirements.
+- Monetary, risk, and volume limits.
+- Escalation conditions.
+- Monitoring requirements.
+- Audit requirements.
+- Emergency suspension.
+- Required External Confirmation.
+- Required revalidation before execution.
+
+An automation policy must be:
+
+- Active.
+- Applicable to the exact action.
+- Applicable to the exact Tenant and organizational scope.
+- Current and unexpired.
+- Not revoked.
+- Within limits.
+- Validated deterministically.
+
+A policy identifier without a successful policy evaluation is not execution authority.
+
+### Action Class 2 Non-Downgrade Rule
+
+An action classified as Action Class 3 by the Constitution, architecture, Domain Model, Business Rules, or applicable law must not be downgraded to Action Class 2 by:
+
+- AI.
+- Configuration.
+- Prompt.
+- User request.
+- Opportunity priority.
+- Automation policy.
+- Integration limitation.
+- Operational urgency.
+
+Examples that remain Action Class 3 include:
+
+- Restricted price approval.
+- Discount override beyond authority.
+- Vehicle Allocation override.
+- Trade-In approval.
+- Finance Decision.
+- Contractual commitment.
+- Funding request.
+- Deal finalization.
+- Opportunity closure override.
+- Reopening a won Opportunity.
+- Delivery authorization.
+- Material change to Customer rights or obligations.
+
+### Authorization, Command, and Confirmation Separation
+
+The following are distinct:
+
+```text
+Recommendation generated
+  ≠ Action authorized
+
+Action authorized
+  ≠ Command created
+
+Command created
+  ≠ Command sent
+
+Command sent
+  ≠ Provider accepted
+
+Provider accepted
+  ≠ Business outcome completed
+
+External Confirmation received
+  ≠ Canonical outcome accepted until validation and reconciliation
+```
+
+Opportunity may project these states but must not collapse them into one status.
+
 ### Opportunity and Deal Separation
 
 The Opportunity manages pursuit, discovery, solution fit, proposal, negotiation, commitment, and closure.
@@ -123,6 +400,7 @@ It does not prove:
 - Contract signature.
 - Payment.
 - Finance approval.
+- Funding.
 - Vehicle sale posting.
 - Vehicle registration.
 - Vehicle delivery.
@@ -130,19 +408,22 @@ It does not prove:
 
 ### System Purpose
 
-The Opportunity Object provides the canonical sales-pipeline context used by:
+The Opportunity Object provides canonical sales-pipeline context used by:
 
 - Sales work queues.
 - Sales ownership and reassignment.
 - Management dashboards.
 - Pipeline forecasting.
-- Customer follow-up.
+- Customer follow-up planning.
 - Vehicle Recommendation workflows.
-- Appointment workflows.
-- Quotation workflows.
-- Trade-In workflows.
-- Finance Application workflows.
+- Appointment request workflows.
+- Quotation request workflows.
+- Trade-In request workflows.
+- Finance Application request workflows.
 - Deal-conversion workflows.
+- Policy and authorization services.
+- Human Review services.
+- Command Orchestration.
 - AI Agents.
 - Analytics.
 - Audit and compliance controls.
@@ -162,18 +443,22 @@ When an external CRM is authoritative, ASOS maintains a Canonical Projection and
 | :--- | :--- |
 | Original qualification evidence | Qualified Lead |
 | Customer identity | Customer |
-| Opportunity canonical meaning | Opportunity Domain Service |
-| ASOS-native workflow state | ASOS |
-| External CRM stage where configured | External CRM |
+| Opportunity lifecycle and requirement versions | Opportunity Domain Service |
+| Next-action Recommendation | Opportunity or approved intelligence service |
+| Action Class determination | Approved deterministic rules and architecture |
+| Action Class 2 execution authorization | Authorized Human or active pre-approved automation policy |
+| Communication execution and provider evidence | Interaction or Communication Service and provider |
+| Appointment execution and outcome | Appointment Service and provider |
+| External CRM write execution | Command Orchestration and CRM Connector |
 | Vehicle identity | Vehicle |
-| Vehicle availability and Reservation | Inventory Record or configured Inventory authority |
+| Inventory availability, Reservation, and Allocation | Inventory Record or configured Inventory authority |
 | Customer-specific pricing | Quotation |
 | Final Deal terms | Deal |
 | Finance Decision | Lender or F&I platform |
+| Funding workflow | Financial Contract |
 | Trade-In appraisal and approval | Trade-In and configured appraisal authority |
-| Interaction-delivery evidence | Communication provider |
 | Forecasts, scores, and Recommendations | Derived Intelligence |
-| Sales Decision or override | Authorized Human |
+| Binding or high-impact Decision | Authorized Human |
 | External action completion | Configured external authority |
 
 ---
@@ -197,6 +482,8 @@ When an external CRM is authoritative, ASOS maintains a Canonical Projection and
 - `qualification_evidence_references`.
 - `qualified_lead_record_version`.
 - `converted_from_qualified_lead_at`.
+- `conversion_authority_reference`.
+- `conversion_idempotency_key`.
 
 ### Organizational Context
 
@@ -208,6 +495,7 @@ When an external CRM is authoritative, ASOS maintains a Canonical Projection and
 - `secondary_owner_user_ids`.
 - `assignment_queue_id`.
 - `territory_id`.
+- `legal_entity_id`.
 
 `tenant_id` is the primary isolation boundary.
 
@@ -225,6 +513,7 @@ All organizational identifiers must belong to the authenticated Tenant.
 - `workflow_authority_mode`.
 - `data_quality_status`.
 - `conflict_status`.
+- `review_status`.
 
 ### Assignment
 
@@ -285,6 +574,7 @@ All organizational identifiers must belong to the authenticated Tenant.
 - `inventory_availability_status`.
 - `inventory_availability_confirmed_at`.
 - `inventory_availability_expires_at`.
+- `inventory_projection_record_version`.
 - `vehicle_selection_updated_at`.
 - `vehicle_selection_updated_by`.
 
@@ -300,11 +590,15 @@ Vehicle selection does not create:
 - `primary_appointment_id`.
 - `next_appointment_id`.
 - `last_completed_appointment_id`.
+- `appointment_request_status`.
+- `appointment_confirmation_status`.
 - `appointment_count`.
 - `completed_appointment_count`.
 - `no_show_count`.
 - `last_appointment_outcome`.
 - `appointment_readiness_status`.
+
+Appointment fields are projections from the Appointment Domain Service.
 
 ### Quotation Context
 
@@ -326,6 +620,7 @@ Quotation projections must not replace the Quotation Object.
 - `trade_in_value_projection`.
 - `trade_in_currency_code`.
 - `trade_in_last_updated_at`.
+- `trade_in_record_version`.
 
 Trade-In values are projections from the governed Trade-In workflow.
 
@@ -338,6 +633,7 @@ Trade-In values are projections from the governed Trade-In workflow.
 - `finance_application_status`.
 - `finance_decision_projection`.
 - `finance_last_updated_at`.
+- `finance_application_record_version`.
 
 Sensitive lender information and authoritative finance Decisions must remain in the Finance Application or external lender system.
 
@@ -378,6 +674,66 @@ Final commercial terms belong to Quotation and Deal.
 - `next_follow_up_at`.
 - `next_review_at`.
 - `activity_freshness_status`.
+
+### Next-Action Recommendation Context
+
+- `current_next_action_recommendation_id`.
+- `next_action_recommendation_version`.
+- `recommended_action_type`.
+- `recommended_action_class`.
+- `recommended_action_purpose`.
+- `recommended_action_channel`.
+- `recommended_action_template_id`.
+- `recommended_action_template_version`.
+- `recommended_action_content_hash`.
+- `recommended_action_target_reference`.
+- `recommended_action_evidence_references`.
+- `recommended_action_generated_at`.
+- `recommended_action_expires_at`.
+- `recommended_action_status`.
+- `recommended_action_requires_human_review`.
+
+A Recommendation is not execution authority.
+
+### Action Authorization Context
+
+- `action_authorization_status`.
+- `action_authorization_path`.
+- `action_authorization_request_id`.
+- `human_decision_id`.
+- `human_approval_scope_hash`.
+- `human_approval_expires_at`.
+- `automation_policy_id`.
+- `automation_policy_version`.
+- `automation_policy_evaluation_id`.
+- `authorization_evaluated_at`.
+- `authorization_expires_at`.
+- `authorization_revoked_at`.
+- `authorization_failure_reasons`.
+- `authorization_snapshot_hash`.
+
+Authorization fields are governed references and projections.
+
+The authoritative Human Decision belongs to the Human Decision service.
+
+The authoritative automation-policy evaluation belongs to the Policy and Authorization service.
+
+### Action Execution Projection
+
+- `action_execution_service`.
+- `action_command_id`.
+- `action_idempotency_key_reference`.
+- `action_execution_status`.
+- `action_execution_requested_at`.
+- `action_command_sent_at`.
+- `action_external_confirmation_status`.
+- `action_external_confirmation_reference`.
+- `action_executed_at`.
+- `action_reconciliation_status`.
+
+Opportunity stores read-only projections and references.
+
+The execution service owns the Command, raw idempotency record, provider response, Confirmation, and reconciliation workflow.
 
 ### Proposal and Negotiation
 
@@ -532,21 +888,21 @@ Failed conversion attempts must remain historically traceable.
 
 | Field | Type | Required | Authority | Description |
 | :--- | :--- | :---: | :--- | :--- |
-| `opportunity_id` | UUID | Yes | ASOS | Immutable Canonical Opportunity identifier. |
+| `opportunity_id` | UUID | Yes | Opportunity Domain Service | Immutable Canonical Opportunity identifier. |
 | `tenant_id` | UUID | Yes | Security Context | Primary Tenant-isolation identifier. |
 | `qualified_lead_id` | UUID | Yes | Canonical relationship | Qualified Lead from which the Opportunity originated. |
-| `originating_lead_id` | UUID | Yes | Canonical relationship | Original Lead associated with the qualification. |
-| `customer_id` | UUID | Yes | Canonical relationship | Resolved Customer participating in the pursuit. |
+| `originating_lead_id` | UUID | Yes | Canonical relationship | Original Lead associated with qualification. |
+| `customer_id` | UUID | Yes | Customer relationship | Resolved Customer participating in the pursuit. |
 | `opportunity_number` | String | Yes | ASOS or external CRM | Human-readable Opportunity reference. |
 | `name` | String | Yes | Canonical Projection | Human-readable Opportunity title. |
 | `primary_intent` | Enum | Yes | Qualified Lead or Human Decision | Primary commercial objective. |
 | `stage` | Enum | Yes | Configured workflow authority | Current pipeline stage. |
 | `stage_confirmation_status` | Enum | Yes | Workflow Projection | Confirmation state when an external CRM controls stage. |
-| `priority` | Enum | Yes | Workflow State | Current operational priority. |
-| `workflow_authority_mode` | Enum | Yes | Configuration | Identifies whether ASOS or an external CRM controls workflow state. |
+| `priority` | Enum | Yes | Opportunity workflow | Current operational priority. |
+| `workflow_authority_mode` | Enum | Yes | Configuration | ASOS, external CRM, or governed bidirectional authority. |
 | `data_quality_status` | Enum | Yes | ASOS Workflow State | Completeness, freshness, conflict, or quarantine state. |
 | `conflict_status` | Enum | Yes | ASOS Workflow State | Material conflict state. |
-| `record_version` | Integer | Yes | ASOS | Optimistic-concurrency version. |
+| `record_version` | Integer | Yes | Opportunity Domain Service | Optimistic-concurrency version. |
 
 ### Assignment Fields
 
@@ -556,25 +912,25 @@ Failed conversion attempts must remain historically traceable.
 | `sales_team_id` | UUID | No | Workflow authority | Responsible sales team. |
 | `assignment_queue_id` | UUID | No | Workflow authority | Queue responsible while no individual owner exists. |
 | `assignment_status` | Enum | Yes | Workflow State | Current assignment state. |
-| `assigned_at` | Timestamp | No | ASOS or external CRM | Time the current assignment became effective. |
+| `assigned_at` | Timestamp | No | ASOS or external CRM | Time current assignment became effective. |
 | `assignment_rule_id` | String | No | Deterministic policy | Rule used for automated assignment. |
 | `assignment_reason` | String | No | Human or policy | Reason supporting assignment or reassignment. |
-| `ownership_confirmation_status` | Enum | Yes | Workflow Projection | External Confirmation status where assignment is externally authoritative. |
+| `ownership_confirmation_status` | Enum | Yes | Workflow Projection | External Confirmation where assignment is externally authoritative. |
 
 Every active Opportunity must have either:
 
 - An authorized owner; or
-- An approved queue or team responsible for the Opportunity.
+- An approved team or queue.
 
 ### Requirements Fields
 
 | Field | Type | Required | Authority | Description |
 | :--- | :--- | :---: | :--- | :--- |
-| `requirements_version` | Integer | Yes | ASOS | Current version of Customer requirements. |
-| `vehicle_interest_text` | Text | Yes | Customer evidence or Canonical Projection | Current normalized Vehicle requirement. |
+| `requirements_version` | Integer | Yes | Opportunity Domain Service | Current version of Customer requirements. |
+| `vehicle_interest_text` | Text | Yes | Customer evidence or projection | Current normalized Vehicle requirement. |
 | `vehicle_preferences` | JSON Object | No | Canonical Projection | Structured Customer preferences. |
-| `required_features` | Array | No | Customer-confirmed or Human-reviewed | Features required for acceptable solution fit. |
-| `preferred_features` | Array | No | Customer-confirmed or Derived | Features preferred but not mandatory. |
+| `required_features` | Array | No | Customer-confirmed or Human-reviewed | Mandatory solution features. |
+| `preferred_features` | Array | No | Customer-confirmed or Derived | Preferred non-mandatory features. |
 | `purchase_timeframe` | Enum | Yes | Customer evidence or projection | Expected purchase timeframe. |
 | `usage_purpose` | Enum | No | Customer evidence or projection | Intended Vehicle use. |
 | `budget_min_amount` | Decimal | No | Customer-provided or projection | Lower budget estimate. |
@@ -591,28 +947,13 @@ Every active Opportunity must have either:
 | `primary_inventory_record_id` | UUID | No | Inventory relationship | Preferred physical stock record. |
 | `alternative_vehicle_ids` | Array | No | Opportunity selection | Alternative Vehicle identities or configurations. |
 | `alternative_inventory_record_ids` | Array | No | Inventory relationship | Alternative physical Inventory Records. |
-| `vehicle_selection_status` | Enum | Yes | Workflow State | Current selection maturity. |
-| `vehicle_match_score` | Decimal | No | Derived Intelligence | Estimated match between requirements and selected Vehicle. |
+| `vehicle_selection_status` | Enum | Yes | Opportunity workflow | Current selection maturity. |
+| `vehicle_match_score` | Decimal | No | Derived Intelligence | Estimated requirement-to-Vehicle match. |
 | `inventory_availability_status` | Enum | Yes | Inventory projection | Current availability projection. |
-| `inventory_availability_confirmed_at` | Timestamp | No | External Confirmation | Time availability was last authoritatively confirmed. |
-| `inventory_availability_expires_at` | Timestamp | No | Deterministic policy | Time the availability projection becomes stale. |
+| `inventory_availability_confirmed_at` | Timestamp | No | Inventory authority | Time availability was last confirmed. |
+| `inventory_availability_expires_at` | Timestamp | No | Deterministic policy | Time availability becomes stale. |
 
 Vehicle selection must not be represented as Reservation or Allocation.
-
-### Commercial Estimate Fields
-
-| Field | Type | Required | Authority | Description |
-| :--- | :--- | :---: | :--- | :--- |
-| `estimated_transaction_value_amount` | Decimal | No | Estimate | Expected non-binding transaction value. |
-| `estimated_discount_amount` | Decimal | No | Estimate | Expected discount assumption, not approval. |
-| `estimated_trade_in_credit_amount` | Decimal | No | Trade-In projection | Estimated Trade-In contribution. |
-| `estimated_down_payment_amount` | Decimal | No | Customer-provided or estimate | Expected down-payment amount. |
-| `estimated_gross_profit_amount` | Decimal | No | Derived Intelligence | Estimated internal gross profit. |
-| `estimated_gross_margin_percentage` | Decimal | No | Derived Intelligence | Estimated gross-margin percentage. |
-| `commercial_estimate_source` | Enum | No | Provenance | Source of the current estimate. |
-| `commercial_estimate_updated_at` | Timestamp | No | ASOS | Time the estimate was generated or accepted. |
-
-Commercial estimates must not be presented as approved Customer terms.
 
 ### Engagement and Next-Action Fields
 
@@ -623,41 +964,82 @@ Commercial estimates must not be presented as approved Customer terms.
 | `last_meaningful_contact_at` | Timestamp | No | Interaction Projection | Latest accepted meaningful Customer contact. |
 | `last_customer_response_at` | Timestamp | No | Interaction Projection | Latest Customer response. |
 | `contact_attempt_count` | Integer | Yes | Interaction Projection | Accepted outbound contact-attempt count. |
-| `next_action_type` | Enum | No | Workflow or Recommendation | Current next action. |
-| `next_action_at` | Timestamp | No | Workflow State | Due time for the next action. |
-| `next_action_status` | Enum | Yes | Workflow State | Status of the next action. |
-| `next_follow_up_at` | Timestamp | No | Workflow State | Next permitted follow-up time. |
+| `next_action_type` | Enum | No | Workflow or Recommendation | Current planned next action. |
+| `next_action_at` | Timestamp | No | Opportunity workflow | Due time for the next action. |
+| `next_action_status` | Enum | Yes | Opportunity workflow | Status of the planned next action. |
+| `next_follow_up_at` | Timestamp | No | Opportunity workflow | Next permitted follow-up time. |
 | `activity_freshness_status` | Enum | Yes | Deterministic calculation | Whether engagement context remains current. |
 
-A recommended next action must remain distinguishable from an approved Task or executed action.
+A next-action Recommendation must remain distinguishable from an approved Task, execution authorization, Command, and executed action.
+
+### Action Recommendation Fields
+
+| Field | Type | Required | Authority | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `current_next_action_recommendation_id` | UUID | No | Opportunity or Intelligence Service | Current Recommendation reference. |
+| `recommended_action_type` | Enum | No | Derived Intelligence or rule | Proposed action. |
+| `recommended_action_class` | Enum | Conditional | Deterministic classification | Required Action Class. |
+| `recommended_action_purpose` | Enum | Conditional | Recommendation | Approved purpose candidate. |
+| `recommended_action_channel` | Enum | No | Recommendation | Proposed channel. |
+| `recommended_action_template_id` | String | No | Template Registry | Proposed approved template. |
+| `recommended_action_template_version` | String | No | Template Registry | Exact template version. |
+| `recommended_action_content_hash` | String | No | Recommendation | Hash of material proposed content. |
+| `recommended_action_expires_at` | Timestamp | No | Deterministic policy | Recommendation expiration. |
+| `recommended_action_status` | Enum | Yes | Opportunity workflow | Current Recommendation lifecycle projection. |
+
+### Action Authorization Fields
+
+| Field | Type | Required | Authority | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `action_authorization_status` | Enum | Yes | Policy or Decision Projection | Current authorization result. |
+| `action_authorization_path` | Enum | No | Deterministic policy | Human Approval or automation-policy path. |
+| `human_decision_id` | UUID | No | Human Decision Service | Exact Human Decision reference. |
+| `human_approval_scope_hash` | String | No | Human Decision Service | Integrity hash of approved action scope. |
+| `automation_policy_id` | String | No | Policy Registry | Applicable automation policy. |
+| `automation_policy_version` | String | No | Policy Registry | Exact policy version evaluated. |
+| `automation_policy_evaluation_id` | UUID | No | Policy Engine | Exact evaluation record. |
+| `authorization_expires_at` | Timestamp | No | Policy or Decision | Expiration of execution authority. |
+| `authorization_revoked_at` | Timestamp | No | Policy or Decision | Time authority was revoked. |
+| `authorization_snapshot_hash` | String | No | Authorization Service | Integrity hash of execution-authority context. |
+
+### Action Execution Projection Fields
+
+| Field | Type | Required | Authority | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `action_execution_service` | String | No | Execution routing | Service responsible for execution. |
+| `action_command_id` | UUID | No | Command Orchestration | Governed Command reference. |
+| `action_execution_status` | Enum | Yes | Execution projection | Current execution state. |
+| `action_external_confirmation_status` | Enum | Yes | External Confirmation projection | Provider or external authority outcome. |
+| `action_external_confirmation_reference` | String | No | External authority | Confirmation evidence reference. |
+| `action_reconciliation_status` | Enum | Yes | Execution workflow | Reconciliation state. |
+
+Opportunity must not store provider credentials, raw provider payloads, or authoritative Command idempotency records.
 
 ### Forecast Fields
 
 | Field | Type | Required | Authority | Description |
 | :--- | :--- | :---: | :--- | :--- |
 | `close_probability` | Decimal | Yes | Derived or Human Estimate | Estimated probability of Opportunity-to-Deal conversion. |
-| `close_probability_source` | Enum | Yes | Provenance | Source of the probability. |
+| `close_probability_source` | Enum | Yes | Provenance | Source of probability. |
 | `forecast_category` | Enum | Yes | Derived or Human Estimate | Pipeline forecast classification. |
 | `expected_close_date` | Date | No | Estimate | Expected Deal-conversion date. |
 | `forecast_value_amount` | Decimal | No | Deterministic projection | Opportunity value used for forecast. |
 | `weighted_pipeline_value_amount` | Decimal | No | Deterministic calculation | Forecast value multiplied by close probability. |
-| `forecast_override_reason` | String | No | Authorized Human | Reason for overriding a calculated forecast. |
+| `forecast_override_reason` | String | No | Authorized Human | Reason for overriding forecast. |
 
 ### Commitment and Closure Fields
 
 | Field | Type | Required | Authority | Description |
 | :--- | :--- | :---: | :--- | :--- |
 | `commitment_status` | Enum | Yes | Workflow Projection | Current commitment-signal state. |
-| `commitment_type` | Enum | No | Customer evidence or Human Decision | Type of documented commitment signal. |
-| `commitment_evidence_references` | Array | No | Evidence repository | Evidence supporting the commitment signal. |
+| `commitment_type` | Enum | No | Customer evidence or Human Decision | Type of commitment signal. |
+| `commitment_evidence_references` | Array | No | Evidence repository | Supporting evidence. |
 | `deal_conversion_readiness_status` | Enum | Yes | Deterministic workflow | Readiness for Deal conversion. |
-| `closure_type` | Enum | No | Human Decision or approved policy | Won, lost, cancelled, or another approved closure. |
-| `loss_reason` | Enum | No | Human Decision or approved policy | Standard reason for losing the pursuit. |
-| `loss_reason_details` | Text | No | Human input | Additional loss evidence. |
-| `competitor_name` | String | No | Human or extracted evidence | Competitor associated with the loss where known. |
-| `closed_at` | Timestamp | No | Workflow authority | Accepted closure timestamp. |
-| `converted_deal_id` | UUID | No | Deal relationship | Primary Deal created from the Opportunity. |
-| `deal_conversion_status` | Enum | Yes | Workflow State | Current conversion state. |
+| `closure_type` | Enum | No | Human Decision or approved policy | Won, lost, or cancelled. |
+| `loss_reason` | Enum | No | Human Decision or approved policy | Standard loss reason. |
+| `closed_at` | Timestamp | No | Workflow authority | Accepted closure time. |
+| `converted_deal_id` | UUID | No | Deal relationship | Primary Deal created from Opportunity. |
+| `deal_conversion_status` | Enum | Yes | Opportunity workflow | Current conversion state. |
 
 ---
 
@@ -697,13 +1079,13 @@ A recommended next action must remain distinguishable from an approved Task or e
 - `URGENT`
 - `STRATEGIC`
 
+Priority must not override Consent, authorization, Action Class, price authority, Inventory authority, legal restrictions, or Customer protection.
+
 ### WorkflowAuthorityMode
 
 - `ASOS_AUTHORITATIVE`
 - `EXTERNAL_CRM_AUTHORITATIVE`
 - `GOVERNED_BIDIRECTIONAL`
-
-Bidirectional authority requires field-level ownership and conflict policies.
 
 ### AssignmentStatus
 
@@ -727,7 +1109,7 @@ Bidirectional authority requires field-level ownership and conflict policies.
 
 Customer temperature is Derived Intelligence or a Human estimate.
 
-It is not an authoritative Customer attribute.
+It is not execution authority.
 
 ### EngagementStatus
 
@@ -749,18 +1131,6 @@ It is not an authoritative Customer attribute.
 - `WITHIN_90_DAYS`
 - `WITHIN_180_DAYS`
 - `MORE_THAN_180_DAYS`
-- `UNKNOWN`
-
-### VehicleUsagePurpose
-
-- `PERSONAL`
-- `FAMILY`
-- `BUSINESS`
-- `FLEET`
-- `COMMERCIAL_TRANSPORT`
-- `RIDE_HAILING`
-- `LEISURE`
-- `OTHER`
 - `UNKNOWN`
 
 ### PaymentPreference
@@ -843,8 +1213,6 @@ It is not an authoritative Customer attribute.
 - `DOCUMENTS_SUBMITTED`
 - `OTHER`
 
-A commitment signal does not prove Payment, contract, sale, or delivery.
-
 ### DealConversionReadinessStatus
 
 - `NOT_READY`
@@ -885,15 +1253,6 @@ A commitment signal does not prove Payment, contract, sale, or delivery.
 - `AUTHORIZED_HUMAN_OVERRIDE`
 - `EXTERNAL_CRM_PROJECTION`
 
-### CommercialEstimateSource
-
-- `QUOTATION_PROJECTION`
-- `INVENTORY_PRICING_PROJECTION`
-- `HUMAN_ESTIMATE`
-- `DETERMINISTIC_CALCULATION`
-- `AI_DERIVED`
-- `EXTERNAL_CRM_PROJECTION`
-
 ### NextActionType
 
 - `CALL_CUSTOMER`
@@ -901,8 +1260,8 @@ A commitment signal does not prove Payment, contract, sale, or delivery.
 - `SEND_EMAIL`
 - `SEND_VEHICLE_OPTIONS`
 - `REQUEST_MORE_INFORMATION`
-- `SCHEDULE_APPOINTMENT`
-- `SCHEDULE_TEST_DRIVE`
+- `REQUEST_APPOINTMENT`
+- `REQUEST_TEST_DRIVE`
 - `PREPARE_QUOTATION`
 - `PRESENT_QUOTATION`
 - `FOLLOW_UP_QUOTATION`
@@ -920,14 +1279,101 @@ A commitment signal does not prove Payment, contract, sale, or delivery.
 ### NextActionStatus
 
 - `NOT_SET`
+- `RECOMMENDED`
+- `AUTHORIZATION_REQUIRED`
+- `AUTHORIZED`
 - `PLANNED`
 - `DUE`
-- `IN_PROGRESS`
+- `EXECUTION_REQUESTED`
+- `PENDING_EXTERNAL_CONFIRMATION`
 - `COMPLETED`
 - `OVERDUE`
 - `CANCELLED`
 - `BLOCKED`
 - `EXPIRED`
+- `RECONCILIATION_REQUIRED`
+
+### ActionClass
+
+- `ACTION_CLASS_0_ANALYSIS_ONLY`
+- `ACTION_CLASS_1_INTERNAL_REVERSIBLE`
+- `ACTION_CLASS_2_CONTROLLED_EXTERNAL`
+- `ACTION_CLASS_3_BINDING_HIGH_IMPACT`
+
+### ActionAuthorizationPath
+
+- `NONE`
+- `EXPLICIT_HUMAN_APPROVAL`
+- `PRE_APPROVED_AUTOMATION_POLICY`
+
+### ActionAuthorizationStatus
+
+- `NOT_EVALUATED`
+- `NOT_REQUIRED`
+- `REQUIRED`
+- `EVALUATION_PENDING`
+- `AUTHORIZED`
+- `REJECTED`
+- `EXPIRED`
+- `REVOKED`
+- `CONTEXT_CHANGED`
+- `REVALIDATION_REQUIRED`
+- `POLICY_NOT_APPLICABLE`
+- `HUMAN_APPROVAL_REQUIRED`
+
+### RecommendedActionStatus
+
+- `NOT_AVAILABLE`
+- `GENERATED`
+- `PRESENTED`
+- `ACCEPTED_FOR_REVIEW`
+- `AUTHORIZATION_PENDING`
+- `AUTHORIZED`
+- `REJECTED`
+- `WITHDRAWN`
+- `EXPIRED`
+- `SUPERSEDED`
+
+### ActionExecutionStatus
+
+- `NOT_REQUESTED`
+- `REQUEST_READY`
+- `REQUESTED`
+- `COMMAND_CREATED`
+- `COMMAND_VALIDATED`
+- `COMMAND_QUEUED`
+- `COMMAND_SENT`
+- `PENDING_EXTERNAL_CONFIRMATION`
+- `CONFIRMED`
+- `REJECTED`
+- `FAILED`
+- `EXPIRED`
+- `CANCELLED`
+- `RECONCILIATION_REQUIRED`
+
+### ActionPurpose
+
+- `CUSTOMER_RESPONSE`
+- `SALES_FOLLOW_UP`
+- `VEHICLE_OPTIONS`
+- `APPOINTMENT_COORDINATION`
+- `TEST_DRIVE_COORDINATION`
+- `QUOTATION_COORDINATION`
+- `DOCUMENT_COLLECTION`
+- `INVENTORY_REVALIDATION`
+- `EXTERNAL_CRM_SYNCHRONIZATION`
+- `OTHER_APPROVED_PURPOSE`
+
+### ContactChannel
+
+- `PHONE`
+- `SMS`
+- `MESSAGING_APP`
+- `EMAIL`
+- `PORTAL`
+- `IN_PERSON`
+- `EXTERNAL_SYSTEM`
+- `OTHER`
 
 ### OnHoldReason
 
@@ -961,16 +1407,6 @@ A commitment signal does not prove Payment, contract, sale, or delivery.
 - `DUPLICATE_OPPORTUNITY`
 - `OTHER`
 
-### OpportunityCancelReason
-
-- `DUPLICATE_CREATED_IN_ERROR`
-- `INVALID_CONVERSION`
-- `CUSTOMER_IDENTITY_CORRECTION`
-- `ADMINISTRATIVE_CORRECTION`
-- `PROCESSING_RESTRICTED`
-- `TRANSFERRED_TO_ANOTHER_WORKFLOW`
-- `OTHER`
-
 ### ClosureType
 
 - `WON`
@@ -987,6 +1423,16 @@ A commitment signal does not prove Payment, contract, sale, or delivery.
 - `FAILED`
 - `EXPIRED`
 - `RECONCILIATION_REQUIRED`
+
+### ReconciliationStatus
+
+- `NOT_REQUIRED`
+- `CURRENT`
+- `PENDING`
+- `IN_PROGRESS`
+- `RESOLVED`
+- `FAILED`
+- `MANUAL_REVIEW_REQUIRED`
 
 ### FreshnessStatus
 
@@ -1011,15 +1457,6 @@ A commitment signal does not prove Payment, contract, sale, or delivery.
 - `UNDER_REVIEW`
 - `RESOLVED`
 
-### SynchronizationStatus
-
-- `NOT_SYNCED`
-- `PENDING`
-- `SYNCED`
-- `FAILED`
-- `CONFLICTED`
-- `RECONCILIATION_REQUIRED`
-
 ---
 
 ## 5. Validation Rules
@@ -1027,43 +1464,43 @@ A commitment signal does not prove Payment, contract, sale, or delivery.
 ### Tenant and Organizational Rules
 
 - `tenant_id` is required and immutable.
-- `tenant_id` must come from the authenticated security context.
+- `tenant_id` must come from authenticated security context.
 - Request bodies must not override `tenant_id`.
-- All related Objects must belong to the authorized Tenant scope.
-- Dealership, branch, team, queue, owner, and territory must belong to the Tenant.
-- Cross-Tenant Opportunity access, conversion, reassignment, AI retrieval, and reporting are prohibited unless an approved and auditable mechanism exists.
-- Background Jobs, Event Consumers, and AI Agents must receive trusted Tenant execution context.
+- All related Objects must belong to authorized Tenant scope.
+- Dealership, branch, team, queue, owner, territory, and legal entity must belong to the Tenant.
+- Cross-Tenant Opportunity access, conversion, reassignment, AI retrieval, action authorization, and reporting are prohibited unless an approved and auditable mechanism exists.
+- Background Jobs, Event Consumers, Policy evaluations, execution services, and AI Agents must receive trusted Tenant execution context.
 
 ### Opportunity Creation Rules
 
 An Opportunity may be created only when:
 
-- The Qualified Lead is eligible for conversion.
-- The Qualified Lead is not expired, revoked, invalid, or already converted.
-- The Qualified Lead references one resolved Customer.
-- The Customer belongs to the same Tenant.
+- Qualified Lead is eligible for conversion.
+- Qualified Lead is not expired, revoked, invalid, or already converted.
+- Qualified Lead references one resolved Customer.
+- Customer belongs to the same Tenant.
 - Contact restrictions are understood.
 - Required qualification evidence exists.
-- Required organizational routing is valid.
-- The conversion request is idempotent.
+- Organizational routing is valid.
+- Conversion request is idempotent.
 - No blocking conflict exists.
 
 Opportunity creation must:
 
-- Preserve the qualification snapshot.
-- Preserve the originating Lead.
-- Preserve the Qualified Lead record version.
-- Record the conversion authority.
-- Record the conversion timestamp.
+- Preserve qualification snapshot.
+- Preserve originating Lead.
+- Preserve Qualified Lead record version.
+- Record conversion authority.
+- Record conversion timestamp.
 - Prevent duplicate creation from retry.
-- Publish an accepted state change only after the transaction succeeds.
+- Publish an accepted state change only after transaction success.
 
 ### Origin Integrity Rules
 
 - `qualified_lead_id` is required and immutable.
 - `originating_lead_id` is required and immutable.
-- `customer_id` must initially match the Customer linked to the Qualified Lead.
-- Changing the linked Customer requires a governed identity-correction workflow.
+- `customer_id` must initially match the Customer linked to Qualified Lead.
+- Changing linked Customer requires governed identity correction.
 - Qualification evidence must not be silently rewritten.
 - Later requirement changes must increment `requirements_version`.
 
@@ -1071,265 +1508,280 @@ Opportunity creation must:
 
 - Every active Opportunity must have an authorized owner, team, or queue.
 - Assignment must remain within authorized Tenant and organizational scope.
-- Assignment and reassignment must preserve:
-  - Previous owner.
-  - New owner.
-  - Reason.
-  - Authority.
-  - Effective timestamp.
-  - Record version.
-- AI may recommend assignment but must not bypass deterministic routing and authorization.
-- When an external CRM is authoritative, the assignment remains pending until External Confirmation.
-- Assignment does not grant authority to approve pricing, finance, Trade-In, contract, or delivery.
-
-### Duplicate Opportunity Rules
-
-Only one primary active Opportunity should normally exist for the same:
-
-- Customer.
-- Materially identical purchase intent.
-- Overlapping timeframe.
-- Same organizational scope.
-
-A possible duplicate must not be merged automatically based only on an AI score.
-
-Creating a justified parallel Opportunity requires:
-
-- Valid business reason.
-- Distinct commercial intent or buying process.
-- Authorized Human Decision where required.
-- Preserved relationship between the Opportunities.
-- Audit evidence.
-
-A duplicate Opportunity closure must not delete its history.
+- Reassignment must preserve previous owner, new owner, reason, authority, effective time, and record version.
+- AI may recommend assignment but must not bypass routing and authorization.
+- When external CRM is authoritative, assignment remains pending until External Confirmation.
+- Assignment does not grant pricing, finance, Trade-In, contract, Inventory, Deal, Payment, or delivery authority.
 
 ### Customer Requirement Rules
 
 - Customer requirements must preserve evidence and version history.
-- AI-extracted requirements remain Derived Intelligence until accepted by policy or Human Review.
-- Customer requirements must not be inferred from protected attributes.
+- AI-extracted requirements remain Derived Intelligence until accepted.
+- Requirements must not be inferred from protected attributes.
 - Budget values must be zero or greater.
 - `budget_min_amount` must not exceed `budget_max_amount`.
-- Customer uncertainty must be represented as unknown rather than invented.
-- Material requirement changes may require:
-  - Vehicle rematching.
-  - Quotation review.
-  - Forecast review.
-  - Stage review.
-  - Requalification.
-- Stale requirements must not support binding Customer claims.
+- Customer uncertainty must be represented as unknown.
+- Material changes may require Vehicle rematching, Quotation review, forecast review, stage review, authorization invalidation, or requalification.
+- Stale requirements must not support Customer-facing claims.
 
 ### Vehicle and Inventory Rules
 
 - `primary_vehicle_id` must reference a valid Vehicle.
-- `primary_inventory_record_id` must reference a physical Inventory Record associated with the selected Vehicle.
+- `primary_inventory_record_id` must reference a physical Inventory Record associated with selected Vehicle.
 - Vehicle identity and Inventory context must remain separate.
-- Vehicle selection does not reserve or allocate the Vehicle.
+- Vehicle selection does not reserve or allocate Vehicle.
 - Vehicle match score does not prove availability.
-- Customer-visible availability must come from a sufficiently current authoritative Inventory source.
+- Customer-visible availability must come from sufficiently current authoritative Inventory source.
 - Stale availability must be labelled and revalidated.
-- A Vehicle that becomes unavailable must trigger:
-  - Revalidation.
-  - Alternative matching.
-  - Quotation review.
-  - Customer communication review.
 - AI must not represent predicted availability as confirmed stock.
 
 ### Appointment Rules
 
-- An Appointment request does not prove Appointment Confirmation.
+- Opportunity may request an Appointment workflow.
+- Opportunity must not create an authoritative Appointment directly.
+- Appointment request does not prove Confirmation.
 - Opportunity stage must not advance solely because an Appointment was requested.
-- Appointment outcomes must be supported by accepted Appointment or Interaction evidence.
-- A completed Appointment may update engagement and solution-fit context.
-- Appointment cancellation or no-show must not automatically close the Opportunity without applicable policy.
+- Appointment outcome must be supported by accepted Appointment evidence.
+- Customer-facing Appointment request or scheduling is Action Class 2 unless stricter classification applies.
+- Appointment Service owns execution, idempotency, provider Confirmation, and reconciliation.
 
 ### Quotation and Pricing Rules
 
-- An Opportunity may request or reference Quotations.
+- Opportunity may request or reference Quotations.
 - Binding Customer-specific terms belong to Quotation and Deal.
-- `PROPOSAL` normally requires an active approved or governed Quotation workflow.
-- `NEGOTIATION` requires:
-  - Presented commercial terms; or
-  - Documented negotiation context.
+- `PROPOSAL` normally requires an active governed Quotation workflow.
 - Expired, withdrawn, or superseded Quotations must not be presented as current.
 - AI Recommendations must not be represented as approved pricing.
-- Restricted discounts and pricing overrides require the configured Authoritative Human Decision.
+- Restricted discounts and overrides require Authoritative Human Decision.
 - Estimated commercial value must remain distinguishable from approved terms.
+- Action Class 2 automation must not send unapproved or stale pricing claims.
 
 ### Finance Rules
 
-- Finance interest does not create a Finance Application.
+- Finance interest does not create Finance Application.
 - Finance Application submission does not prove approval.
-- Lender Decision remains authoritative in the lender or F&I platform.
+- Lender Decision remains authoritative.
 - Opportunity must not store unnecessary sensitive finance data.
 - Finance projections must preserve source and freshness.
-- A declined finance outcome must not automatically close the Opportunity when another lawful commercial path remains possible.
-- AI must not predict or represent finance approval as fact.
+- AI must not represent finance approval as fact.
+- Finance Decision and funding actions are not Action Class 2 Opportunity automation.
 
 ### Trade-In Rules
 
-- Trade-In interest does not create an approved appraisal.
-- Trade-In valuation, ownership, lien, payoff, inspection, and acquisition approval belong to Trade-In.
+- Trade-In interest does not create approved appraisal.
+- Trade-In valuation, ownership, lien, payoff, inspection, acquisition approval, and Inventory-intake request belong to Trade-In.
 - Opportunity may store only necessary projections.
-- Trade-In Recommendation must not be represented as an approved acquisition value.
-- A material Trade-In change may require Quotation and forecast revalidation.
+- Trade-In Recommendation must not be represented as approved value.
+- Material Trade-In change may require Quotation, forecast, and authorization revalidation.
 
 ### Engagement and Contact Rules
 
 - Opportunity communication must comply with Customer Consent and contact restrictions.
-- `DO_NOT_CONTACT` must block prohibited outbound activity through deterministic controls.
+- `DO_NOT_CONTACT` or equivalent restriction must block prohibited outbound activity deterministically.
 - Customer-requested response and marketing permission must remain distinguishable.
-- Automated acknowledgment and meaningful two-way response must remain distinguishable.
 - Provider delivery does not prove Customer engagement.
-- `last_meaningful_contact_at` must reference accepted Interaction evidence where possible.
-- Contact-attempt counts must not be manipulated through retry duplication.
+- Contact-attempt counts must not be manipulated through retries.
 - Follow-up frequency and timing must comply with approved policy.
+- Contact eligibility must be checked before authorization and before execution.
 
 ### Next-Action Rules
 
-- A Recommendation is not an approved or executed action.
-- A next action must identify:
-  - Type.
-  - Owner.
-  - Due time where applicable.
-  - Status.
-  - Evidence or reason.
-- Completed actions should reference supporting Interaction, Appointment, Quotation, Task, or workflow evidence.
+- Recommendation is not approved or executed action.
+- Next action must identify type, owner, due time, status, evidence, Action Class, and required authority.
+- Completed action must reference Interaction, Appointment, Quotation, Task, Command, or workflow evidence.
 - Closed Opportunities must not generate ordinary sales follow-up.
 - Approved post-close activities must remain explicitly classified.
+- Opportunity priority must not authorize execution.
+
+### Action Classification Rules
+
+- Every material proposed action must receive deterministic Action Class.
+- The classification must preserve rule and version.
+- AI may recommend a class but deterministic policy establishes the enforceable class.
+- When classifications conflict, the stricter class applies until resolved.
+- Action Class 3 must not be downgraded by configuration or automation policy.
+- Unknown or ambiguous classification must block execution and require review.
+
+### Action Class 2 Authorization Rules
+
+Before Action Class 2 Command creation, Policy and Authorization services must validate:
+
+- Exact action type.
+- Exact action instance.
+- Tenant and organizational scope.
+- Target Customer or external system.
+- Purpose.
+- Channel.
+- Recipient.
+- Consent or lawful basis.
+- Contact restrictions.
+- Opportunity stage and state.
+- Customer and requirement freshness.
+- Inventory and pricing freshness where applicable.
+- Template and version.
+- Dynamic field values.
+- Material content hash.
+- Frequency and time limits.
+- Risk and monetary limits.
+- Human Approval or automation-policy path.
+- Expiration and revocation.
+- Emergency suspension.
+- Required execution service.
+- Required External Confirmation.
+- Audit readiness.
+
+The same controls must be revalidated immediately before execution when context may have changed.
+
+### Human Approval Rules
+
+For explicit Human Approval:
+
+- Approval must be from authorized Human role.
+- Approval must cover the exact action.
+- Approval must be unexpired and unrevoked.
+- Approval must preserve content or scope hash.
+- Approval must preserve Opportunity and source record versions.
+- Approval must not be reused for materially different action.
+- Approval must be revalidated after material context change.
+- Approval does not prove execution.
+
+### Automation Policy Rules
+
+For pre-approved automation:
+
+- Policy must be active and applicable.
+- Policy version must be preserved.
+- Policy evaluation result must be persisted.
+- Policy must cover exact action, target, purpose, channel, template, fields, stage, limits, and timing.
+- Consent and restrictions must pass independently.
+- Policy must be revocable and emergency-suspendable.
+- Policy must not authorize Action Class 3.
+- Failure or uncertainty must block execution.
+- Policy does not prove execution.
+
+### Action Execution Rules
+
+- Opportunity Domain Service must not send external Commands directly.
+- Execution request must route to approved execution service.
+- Execution service must create and own Command.
+- Retryable execution must use stable idempotency.
+- Command must preserve authorization reference and snapshot hash.
+- External state remains pending until authoritative Confirmation.
+- Provider acknowledgement must not be represented as completed outcome.
+- Failure, timeout, rejection, or conflict must enter reconciliation.
+- Opportunity stores read-only status projection and references.
+
+### Authorization Invalidation Rules
+
+Authorization becomes invalid or requires revalidation when:
+
+- Approval or policy expires.
+- Approval or policy is revoked.
+- Consent changes.
+- Contact restriction changes.
+- Customer changes.
+- Recipient changes.
+- Channel changes.
+- Purpose changes.
+- Template or material content changes.
+- Vehicle or Inventory changes.
+- Availability becomes stale or unavailable.
+- Price or Quotation changes.
+- Appointment time or location changes.
+- Opportunity stage changes where relevant.
+- Complaint, dispute, fraud, legal, safety, or compliance condition appears.
+- Emergency suspension activates.
+- Record version or material source version changes.
+- Risk exceeds approved limit.
 
 ### Forecast Rules
 
 - `close_probability` must remain between `0.00` and `1.00`.
 - Forecast thresholds must remain configurable.
-- Fixed AI-confidence thresholds must not be embedded in this Canonical Domain Model.
-- `weighted_pipeline_value_amount` must be calculated deterministically from the approved forecast value and probability.
-- Forecast values must identify their source.
-- A Human override must preserve:
-  - Previous value.
-  - New value.
-  - Reason.
-  - Actor.
-  - Timestamp.
+- Fixed AI-confidence thresholds must not be embedded in Canonical Domain Model.
+- Weighted pipeline value must be deterministic.
+- Forecast values must identify source.
+- Human override must preserve previous value, new value, reason, actor, and timestamp.
 - Forecast values must not be represented as guaranteed revenue.
-- Closed Opportunities must map to the appropriate closed forecast category.
 
 ### Commitment Rules
 
-An Opportunity may enter `COMMITMENT` only when:
+Opportunity may enter `COMMITMENT` only when:
 
-- A documented Customer commitment signal exists.
-- The commitment evidence is current.
+- Documented Customer commitment signal exists.
+- Evidence is current.
 - Material Vehicle and Inventory dependencies are understood.
 - Required approval dependencies are known.
-- Required commercial information is sufficiently complete.
+- Commercial information is sufficiently complete.
 - No blocking compliance or identity conflict exists.
 - Deal-conversion readiness is evaluated.
 
-Commitment does not prove:
-
-- Payment.
-- Contract signature.
-- Finance approval.
-- Vehicle Reservation.
-- Vehicle Allocation.
-- Sale.
-- Delivery.
+Commitment does not prove Payment, signature, finance approval, Reservation, Allocation, sale, or delivery.
 
 ### Won Rules
 
-An Opportunity may enter `WON` only when:
+Opportunity may enter `WON` only when:
 
-- A valid primary Deal has been created.
-- The Deal references the Opportunity and Customer.
-- The controlled conversion transaction succeeded.
+- Valid primary Deal has been created.
+- Deal references Opportunity and Customer.
+- Controlled conversion succeeded.
 - `converted_deal_id` is populated.
-- The conversion is not a duplicate retry.
+- Conversion is not duplicate retry.
 - Required Human authority was satisfied.
 - Required external workflow Confirmation was received where applicable.
-- `closed_at` and closure authority are recorded.
+- Closure timestamp and authority are recorded.
 
-`WON` does not confirm completion of the resulting Deal.
+`WON` does not confirm completion of Deal.
 
-### Lost Rules
+### Lost and Cancelled Rules
 
-An Opportunity may enter `LOST` only when:
+`LOST` requires:
 
-- A valid loss reason exists.
-- Supporting evidence is recorded.
-- The configured Human Decision or approved closure policy applies.
-- Open Customer commitments and pending transactions are reviewed.
-- Required Tasks, Quotations, Appointments, Reservations, or Allocations are handled appropriately.
-- `closed_at` is recorded.
+- Valid loss reason.
+- Supporting evidence.
+- Configured Human Decision or approved closure policy.
+- Review of open commitments and pending transactions.
+- Appropriate handling of related Tasks, Quotations, Appointments, Reservations, and Allocations.
+- Closure timestamp.
 
-`CUSTOMER_UNREACHABLE` must use the approved contact-attempt and timing policy.
+`CANCELLED` requires:
 
-A low AI score alone must not close an Opportunity as lost.
-
-### Cancelled Rules
-
-`CANCELLED` is used for controlled administrative or processing closure rather than commercial loss.
-
-It requires:
-
-- Valid cancellation reason.
+- Valid administrative or processing reason.
 - Appropriate authority.
 - Related-record reconciliation.
 - Preserved audit history.
 
-### Hold Rules
-
-An Opportunity placed `ON_HOLD` must include:
-
-- Hold reason.
-- Previous active stage.
-- Review date or end condition.
-- Permitted follow-up behaviour.
-- Authority.
-- Customer communication requirements where applicable.
-
-An Opportunity must not remain indefinitely on hold without review.
+Low AI score alone must not close Opportunity.
 
 ### External Workflow Authority Rules
 
-When an external CRM is authoritative:
+When external CRM is authoritative:
 
-- ASOS stage or assignment changes must use an approved Command.
-- Retryable Commands must use `idempotency_key`.
-- The local projection remains pending until Confirmation.
+- Stage or assignment changes must use approved Command.
+- Retryable Commands must use idempotency.
+- Local projection remains pending until Confirmation.
 - Transport success does not equal business completion.
-- A missing Confirmation must trigger:
-  - Timeout handling.
-  - Polling.
-  - Reconciliation.
-  - Human escalation where required.
-- Conflicting CRM and ASOS values must not be silently overwritten.
+- Missing Confirmation triggers timeout, polling, reconciliation, and escalation.
+- Conflicting values must not be silently overwritten.
 
 ### Concurrency and Idempotency Rules
 
 - Every mutation must validate `record_version`.
-- Stale updates must return a version conflict.
+- Stale updates must return version conflict.
 - Qualified Lead conversion must be idempotent.
 - Deal conversion must be idempotent.
-- Retryable Commands must use an approved `idempotency_key`.
+- Action execution requests must be idempotent.
+- Execution services own Command idempotency.
 - Event Consumers must prevent duplicate effects using `event_id`.
-- Duplicate retries must not create duplicate:
-  - Opportunities.
-  - Assignments.
-  - Stage changes.
-  - Tasks.
-  - Appointments.
-  - Quotations.
-  - Deal-conversion attempts.
-  - Deals.
+- Duplicate retries must not create duplicate Opportunities, assignments, stage changes, authorization records, Commands, communications, Appointments, Quotations, conversion attempts, or Deals.
 
 ### Human Review Requirements
 
-Human Review is required according to configured policy for:
+Human Review is required according to policy for:
 
 - Customer identity conflict.
 - Duplicate active Opportunity.
-- Reopening a closed Opportunity.
+- Reopening closed Opportunity.
 - Restricted pricing or discount approval.
 - Material forecast override.
 - Material requirement conflict.
@@ -1337,6 +1789,10 @@ Human Review is required according to configured policy for:
 - Allocation override.
 - Commitment dispute.
 - Opportunity-to-Deal exception.
+- Action Class ambiguity.
+- Action authorization conflict.
+- Consent or contact restriction conflict.
+- Automation-policy exception.
 - Cross-Tenant or cross-authority conflict.
 - Another material high-risk exception.
 
@@ -1344,7 +1800,7 @@ Human Review is required according to configured policy for:
 
 ## 6. State Machine
 
-### Allowed States
+### Opportunity Lifecycle States
 
 ```text
 CREATED
@@ -1412,9 +1868,7 @@ LOST → ARCHIVED
 CANCELLED → ARCHIVED
 ```
 
-Reopening a closed Opportunity uses a separate governed reopening workflow.
-
-It is not an ordinary direct state transition.
+Reopening a closed Opportunity uses a separate governed workflow.
 
 ### Forbidden Ordinary Transitions
 
@@ -1428,9 +1882,7 @@ DISCOVERY → COMMITMENT
 DISCOVERY → WON
 
 SOLUTION_FIT → WON
-
 PROPOSAL → WON
-
 ON_HOLD → WON
 
 LOST → WON
@@ -1448,11 +1900,11 @@ ARCHIVED → SOLUTION_FIT
 
 Requires:
 
-- Valid Tenant context.
+- Valid Tenant.
 - Eligible Qualified Lead.
 - Resolved Customer.
 - Qualification snapshot.
-- Valid organizational context.
+- Valid organization.
 - Idempotent conversion.
 - Initial audit evidence.
 
@@ -1461,9 +1913,9 @@ Requires:
 Requires:
 
 - Responsible owner, team, or queue.
-- Available qualification context.
+- Qualification context.
 - Permitted Customer engagement.
-- Initial next action.
+- Initial next-action plan.
 - No blocking identity or permission conflict.
 
 ### Entering SOLUTION_FIT
@@ -1472,9 +1924,9 @@ Requires:
 
 - Current Customer requirements.
 - Purchase timeframe.
-- Payment preference or explicit unknown state.
-- Budget context or explicit unknown state.
-- Vehicle or solution-matching workflow.
+- Payment preference or explicit unknown.
+- Budget context or explicit unknown.
+- Vehicle or solution matching.
 - No blocking data-quality issue.
 
 ### Entering PROPOSAL
@@ -1504,7 +1956,7 @@ Requires:
 - Current commitment evidence.
 - Verified commitment status.
 - Current Vehicle and Inventory dependencies.
-- Deal-conversion readiness assessment.
+- Deal-conversion readiness.
 - No blocking conflict.
 - Required Human authority.
 
@@ -1524,7 +1976,7 @@ Requires:
 
 - Successfully created valid Deal.
 - `converted_deal_id`.
-- Completed idempotent conversion transaction.
+- Completed idempotent conversion.
 - Required authority.
 - Closure evidence.
 - Closure timestamp.
@@ -1539,15 +1991,6 @@ Requires:
 - Related-workflow review.
 - Closure timestamp.
 
-### Entering CANCELLED
-
-Requires:
-
-- Valid administrative or processing reason.
-- Authorized Decision or policy.
-- Related-record reconciliation.
-- Closure timestamp.
-
 ### Reopening
 
 Reopening `WON`, `LOST`, or `CANCELLED` requires:
@@ -1555,32 +1998,50 @@ Reopening `WON`, `LOST`, or `CANCELLED` requires:
 - Authorized Human Decision.
 - Reopening reason.
 - Supporting evidence.
-- Reconciliation of the linked Deal or closure outcome.
+- Reconciliation of linked Deal or closure.
 - Selected restored stage.
 - New record version.
 - New Event.
 - Audit history.
 
-AI Agents must not independently reopen an Opportunity.
+AI Agents must not independently reopen Opportunity.
 
-### Terminal States
+### Next-Action Authorization Sub-State
 
-For ordinary sales progression:
+The Opportunity lifecycle does not imply action authorization.
 
-- `WON`
-- `LOST`
-- `CANCELLED`
-- `ARCHIVED`
+A proposed Action Class 2 operation progresses separately:
 
-`ARCHIVED` is terminal.
+```text
+RECOMMENDED
+  → AUTHORIZATION_REQUIRED
+  → EVALUATION_PENDING
+  → AUTHORIZED
+  → EXECUTION_REQUESTED
+  → PENDING_EXTERNAL_CONFIRMATION
+  → COMPLETED
+```
+
+Alternative outcomes:
+
+```text
+EVALUATION_PENDING → REJECTED
+AUTHORIZED → EXPIRED
+AUTHORIZED → REVOKED
+AUTHORIZED → CONTEXT_CHANGED
+EXECUTION_REQUESTED → FAILED
+PENDING_EXTERNAL_CONFIRMATION → RECONCILIATION_REQUIRED
+```
+
+The Opportunity stage must not automatically advance this sub-state.
 
 ### Transition Evidence
 
-Every stage transition must preserve:
+Every material transition must preserve:
 
-- Previous stage.
-- New stage.
-- Transition reason.
+- Previous state.
+- New state.
+- Reason.
 - Actor.
 - Authority.
 - Applied Business Rules.
@@ -1600,121 +2061,109 @@ Every stage transition must preserve:
 
 ### Tenant
 
-- Every Opportunity belongs to exactly one `tenant_id`.
-- All related Objects must remain inside authorized Tenant scope.
-- Cross-Tenant processing requires an explicit and auditable mechanism.
+- Every Opportunity belongs to one `tenant_id`.
+- All relationships remain in authorized Tenant scope.
+- Cross-Tenant processing requires explicit auditable mechanism.
 
-### Qualified Lead
+### Qualified Lead and Lead
 
 - Every Opportunity originates from one Qualified Lead.
-- One Qualified Lead may create no more than one primary Opportunity.
-- Reopening must use the existing Opportunity rather than creating a duplicate from the same qualification.
-- Original qualification evidence must remain traceable.
-
-### Lead
-
-- The originating Lead remains immutable historical intake evidence.
-- Opportunity updates must not rewrite original Lead content.
-- Lead attribution may contribute to Opportunity and Deal analytics.
+- One Qualified Lead creates no more than one primary Opportunity.
+- Original Lead and qualification evidence remain historical.
+- Opportunity updates must not rewrite intake evidence.
 
 ### Customer
 
 - Every Opportunity references one resolved Customer.
-- One Customer may have multiple legitimate Opportunities over time.
-- Parallel active Opportunities require distinguishable commercial intent or approved exception.
-- Customer identity remains governed by Customer Domain Service.
+- Customer identity and Consent remain governed by Customer and Consent authorities.
+- Opportunity stores only necessary projections.
+- Customer identity or Consent changes may invalidate action authorization.
 
 ### Owner, Team, and Queue
 
-- An Opportunity may have one primary owner.
-- It may also reference a team or queue.
-- Assignment history must remain auditable.
-- Ownership does not grant unrestricted approval authority.
+- Opportunity may have one primary owner.
+- Team or queue may share responsibility.
+- Assignment history remains auditable.
+- Ownership does not grant unrestricted approval or execution authority.
 
-### Vehicle
+### Vehicle and Inventory Record
 
-- Opportunity may reference one primary Vehicle and multiple alternatives.
-- Vehicle identity remains governed by Vehicle.
-- A selected Vehicle does not prove physical availability.
+- Opportunity may reference primary and alternative Vehicles and Inventory Records.
+- Vehicle owns identity.
+- Inventory owns availability, Reservation, Allocation, and stock execution.
+- Opportunity must revalidate stale Inventory before Customer-facing claims.
 
-### Inventory Record
+### Interaction and Communication
 
-- Opportunity may reference one primary Inventory Record and multiple alternatives.
-- Current availability, Reservation, Allocation, and location belong to Inventory Record.
-- Opportunity must revalidate stale Inventory context before Customer-facing claims.
+- Opportunity may recommend or request Customer communication.
+- Interaction or Communication Service owns:
+  - Message or call execution.
+  - Provider Command.
+  - Idempotency.
+  - Delivery status.
+  - Customer response.
+  - Interaction evidence.
+  - Reconciliation.
+- Opportunity stores projections and references only.
+- Provider delivery does not prove Customer understanding or commitment.
 
 ### Appointment
 
-- Opportunity may have multiple Appointments.
-- Appointment Confirmation and outcome remain governed by Appointment.
-- Appointment completion may influence stage and engagement but does not automatically change them.
+- Opportunity may request Appointment workflow.
+- Appointment Service owns scheduling, Confirmation, attendance, and outcome.
+- Opportunity stores Appointment projections.
+- Appointment request and Confirmation remain distinct.
 
 ### Quotation
 
-- Opportunity may have multiple Quotations.
-- One current Quotation may be projected.
-- Final Customer-specific terms remain governed by Quotation or Deal.
-- Quotation acceptance may support commitment but does not create a Deal automatically.
+- Opportunity may request and reference Quotations.
+- Quotation owns Customer-specific terms, approval, issue, presentation, acceptance, expiration, and supersession.
+- Opportunity stores projections.
+- Quotation acceptance may support commitment but does not create Deal automatically.
 
 ### Trade-In
 
-- Opportunity may reference one active Trade-In workflow.
-- Trade-In owns appraisal, ownership, lien, payoff, and acquisition approval.
-- Opportunity stores only required projections.
+- Opportunity may reference active Trade-In.
+- Trade-In owns appraisal, ownership, lien, payoff, approval, acquisition, and Inventory-intake request.
+- Opportunity stores necessary projections.
 
 ### Finance Application
 
-- Opportunity may reference one or more Finance Applications according to policy.
+- Opportunity may reference Finance Applications according to policy.
 - Finance Decision remains governed by lender or F&I authority.
-- Opportunity must not duplicate unnecessary sensitive finance data.
+- Opportunity must not duplicate unnecessary sensitive data.
 
 ### Financial Contract
 
-- Opportunity may be indirectly related through the resulting Deal.
-- Contract signature and activation do not belong to Opportunity.
-
-### Interaction
-
-- Interactions provide:
-  - Customer responses.
-  - Meaningful-contact evidence.
-  - Objections.
-  - Requirements updates.
-  - Negotiation evidence.
-- Provider delivery evidence remains authoritative for transport status.
+- Opportunity may be indirectly related through Deal.
+- Contract signature, effectiveness, activation, and funding do not belong to Opportunity.
 
 ### Deal
 
 - One Opportunity may create one primary Deal.
-- Failed Deal-conversion attempts must remain historically traceable.
-- Deal state must not be stored as Opportunity stage beyond necessary projections.
-- Deal cancellation may trigger a governed Opportunity reopening review.
+- Failed conversion attempts remain traceable.
+- Deal state must not be stored as Opportunity stage beyond necessary projection.
+- Deal cancellation may trigger governed reopening review.
 
-### Market Intelligence
+### Policy and Authorization Service
 
-Market Intelligence may support:
+- Determines enforceable Action Class.
+- Evaluates automation policies.
+- Validates Human Approval scope.
+- Produces authorization Decision or evaluation record.
+- Enforces revocation and emergency suspension.
+- Opportunity stores authorization projections and references.
 
-- Vehicle alternatives.
-- Demand context.
-- Competitor context.
-- Price context.
-- Forecast risk.
-- Commercial Recommendations.
+### Command Orchestration
 
-Market evidence must not silently alter authoritative Opportunity state or Customer terms.
-
-### Tasks and Human Review
-
-Opportunity may create or reference:
-
-- Follow-up Tasks.
-- Approval Tasks.
-- Human Review Tasks.
-- Data-quality Tasks.
-- Reconciliation Tasks.
-- Escalations.
-
-Task completion must not automatically imply completion of the related business outcome.
+- Owns Commands.
+- Validates execution authority.
+- Enforces idempotency.
+- Routes to connector.
+- Tracks execution.
+- Waits for External Confirmation.
+- Reconciles outcomes.
+- Opportunity stores read-only projections.
 
 ### Supporting Child Records
 
@@ -1726,6 +2175,9 @@ Opportunity may own or govern:
 - Forecast history.
 - Vehicle-match records.
 - Commercial-estimate history.
+- Next-action Recommendation records.
+- Action-authorization request projections.
+- Action-execution projections.
 - Commitment evidence references.
 - Hold history.
 - Closure records.
@@ -1735,11 +2187,13 @@ Opportunity may own or govern:
 - Reconciliation cases.
 - Audit records.
 
+Opportunity must not own authoritative communication Commands, provider delivery records, Appointment Commands, Inventory Commands, or external CRM connector credentials.
+
 ---
 
 ## 8. Domain Events
 
-The Canonical Event Catalog is the authoritative source for final:
+The Canonical Event Catalog is authoritative for final:
 
 - Event names.
 - Event versions.
@@ -1747,10 +2201,10 @@ The Canonical Event Catalog is the authoritative source for final:
 - Payload Schemas.
 - Producers.
 - Consumers.
-- Compatibility rules.
-- Correction and reversal behaviour.
+- Compatibility.
+- Correction and reversal behavior.
 
-The following are required Opportunity Event concepts and do not replace the Event Catalog.
+The following are required Event concepts and do not replace the Event Catalog.
 
 ### Creation and Assignment Event Concepts
 
@@ -1761,78 +2215,80 @@ The following are required Opportunity Event concepts and do not replace the Eve
 - Opportunity assigned.
 - Opportunity assignment accepted.
 - Opportunity reassigned.
-- Opportunity assignment reconciliation required.
+- Assignment reconciliation required.
 
-### Stage Event Concepts
+### Stage and Requirements Event Concepts
 
 - Opportunity stage-change requested.
 - Opportunity stage changed.
-- Opportunity stage Confirmation received.
-- Opportunity stage change rejected.
+- External stage Confirmation received.
 - Opportunity placed on hold.
 - Opportunity released from hold.
 - Opportunity reopened.
 - Opportunity archived.
-
-### Requirements Event Concepts
-
-- Opportunity requirements captured.
-- Opportunity requirements updated.
+- Requirements captured.
+- Requirements updated.
 - Material requirement change detected.
-- Opportunity requalification requested.
-- Opportunity data conflict detected.
-- Opportunity data conflict resolved.
+- Requalification requested.
 
-### Vehicle and Inventory Event Concepts
+### Vehicle, Appointment, Quotation, Finance, and Trade-In Event Concepts
 
 - Vehicle matching requested.
 - Vehicle options generated.
 - Primary Vehicle selected.
 - Primary Inventory Record selected.
 - Inventory availability revalidation requested.
-- Inventory became unavailable.
-- Alternative Vehicle review requested.
-
-### Appointment Event Concepts
-
-- Appointment requested from Opportunity.
-- Appointment confirmed.
-- Appointment completed.
-- Appointment cancelled.
-- Appointment no-show recorded.
-
-### Quotation and Negotiation Event Concepts
-
+- Appointment workflow requested.
 - Quotation preparation requested.
-- Quotation presented.
-- Quotation expired.
-- Negotiation started.
-- Negotiation updated.
-- Approval requested.
-- Commitment evidence recorded.
-- Commitment expired.
-- Commitment withdrawn.
-
-### Finance and Trade-In Event Concepts
-
 - Finance Application requested.
-- Finance status projection updated.
 - Trade-In workflow requested.
-- Trade-In projection updated.
-- Finance or Trade-In dependency blocked progression.
+- Dependency blocked progression.
+
+The responsible Domain Service publishes authoritative outcome Events.
+
+Opportunity must not publish Appointment-confirmed, Quotation-issued, finance-approved, Trade-In-approved, Inventory-reserved, or Inventory-allocated Events unless it is the explicitly approved Producer, which is not the default boundary.
+
+### Next-Action and Authorization Event Concepts
+
+- Next action recommended.
+- Next action Recommendation expired.
+- Action classification evaluated.
+- Action authorization requested.
+- Human Approval referenced.
+- Automation-policy evaluation requested.
+- Action authorized.
+- Action authorization rejected.
+- Action authorization expired.
+- Action authorization revoked.
+- Action authorization invalidated by context change.
+- Action execution requested.
+- Action execution projection updated.
+- Action reconciliation required.
+
+Producer boundaries:
+
+- Opportunity or approved Intelligence Service may publish Recommendation facts it owns.
+- Policy and Authorization Service publishes authoritative policy-evaluation and authorization facts.
+- Human Decision Service publishes authoritative approval or rejection facts.
+- Command Orchestration publishes Command lifecycle facts.
+- Communication Service publishes message sent, delivered, failed, and response facts.
+- Appointment Service publishes Appointment lifecycle facts.
+- Inventory Service publishes Reservation and Allocation facts.
+- Opportunity must not publish authoritative execution outcomes it does not own.
 
 ### Forecast and Derived Intelligence Event Concepts
 
-- Opportunity forecast updated.
+- Forecast updated.
 - Opportunity health score updated.
-- Opportunity stagnation risk detected.
-- Opportunity next action recommended.
-- Opportunity escalation recommended.
-- Opportunity management review requested.
+- Stagnation risk detected.
+- Escalation recommended.
+- Management review requested.
 
 Derived Intelligence Events must not imply:
 
-- Human approval.
+- Human Approval.
+- Action authorization.
+- Communication execution.
 - Vehicle Reservation.
 - Vehicle Allocation.
 - Quotation approval.
@@ -1854,21 +2310,26 @@ Derived Intelligence Events must not imply:
 - Opportunity cancelled.
 - Opportunity closure corrected.
 
-### Producer Rules
+### Event Producer Rules
 
-- Opportunity Domain Service publishes accepted Opportunity canonical and workflow-state changes.
-- Qualified Lead Domain Service publishes accepted qualification and conversion-eligibility facts.
-- Customer Domain Service publishes accepted Customer identity changes.
-- Inventory Domain Service publishes accepted availability, Reservation, and Allocation facts.
-- Quotation Domain Service publishes accepted Quotation facts.
-- Deal Domain Service publishes accepted Deal facts.
-- Integration services may publish source-observation Events.
-- AI Agents may publish Agent-run, analysis, forecast, or Recommendation Events.
-- AI Agents must not publish authoritative stage, closure, pricing, Deal, or external-completion Events merely because they recommended the action.
+- Opportunity Domain Service publishes accepted Opportunity canonical and workflow-state facts.
+- Qualified Lead Domain Service publishes qualification facts.
+- Customer Domain Service publishes Customer identity and applicable Consent facts.
+- Inventory Domain Service publishes availability, Reservation, and Allocation facts.
+- Appointment Domain Service publishes Appointment facts.
+- Interaction or Communication Service publishes communication execution facts.
+- Quotation Domain Service publishes Quotation facts.
+- Deal Domain Service publishes Deal facts.
+- Policy and Authorization Service publishes authorization facts.
+- Human Decision Service publishes Human Decision facts.
+- Command Orchestration publishes Command lifecycle facts.
+- Integration services publish normalized source observations.
+- AI Agents may publish permitted Agent-run, analysis, forecast, or Recommendation Events.
+- AI Agents must not publish authoritative authorization, stage, closure, pricing, Deal, or external-completion Events merely because they recommended an action.
 
 ### Event Requirements
 
-Every material Opportunity Event must preserve, where applicable:
+Every material Opportunity Event must preserve where applicable:
 
 - `event_id`.
 - `event_type`.
@@ -1877,30 +2338,27 @@ Every material Opportunity Event must preserve, where applicable:
 - `opportunity_id`.
 - `qualified_lead_id`.
 - `customer_id`.
-- Dealership and branch context.
-- Occurrence timestamp.
-- Recording timestamp.
+- Dealership and branch.
+- Occurrence and recording timestamps.
 - Producer.
 - Actor.
 - Authority category.
 - Record version.
-- Correlation identifier.
-- Causation identifier.
-- Evidence references.
+- Correlation and causation.
+- Evidence.
 - Applied policy.
 - Related Recommendation.
 - Related Human Decision.
+- Related automation-policy evaluation.
 - Related Command.
 - Related External Confirmation.
 - Security classification.
 
 Events are immutable.
 
-Corrections, reopening, cancellation, and reversal must use new Events linked to the original Event.
+Corrections, reopening, cancellation, reversal, revocation, and supersession use new Events linked to affected Events.
 
-The Event Backbone may deliver the same Event more than once.
-
-Consumers must prevent duplicate business effects using `event_id`.
+Consumers prevent duplicate effects using preserved `event_id`.
 
 ---
 
@@ -1928,8 +2386,8 @@ AI Agents may assist with:
 - Escalation Recommendation.
 - Missing-information detection.
 - Deal-conversion readiness assessment.
-- Management-summary generation.
-- Data-quality issue detection.
+- Management summary.
+- Data-quality detection.
 
 ### Prohibited Independent AI Actions
 
@@ -1939,30 +2397,31 @@ AI Agents must not independently:
 - Create general marketing Consent.
 - Reverse contact restrictions.
 - Confirm Vehicle availability.
-- Reserve or allocate a Vehicle outside approved authority.
+- Reserve or allocate Vehicle.
 - Approve Customer-visible pricing.
 - Approve discounts.
-- Approve a Trade-In.
+- Approve Trade-In.
 - Approve finance.
 - Confirm lender Decision.
 - Sign contracts.
+- Request funding.
 - Confirm Payment.
-- Finalize a Deal.
+- Finalize Deal.
 - Confirm sale.
 - Confirm delivery.
-- Mark an Opportunity `WON`.
-- Close a material Opportunity as `LOST` solely from AI scoring.
-- Reopen a closed Opportunity.
-- Change restricted forecast or commercial values without authority.
-- Execute external Commands directly.
-- Access Opportunity data outside authorized Tenant scope.
+- Mark Opportunity `WON`.
+- Close material Opportunity as `LOST` solely from AI score.
+- Reopen closed Opportunity.
+- Authorize Action Class 2 execution.
+- Create or transmit external Command.
+- Access data outside authorized Tenant scope.
 
 ### AI Output Requirements
 
 Every material AI output must preserve:
 
 - Output type.
-- Opportunity identifier and record version.
+- Opportunity identifier and version.
 - Supporting evidence.
 - Source authority.
 - Input freshness.
@@ -1972,72 +2431,9 @@ Every material AI output must preserve:
 - Confidence where meaningful.
 - Assumptions.
 - Known limitations.
-- Generated timestamp.
-- Expiration timestamp.
-- Action Class.
+- Generation and expiration.
+- Proposed Action Class.
 - Required Human authority or automation policy.
-
-### Requirement Extraction
-
-AI-extracted Customer requirements must distinguish:
-
-- Direct Customer statement.
-- Human-confirmed information.
-- External authoritative fact.
-- AI inference.
-- Missing information.
-- Conflict.
-
-AI confidence alone must not create authoritative:
-
-- Budget.
-- Payment ability.
-- Customer identity.
-- Consent.
-- Vehicle availability.
-- Commercial commitment.
-
-### Vehicle Matching
-
-AI may rank Vehicle and Inventory options.
-
-Matching must distinguish:
-
-- Vehicle technical fit.
-- Inventory availability.
-- Commercial affordability.
-- Customer preference.
-- Data freshness.
-- Mandatory requirement violations.
-
-A high Vehicle-match score must not override:
-
-- Required features.
-- Budget boundary.
-- Safety issue.
-- Inventory block.
-- Availability.
-- Customer exclusion.
-- Legal or compliance restriction.
-
-### Forecasting
-
-AI forecasts must not be represented as guaranteed outcomes.
-
-Forecasts must explain:
-
-- Primary evidence.
-- Data freshness.
-- Stage.
-- Engagement.
-- Inventory dependency.
-- Quotation status.
-- Finance dependency.
-- Trade-In dependency.
-- Missing information.
-- Important risks.
-
-Forecasts must not use protected attributes as inappropriate commercial proxies.
 
 ### Next-Best Action
 
@@ -2047,51 +2443,53 @@ The Recommendation must remain separate from:
 
 - Approved Task.
 - Human Decision.
+- Policy evaluation.
+- Execution authorization.
 - Command.
 - Executed Interaction.
 - External Confirmation.
 
-A recommended Customer communication may proceed only through:
-
-- Explicit Human Approval; or
-- An applicable pre-approved automation policy.
+AI recommendation, Opportunity priority, stage, score, or User-interface state is not execution authority.
 
 ### Action Class 2
 
-Controlled outbound communication may use an approved automation policy only when the deterministic Policy Engine validates:
+For Action Class 2, AI may:
 
-- Tenant scope.
-- Customer Consent.
-- Purpose.
-- Channel.
-- Template.
-- Frequency.
-- Time restrictions.
-- Opportunity stage.
-- Contact-path validity.
-- Inventory freshness.
-- Pricing authority.
-- Revocation state.
-- Risk limits.
-- Audit requirements.
+- Draft content.
+- Recommend action type.
+- Recommend timing.
+- Recommend channel.
+- Recommend approved template.
+- Explain evidence and expected impact.
 
-The AI Agent must not approve its own automation authority.
+AI must not:
+
+- Select itself as approver.
+- Treat its confidence as approval.
+- Activate an automation policy.
+- Expand policy scope.
+- Bypass Consent.
+- Change recipient without reauthorization.
+- Modify material approved content after authorization.
+- Create or send the external Command.
+- Mark execution complete.
 
 ### Action Class 3
 
-Binding or high-impact actions require an Authoritative Human Decision.
+Binding or high-impact actions require Authoritative Human Decision.
 
 Examples include:
 
 - Restricted price approval.
 - Discount override.
-- Vehicle Allocation.
+- Vehicle Allocation override.
 - Trade-In approval.
 - Finance Decision.
 - Contract commitment.
+- Funding request.
 - Deal finalization.
 - Opportunity closure override.
-- Reopening a won Opportunity.
+- Reopening won Opportunity.
 - Delivery authorization.
 
 ### Human Review
@@ -2108,13 +2506,16 @@ Human Review is required according to policy for:
 - Fraud or compliance risk.
 - Reopening.
 - Deal-conversion exception.
+- Action Class ambiguity.
+- Automation-policy exception.
+- Material content change after approval.
 - Another high-risk action.
 
 ### AI Context and Embeddings
 
 Direct identifiers and restricted commercial information must not enter unrestricted embeddings.
 
-Normally excluded fields include:
+Normally excluded:
 
 - Customer name.
 - Phone.
@@ -2127,11 +2528,13 @@ Normally excluded fields include:
 - Maximum discount.
 - Internal margin.
 - Consent evidence.
-- Identity documents.
+- Approval evidence.
 - Contract documents.
 - Payment information.
+- Provider credentials.
+- Raw Commands.
 
-Approved redacted or abstracted context may include:
+Approved redacted context may include:
 
 - Vehicle requirements.
 - Non-sensitive preferences.
@@ -2139,7 +2542,7 @@ Approved redacted or abstracted context may include:
 - Engagement summary.
 - Negotiation summary.
 - Sales-stage summary.
-- Non-sensitive appointment feedback.
+- Non-sensitive Appointment feedback.
 - Approved Customer-facing Vehicle information.
 
 Every vector entry must enforce:
@@ -2147,37 +2550,35 @@ Every vector entry must enforce:
 - `tenant_id`.
 - Opportunity access scope.
 - Source references.
+- Record versions.
 - Security classification.
 - Retention.
 - Expiration.
 - Deletion propagation.
 - Customer anonymization propagation.
 
-### Explainability
+### Untrusted Input and Prompt Injection
 
-Material Opportunity Recommendations must explain:
+Customer messages, CRM notes, uploaded documents, provider payloads, and external records are untrusted input.
 
-- Evidence used.
-- Source authority.
-- Data freshness.
-- Current stage.
-- Material conflicts.
-- Missing information.
-- Assumptions.
-- Confidence where meaningful.
-- Expected commercial impact.
-- Important risks.
-- Required Human authority.
-- External Confirmation requirement.
-- Expiration.
+Their content must not:
+
+- Grant permission.
+- Approve an action.
+- Activate an automation policy.
+- Override Consent or contact restrictions.
+- Change Action Class.
+- Trigger a Command directly.
+- Modify audit evidence.
+- Override system or policy instructions.
 
 ---
 
 ## 10. API Contract
 
-Detailed API operations, request Schemas, response Schemas, and error definitions will become authoritative in the API Contracts Catalog.
+Detailed API operations and Schemas will become authoritative in the API Contracts Catalog.
 
-This section defines required Opportunity API behaviour.
+This section defines required Opportunity API behavior.
 
 ### REST Resources
 
@@ -2195,10 +2596,16 @@ POST   /api/v1/opportunities/{opportunity_id}/stage-transition-requests
 POST   /api/v1/opportunities/{opportunity_id}/requirement-versions
 POST   /api/v1/opportunities/{opportunity_id}/vehicle-selection-requests
 POST   /api/v1/opportunities/{opportunity_id}/inventory-revalidation-requests
-POST   /api/v1/opportunities/{opportunity_id}/appointment-requests
-POST   /api/v1/opportunities/{opportunity_id}/quotation-requests
-POST   /api/v1/opportunities/{opportunity_id}/trade-in-requests
-POST   /api/v1/opportunities/{opportunity_id}/finance-application-requests
+POST   /api/v1/opportunities/{opportunity_id}/appointment-workflow-requests
+POST   /api/v1/opportunities/{opportunity_id}/quotation-workflow-requests
+POST   /api/v1/opportunities/{opportunity_id}/trade-in-workflow-requests
+POST   /api/v1/opportunities/{opportunity_id}/finance-application-workflow-requests
+
+POST   /api/v1/opportunities/{opportunity_id}/next-action-recommendations
+POST   /api/v1/opportunities/{opportunity_id}/action-authorization-requests
+GET    /api/v1/opportunities/{opportunity_id}/action-authorization
+GET    /api/v1/opportunities/{opportunity_id}/action-execution-projection
+
 POST   /api/v1/opportunities/{opportunity_id}/commitment-records
 POST   /api/v1/opportunities/{opportunity_id}/hold-requests
 POST   /api/v1/opportunities/{opportunity_id}/release-hold-requests
@@ -2214,164 +2621,161 @@ GET    /api/v1/opportunities/{opportunity_id}/conversion-attempts
 GET    /api/v1/opportunities/{opportunity_id}/reconciliation
 ```
 
+### Direct Execution Prohibition
+
+The Opportunity API must not expose direct execution mutations such as:
+
+```text
+POST /api/v1/opportunities/{opportunity_id}/send-message
+POST /api/v1/opportunities/{opportunity_id}/send-email
+POST /api/v1/opportunities/{opportunity_id}/create-external-appointment
+POST /api/v1/opportunities/{opportunity_id}/reserve-inventory
+POST /api/v1/opportunities/{opportunity_id}/allocate-inventory
+POST /api/v1/opportunities/{opportunity_id}/update-external-crm
+```
+
+Opportunity may request the relevant workflow through the responsible service boundary.
+
+The responsible service must own execution, Command, idempotency, Confirmation, and reconciliation.
+
 ### Tenant Context
 
-- `tenant_id` must come from the authenticated security context.
-- Request bodies must not override `tenant_id`.
+- `tenant_id` comes from authenticated security context.
+- Request bodies must not override it.
 - Dealership, branch, team, queue, and owner scope must be validated.
-- Cross-Tenant searches must be blocked by default.
+- Cross-Tenant searches are blocked by default.
 
-### Example Qualified Lead Conversion Request
+### Example Next-Action Recommendation Request
 
 ```json
 {
-  "dealership_id": "2dc50e3c-392a-44d7-9dc4-8fd7e586ff03",
-  "branch_id": "6835ea02-a8df-4d3d-a1ec-4e309ea9ac38",
-  "sales_team_id": "f4e7be20-26d1-4df1-a17a-04c6d4a58419",
-  "requested_owner_user_id": "0f63b9de-97fd-42f6-a53d-531155afdf56",
-  "expected_qualified_lead_record_version": 6,
-  "initial_next_action": {
-    "type": "CALL_CUSTOMER",
-    "due_at": "2026-08-02T09:00:00Z"
-  }
+  "recommendation_type": "SEND_VEHICLE_OPTIONS",
+  "proposed_action_class": "ACTION_CLASS_2_CONTROLLED_EXTERNAL",
+  "purpose": "VEHICLE_OPTIONS",
+  "channel": "EMAIL",
+  "template_id": "vehicle-options-follow-up",
+  "template_version": "3.2.0",
+  "proposed_target_reference": "customer-primary-email",
+  "content_hash": "sha256:32182d...",
+  "expected_opportunity_record_version": 9
 }
 ```
 
-The request must include an HTTP header such as:
+This creates or records a Recommendation.
 
-```text
-Idempotency-Key: 81e7b9ad-0c08-45a2-82ab-2aa86450e740
+It does not authorize or execute the action.
+
+### Example Action Authorization Request
+
+```json
+{
+  "recommendation_id": "9c76ea3a-3d3a-4448-aa46-9f5593b7711c",
+  "action_type": "SEND_VEHICLE_OPTIONS",
+  "action_class": "ACTION_CLASS_2_CONTROLLED_EXTERNAL",
+  "purpose": "VEHICLE_OPTIONS",
+  "channel": "EMAIL",
+  "target_reference": "customer-primary-email",
+  "template_id": "vehicle-options-follow-up",
+  "template_version": "3.2.0",
+  "content_hash": "sha256:32182d...",
+  "authorization_path_requested": "PRE_APPROVED_AUTOMATION_POLICY",
+  "expected_opportunity_record_version": 9
+}
 ```
 
-### Example Opportunity Response
+### Example Authorized Response
 
 ```json
 {
   "opportunity_id": "a524e9f1-6d7e-4820-a0c3-5039f5089346",
-  "opportunity_number": "OPP-2026-000842",
-  "qualified_lead_id": "e8a95ca8-e829-48f2-b635-4cc585dce131",
-  "originating_lead_id": "123e4567-e89b-12d3-a456-426614174000",
-  "customer_id": "a2d85b86-7079-4aaf-964a-580cc040046b",
-  "stage": "CREATED",
-  "assignment_status": "ASSIGNED",
-  "owner_user_id": "0f63b9de-97fd-42f6-a53d-531155afdf56",
-  "primary_intent": "NEW_VEHICLE_PURCHASE",
-  "vehicle_selection_status": "NOT_STARTED",
-  "deal_conversion_status": "NOT_STARTED",
-  "data_quality_status": "COMPLETE",
-  "record_version": 1,
-  "opened_at": "2026-08-01T18:30:00Z"
+  "action_authorization_status": "AUTHORIZED",
+  "action_authorization_path": "PRE_APPROVED_AUTOMATION_POLICY",
+  "automation_policy_id": "sales-follow-up-standard",
+  "automation_policy_version": "5.1.0",
+  "automation_policy_evaluation_id": "384387aa-b8e9-4ea7-b2b9-476f4f596efa",
+  "authorization_snapshot_hash": "sha256:6a9f62...",
+  "authorization_expires_at": "2026-08-02T12:30:00Z",
+  "execution_service": "communication-service",
+  "record_version": 10
 }
 ```
+
+Authorization does not prove execution.
+
+### Example Human Approval Response
+
+```json
+{
+  "opportunity_id": "a524e9f1-6d7e-4820-a0c3-5039f5089346",
+  "action_authorization_status": "AUTHORIZED",
+  "action_authorization_path": "EXPLICIT_HUMAN_APPROVAL",
+  "human_decision_id": "6b39bf7d-4620-4551-a2f4-3270d968f888",
+  "human_approval_scope_hash": "sha256:86c913...",
+  "authorization_expires_at": "2026-08-02T13:00:00Z",
+  "execution_service": "communication-service",
+  "record_version": 10
+}
+```
+
+### Example Execution Projection
+
+```json
+{
+  "opportunity_id": "a524e9f1-6d7e-4820-a0c3-5039f5089346",
+  "action_command_id": "fc45b559-1d9c-42f4-bcde-32c4dd241cbb",
+  "action_execution_service": "communication-service",
+  "action_execution_status": "PENDING_EXTERNAL_CONFIRMATION",
+  "action_external_confirmation_status": "PENDING",
+  "record_version": 11
+}
+```
+
+The authoritative Command and provider details belong to the execution service.
 
 ### Mutation Requirements
 
 Every mutation must enforce:
 
 - Authentication.
-- Tenant scope.
-- Organizational scope.
+- Tenant and organization.
 - Authorization.
 - Record-version validation.
-- Field-authority validation.
-- Lifecycle validation.
-- Source and evidence requirements.
+- Field authority.
+- Lifecycle.
+- Source and evidence.
 - Customer contact restrictions.
-- Freshness requirements.
+- Freshness.
 - Conflict checks.
 - Required Human Decision or applicable automation policy.
-- Audit recording.
+- Action Class.
+- Authorization-path validation.
+- Audit.
 - Event publication after accepted state change.
 - External Confirmation tracking where applicable.
 
 ### Optimistic Concurrency
 
-Updates must use an approved mechanism such as:
+Updates must use approved mechanism such as:
 
 ```text
 If-Match: <record_version>
 ```
 
-A stale version must return a conflict response.
+Stale version returns conflict.
 
 ### Idempotency
 
-Retryable creation, conversion, and external-write operations must support:
+Retryable creation, conversion, workflow requests, authorization requests, and execution requests must support:
 
 ```text
 Idempotency-Key
 ```
 
-The same idempotency key and request intent must not create duplicate:
-
-- Opportunities.
-- Assignment changes.
-- Stage transitions.
-- Appointment requests.
-- Quotation requests.
-- Finance Application requests.
-- Trade-In requests.
-- Deal-conversion attempts.
-- Deals.
-- Customer communications.
-
-### Stage Transition Response
-
-When ASOS is authoritative, an accepted transition may return:
-
-```json
-{
-  "opportunity_id": "a524e9f1-6d7e-4820-a0c3-5039f5089346",
-  "previous_stage": "DISCOVERY",
-  "stage": "SOLUTION_FIT",
-  "stage_confirmation_status": "NOT_REQUIRED",
-  "record_version": 4
-}
-```
-
-When an external CRM is authoritative, the response may return:
-
-```json
-{
-  "opportunity_id": "a524e9f1-6d7e-4820-a0c3-5039f5089346",
-  "requested_stage": "SOLUTION_FIT",
-  "stage_confirmation_status": "PENDING",
-  "command_id": "f9d71acd-690f-4d74-9046-a11f9291ffbb",
-  "record_version": 4
-}
-```
-
-The API must not describe the external stage change as confirmed until authoritative Confirmation is received.
-
-### Deal Conversion Response
-
-A successful canonical conversion may return:
-
-```json
-{
-  "opportunity_id": "a524e9f1-6d7e-4820-a0c3-5039f5089346",
-  "deal_conversion_status": "DEAL_CREATED",
-  "converted_deal_id": "9ea6b018-8ad8-40fb-9148-48cd8a17f2b3",
-  "stage": "WON",
-  "record_version": 15
-}
-```
-
-A pending external workflow may return:
-
-```json
-{
-  "opportunity_id": "a524e9f1-6d7e-4820-a0c3-5039f5089346",
-  "deal_conversion_status": "PENDING_EXTERNAL_CONFIRMATION",
-  "converted_deal_id": "9ea6b018-8ad8-40fb-9148-48cd8a17f2b3",
-  "command_id": "82b98d89-dd4b-41cf-8479-e671178b3d8d",
-  "record_version": 15
-}
-```
+Opportunity authorization-request idempotency does not replace execution-service Command idempotency.
 
 ### Error Categories
 
-The API must distinguish at least:
+API must distinguish at least:
 
 - `UNAUTHENTICATED`
 - `UNAUTHORIZED`
@@ -2385,15 +2789,28 @@ The API must distinguish at least:
 - `DUPLICATE_OPPORTUNITY_REVIEW_REQUIRED`
 - `ASSIGNMENT_REQUIRED`
 - `CONTACT_RESTRICTED`
+- `CONSENT_NOT_VALID`
+- `ACTION_CLASS_NOT_RESOLVED`
+- `ACTION_CLASS_3_HUMAN_DECISION_REQUIRED`
+- `ACTION_AUTHORIZATION_REQUIRED`
+- `ACTION_AUTHORIZATION_REJECTED`
+- `ACTION_AUTHORIZATION_EXPIRED`
+- `ACTION_AUTHORIZATION_REVOKED`
+- `ACTION_CONTEXT_CHANGED`
+- `AUTOMATION_POLICY_NOT_APPLICABLE`
+- `AUTOMATION_POLICY_EXPIRED`
+- `AUTOMATION_POLICY_REVOKED`
+- `HUMAN_APPROVAL_REQUIRED`
+- `HUMAN_APPROVAL_SCOPE_MISMATCH`
+- `EXECUTION_SERVICE_REQUIRED`
+- `DIRECT_EXECUTION_NOT_PERMITTED`
+- `EXTERNAL_CONFIRMATION_PENDING`
 - `REQUIREMENTS_STALE`
 - `INVENTORY_AVAILABILITY_STALE`
 - `VEHICLE_UNAVAILABLE`
 - `QUOTATION_REQUIRED`
 - `COMMITMENT_EVIDENCE_REQUIRED`
 - `DEAL_CONVERSION_NOT_READY`
-- `HUMAN_APPROVAL_REQUIRED`
-- `AUTOMATION_POLICY_NOT_APPLICABLE`
-- `EXTERNAL_CONFIRMATION_PENDING`
 - `INVALID_LIFECYCLE_TRANSITION`
 - `OPPORTUNITY_CLOSED`
 - `RECONCILIATION_REQUIRED`
@@ -2401,20 +2818,23 @@ The API must distinguish at least:
 
 ### GraphQL Requirements
 
-A GraphQL implementation must enforce the same:
+GraphQL implementations must enforce the same:
 
 - Tenant isolation.
 - Organizational scope.
 - Field authority.
-- Lifecycle validation.
+- Lifecycle.
 - Concurrency.
 - Idempotency.
-- Customer contact restrictions.
+- Contact restrictions.
+- Action Class.
 - Human Approval.
+- Automation-policy evaluation.
+- Direct-execution prohibition.
 - External Confirmation.
-- Audit requirements.
+- Audit.
 
-GraphQL resolvers must not bypass Opportunity Domain Service or deterministic policy controls.
+Resolvers must not bypass Opportunity Domain Service, Policy Engine, Human Decision Service, Command Orchestration, or responsible execution service.
 
 ---
 
@@ -2434,6 +2854,10 @@ opportunity_vehicle_selections
 opportunity_commercial_estimates
 opportunity_forecasts
 opportunity_engagement_metrics
+opportunity_next_action_recommendations
+opportunity_action_authorization_requests
+opportunity_action_authorization_projections
+opportunity_action_execution_projections
 opportunity_commitments
 opportunity_holds
 opportunity_closures
@@ -2446,14 +2870,27 @@ opportunity_record_versions
 opportunity_audit_log
 ```
 
+Opportunity tables must not replace authoritative:
+
+```text
+human_decisions
+automation_policy_evaluations
+commands
+communication_provider_deliveries
+appointment_commands
+inventory_reservations
+inventory_allocations
+external_confirmations
+```
+
 ### Opportunities Table
 
-The `opportunities` table should contain:
+`opportunities` should contain:
 
 - Canonical identifiers.
 - Tenant and organizational scope.
-- Qualified Lead, Lead, and Customer relationships.
-- Current assignment projection.
+- Qualified Lead, Lead, and Customer.
+- Current assignment.
 - Current stage.
 - Current requirement version.
 - Current Vehicle and Inventory selection.
@@ -2461,15 +2898,17 @@ The `opportunities` table should contain:
 - Current Trade-In and finance projections.
 - Current commercial estimate.
 - Current engagement and next action.
+- Current Recommendation and authorization projection.
+- Current execution projection.
 - Current forecast.
-- Current commitment projection.
-- Current hold state.
-- Current closure and Deal-conversion state.
-- Source and synchronization status.
+- Current commitment.
+- Current hold.
+- Current closure and Deal conversion.
+- Source and synchronization.
 - Record version.
 - Audit timestamps.
 
-Historical details must remain in child or history tables.
+Historical details remain in child or history tables.
 
 ### Primary Key
 
@@ -2485,10 +2924,7 @@ Every Opportunity-related table must include:
 tenant_id
 ```
 
-Tenant consistency must be enforced using:
-
-- Composite Tenant-aware foreign keys; or
-- Equivalent database and service controls.
+Tenant consistency must use Tenant-aware foreign keys or equivalent controls.
 
 Row-Level Security should be used where supported.
 
@@ -2507,14 +2943,14 @@ idx_opportunities_tenant_qualified_lead
 idx_opportunities_tenant_owner
   (tenant_id, owner_user_id, stage)
 
-idx_opportunities_tenant_team
-  (tenant_id, sales_team_id, stage)
-
-idx_opportunities_tenant_dealership_branch
-  (tenant_id, dealership_id, branch_id)
-
 idx_opportunities_next_action
   (tenant_id, next_action_status, next_action_at)
+
+idx_opportunities_action_authorization
+  (tenant_id, action_authorization_status, authorization_expires_at)
+
+idx_opportunities_action_execution
+  (tenant_id, action_execution_status, action_external_confirmation_status)
 
 idx_opportunities_expected_close
   (tenant_id, forecast_category, expected_close_date)
@@ -2531,8 +2967,6 @@ idx_opportunities_updated_at
 
 ### Unique Constraints
 
-One Qualified Lead must not create multiple primary Opportunities:
-
 ```text
 UNIQUE (tenant_id, qualified_lead_id)
 ```
@@ -2543,192 +2977,119 @@ Recommended external-reference uniqueness:
 UNIQUE (tenant_id, source_system, source_record_id)
 ```
 
-where the external source guarantees uniqueness.
-
-One primary Deal must not be linked to multiple Opportunities unless an explicitly approved model supports that case:
+when source guarantees uniqueness.
 
 ```text
 UNIQUE (tenant_id, converted_deal_id)
 ```
 
-when `converted_deal_id` is populated.
+when `converted_deal_id` is populated and model requires one primary Opportunity per Deal.
 
-### Duplicate Detection
+### Recommendation Storage
 
-Potential duplicate active Opportunities should be detected using policy and evidence including:
+`opportunity_next_action_recommendations` should preserve:
 
-- Customer.
-- Intent.
-- Vehicle requirements.
-- Timeframe.
-- Dealership.
-- Branch.
-- Qualified Lead.
-- Current stage.
-- Existing Deal.
-
-A hard database uniqueness constraint on Customer alone must not be used because a Customer may have multiple legitimate commercial pursuits.
-
-### Requirement History
-
-`opportunity_requirement_history` should preserve:
-
-- Requirement-version identifier.
-- `tenant_id`.
-- `opportunity_id`.
-- Version.
-- Full structured requirement snapshot.
-- Changed fields.
-- Change reason.
-- Evidence.
-- Actor.
-- Source.
-- Timestamp.
-- Related Event.
-
-Requirement history must not be silently overwritten.
-
-### Stage History
-
-`opportunity_stage_history` should preserve:
-
-- Stage-history identifier.
-- `tenant_id`.
-- `opportunity_id`.
-- Previous stage.
-- Requested stage.
-- Confirmed stage.
-- Authority mode.
-- Decision authority.
-- Command.
-- External Confirmation.
-- Reason.
-- Timestamp.
-- Record version.
-- Related Event.
-
-### Assignment History
-
-`opportunity_assignment_history` should preserve:
-
-- Assignment identifier.
-- Previous owner.
-- New owner.
-- Team.
-- Queue.
-- Rule.
-- Reason.
-- Authority.
-- Effective time.
-- Confirmation status.
-- Record version.
-- Related Event.
-
-### Forecast History
-
-`opportunity_forecasts` should preserve:
-
-- Forecast identifier.
+- Recommendation identifier.
+- Tenant.
+- Opportunity.
 - Opportunity record version.
-- Forecast category.
-- Close probability.
-- Expected close date.
-- Forecast value.
-- Weighted value.
-- Source.
-- Model or rule version.
-- Prompt version where applicable.
+- Action type and proposed Action Class.
+- Purpose, channel, target, template, and content hash.
 - Evidence.
-- Confidence.
-- Human override.
-- Generation time.
-- Expiration time.
-
-### Commitment Records
-
-`opportunity_commitments` should preserve:
-
-- Commitment identifier.
-- Commitment type.
-- Status.
-- Evidence.
-- Recorded time.
-- Verified time.
-- Actor.
-- Authority.
+- Model, rule, or Human source.
+- Generated time.
 - Expiration.
-- Withdrawal or dispute reason.
+- Status.
 - Related Events.
+
+### Authorization Request Storage
+
+`opportunity_action_authorization_requests` should preserve:
+
+- Request identifier.
+- Tenant.
+- Opportunity.
+- Recommendation.
+- Exact action scope.
+- Action Class.
+- Requested authorization path.
+- Opportunity and source versions.
+- Scope hash.
+- Requesting actor.
+- Status.
+- Created and completed times.
+- Related Events.
+
+### Authorization Projection Storage
+
+`opportunity_action_authorization_projections` should preserve references to:
+
+- Human Decision or policy evaluation.
+- Exact policy and version.
+- Approval or authorization scope hash.
+- Evaluated time.
+- Expiration.
+- Revocation.
+- Failure reasons.
+- Authorization snapshot hash.
+- Authoritative source version.
+
+It must not duplicate unrestricted Human Approval evidence or policy internals.
+
+### Execution Projection Storage
+
+`opportunity_action_execution_projections` should preserve:
+
+- Opportunity.
+- Authorization reference.
+- Responsible execution service.
+- Command reference.
+- Execution status.
+- Confirmation status and reference.
+- Reconciliation status.
+- Observed timestamps.
+- Source record version.
+
+It must not become authoritative Command or provider-delivery storage.
+
+### Stage and Requirement History
+
+Stage and requirement history must preserve previous and new values, authority, reason, evidence, actor, record version, and Event.
 
 ### Deal Conversion Attempts
 
-`opportunity_deal_conversion_attempts` should preserve:
+`opportunity_deal_conversion_attempts` must preserve:
 
-- Conversion-attempt identifier.
-- `tenant_id`.
-- `opportunity_id`.
-- Opportunity record version.
+- Attempt identifier.
+- Tenant.
+- Opportunity and version.
 - Idempotency key.
-- Requested by.
-- Validation result.
+- Requesting actor.
+- Validation.
 - Human Decision.
-- Created Deal identifier.
-- Command identifier.
+- Created Deal.
+- Command.
 - External Confirmation.
 - Failure reason.
-- Reconciliation state.
-- Started time.
-- Completed time.
+- Reconciliation.
+- Times.
 - Related Events.
-
-The same idempotency key and intent must not create multiple Deals.
 
 ### Derived Intelligence
 
-Derived Opportunity records must remain separate from authoritative workflow fields.
+Derived records remain separate from authoritative workflow and authorization fields.
 
-Each derived record should preserve:
-
-- Output type.
-- Value.
-- Model, formula, or algorithm version.
-- Prompt version where applicable.
-- Input-record versions.
-- Evidence references.
-- Confidence.
-- Assumptions.
-- Generated time.
-- Expiration time.
-- Review status.
+Each preserves output type, model or rule version, prompt version, input versions, evidence, confidence, assumptions, generated time, expiration, and review status.
 
 ### Audit Storage
 
-Opportunity audit records must be append-only or protected through an equivalent immutable-audit mechanism.
+Audit records must be append-only or equivalently protected.
 
-Secure hashes should replace raw sensitive values where full retention is unnecessary.
-
-### Partitioning
-
-Large deployments may partition by:
-
-- `tenant_id`.
-- Region.
-- Dealership.
-- Creation time.
-- Closure time.
-- Retention class.
-
-Partitioning must not weaken:
-
-- Tenant isolation.
-- Referential integrity.
-- Stage history.
-- Forecast history.
-- Audit integrity.
+Secure hashes should replace raw sensitive values when full retention is unnecessary.
 
 ### Hard Deletion
 
-An Opportunity must not be hard-deleted when referenced by:
+Opportunity must not be hard-deleted when referenced by:
 
 - Qualified Lead.
 - Customer journey.
@@ -2741,12 +3102,13 @@ An Opportunity must not be hard-deleted when referenced by:
 - Task.
 - Human Decision.
 - Recommendation.
+- Policy evaluation.
 - AI Agent Run.
 - Command.
 - External Confirmation.
 - Audit evidence.
 
-Cancellation, closure, archival, anonymization, or governed redaction must be used instead.
+Closure, archival, anonymization, or governed redaction must be used.
 
 ---
 
@@ -2754,26 +3116,22 @@ Cancellation, closure, archival, anonymization, or governed redaction must be us
 
 ### Security Classification
 
-Recommended classifications include:
-
 | Classification | Example Fields |
 | :--- | :--- |
 | `DIRECT_IDENTIFIER_REFERENCE` | Customer and Lead references |
-| `COMMERCIAL_REQUIREMENTS` | Vehicle needs, budget, purchase timeframe |
-| `COMMERCIAL_CONFIDENTIAL` | Forecast value, margin estimate, negotiation context |
-| `CUSTOMER_RESTRICTED` | Objections, contact restrictions, personal preferences |
-| `FINANCIAL_RESTRICTED` | Finance projections and down-payment estimate |
-| `INTERNAL_PRICING_RESTRICTED` | Estimated discount, profit, internal boundaries |
+| `COMMERCIAL_REQUIREMENTS` | Vehicle needs, budget, timeframe |
+| `COMMERCIAL_CONFIDENTIAL` | Forecast, margin estimate, negotiation |
+| `CUSTOMER_RESTRICTED` | Objections, restrictions, preferences |
+| `FINANCIAL_RESTRICTED` | Finance projections, down-payment estimate |
+| `INTERNAL_PRICING_RESTRICTED` | Discount assumptions, profit, boundaries |
+| `ACTION_AUTHORIZATION_RESTRICTED` | Human Decision and policy references |
+| `COMMAND_REFERENCE_RESTRICTED` | Command and Confirmation references |
 | `DERIVED_INTELLIGENCE` | Scores, forecasts, Recommendations |
-| `AUDIT_EVIDENCE` | Decisions, Commands, Events, Confirmations, stage history |
+| `AUDIT_EVIDENCE` | Decisions, Commands, Events, Confirmations |
 
-### Authentication
+### Authentication and Authorization
 
-Every Opportunity operation requires an authenticated Human or service identity.
-
-Anonymous access to internal Opportunity records is prohibited.
-
-### Authorization
+Every Opportunity operation requires authenticated Human or service identity.
 
 Authorization must consider:
 
@@ -2785,173 +3143,101 @@ Authorization must consider:
 - Queue.
 - Owner.
 - Role.
-- Requested field.
-- Requested action.
+- Requested field and action.
 - Opportunity stage.
 - Data classification.
 - Value threshold.
 - Related Customer.
-- Related Inventory Record.
+- Related Inventory.
+- Action Class.
+- Authorization path.
 - Business purpose.
 - Delegated authority.
 
-### Example Role Boundaries
+### Role Boundaries
 
 #### Sales Consultant
 
-May access Opportunities:
-
-- Assigned to the User.
-- Assigned to an approved team or queue.
-- Explicitly shared under policy.
-
-May perform permitted:
-
-- Discovery.
-- Requirement updates.
-- Vehicle matching.
-- Appointment coordination.
-- Quotation requests.
-- Follow-up.
-- Negotiation documentation.
+May perform permitted discovery, requirement updates, Vehicle matching, Appointment workflow requests, Quotation requests, follow-up planning, and negotiation documentation.
 
 Must not independently:
 
 - Override Consent.
 - Approve restricted discounts.
-- Approve finance.
-- Approve Trade-In acquisition.
+- Approve finance or Trade-In.
 - Allocate Inventory outside authority.
-- Finalize a Deal.
+- Finalize Deal.
 - Mark external actions confirmed.
-- Reopen a closed Opportunity.
+- Reopen closed Opportunity.
+- Authorize an action outside delegated authority.
+- Execute external Commands directly.
 
 #### Sales Manager
 
-May access Opportunities within approved organizational scope.
+May perform configured reassignment, escalation, forecast override, duplicate review, closure review, reopening review, commercial approval, and exact Action Class 2 Human Approval where authorized.
 
-May perform configured:
+Manager access does not automatically authorize finance, legal, compliance, Payment, contract, cross-Tenant access, or delivery.
 
-- Reassignment.
-- Escalation.
-- Forecast override.
-- Duplicate Opportunity approval.
-- Closure review.
-- Reopening review.
-- Commercial approval.
+#### Policy Administrator
 
-Manager access does not automatically authorize:
+May manage approved automation policies only within authorized governance process.
 
-- Finance approval.
-- Legal override.
-- Compliance override.
-- Payment Confirmation.
-- Contract signature.
-- Cross-Tenant access.
-- Delivery Confirmation.
-
-#### BDC User
-
-May access permitted:
-
-- Assignment queues.
-- Contact and qualification context.
-- Appointment coordination.
-- Follow-up workflows.
-
-Restricted commercial and financial fields may remain unavailable.
-
-#### Finance Specialist
-
-May access finance-related Opportunity context required for an approved Finance Application.
-
-Finance access must not expose unrelated Customer or negotiation data.
-
-#### Trade-In Specialist
-
-May access Vehicle and Customer context required for an approved Trade-In workflow.
-
-#### Inventory User
-
-May access Vehicle-selection and Inventory dependencies required for availability, Reservation, Allocation, and transfer workflows.
-
-#### Data Steward
-
-May review:
-
-- Data conflicts.
-- Duplicate Opportunities.
-- Relationship inconsistencies.
-- Source provenance.
-- Reconciliation cases.
-
-#### Compliance or Legal Reviewer
-
-May access restricted evidence required for an assigned case.
+Policy administration must be separated from uncontrolled execution where required.
 
 #### AI Agent
 
-May access only the minimum Opportunity context required for its approved task.
+May access minimum Opportunity context for approved task.
 
-AI access must be:
-
-- Tenant-scoped.
-- Purpose-limited.
-- Field-restricted.
-- Logged.
-- Time-limited where appropriate.
-- Prevented from cross-Tenant retrieval.
-- Prevented from unauthorized pricing, finance, identity, and Consent access.
-
-### Field-Level Protection
-
-Restricted fields should use:
-
-- Field-level authorization.
-- Masking.
-- Encryption where appropriate.
-- Export restrictions.
-- AI-context restrictions.
-- Purpose limitation.
-- Audit logging.
-
-Examples include:
-
-- Budget.
-- Down-payment estimate.
-- Internal margin.
-- Estimated gross profit.
-- Discount assumptions.
-- Finance projections.
-- Customer objections.
-- Competitor details.
-- Commitment evidence.
+AI access must be Tenant-scoped, purpose-limited, field-restricted, logged, time-limited where appropriate, and prevented from unauthorized pricing, finance, identity, Consent, approval, policy, and Command access.
 
 ### Consent and Communication Enforcement
 
-Before any outbound Customer communication, deterministic controls must validate:
+Before outbound Customer communication, deterministic controls must validate:
 
 - Contact purpose.
-- Contact channel.
-- Customer Consent or permitted basis.
-- Customer restrictions.
+- Channel.
+- Consent or permitted basis.
+- Restrictions.
 - Opportunity stage.
-- Contact frequency.
-- Permitted time.
+- Frequency.
+- Time.
 - Approved template.
-- Human Approval or applicable automation policy.
+- Dynamic fields.
+- Content hash.
+- Human Approval or applicable policy.
+- Expiration and revocation.
+- Emergency suspension.
 
-Prompt text, AI Recommendation, User interface state, or Opportunity priority must not override these controls.
+Prompt text, AI Recommendation, User-interface state, stage, priority, or previous execution must not override these controls.
+
+### Approval and Policy Protection
+
+Human Approval and automation-policy records must use:
+
+- Strong authorization.
+- Immutable Decision or evaluation evidence.
+- Versioning.
+- Integrity hashes.
+- Expiration.
+- Revocation.
+- Audit.
+- Least privilege.
+- Separation of duties where required.
+
+Approval references must not be forgeable through request payloads.
+
+Policy IDs supplied by clients must be treated as requests for evaluation, not proof of authority.
 
 ### Tenant Isolation
 
-Tenant isolation must apply to:
+Tenant isolation applies to:
 
-- Database queries.
+- Databases.
 - Search.
 - Duplicate detection.
 - Forecasting.
 - Vector retrieval.
+- Authorization evaluation.
 - Events.
 - Queues.
 - Caches.
@@ -2962,24 +3248,25 @@ Tenant isolation must apply to:
 - AI context.
 - Support access.
 
-Every query and Event Consumer must validate `tenant_id`.
+Every query, Policy evaluation, Command, and Event Consumer must validate `tenant_id`.
 
 ### Command Security
 
-Outbound Opportunity Commands must include:
+Outbound Commands must include:
 
 - Authenticated service identity.
-- `tenant_id`.
-- Organizational scope.
-- Requested action.
-- Current record version.
-- Field-level write authority.
-- Human Decision or automation-policy reference.
+- Tenant and organization.
+- Opportunity and record version.
+- Exact action.
+- Action Class.
+- Authorization reference.
+- Authorization snapshot hash.
+- Current source versions.
 - Idempotency key.
 - Audit evidence.
-- External Confirmation requirement.
+- Confirmation requirement.
 
-The AI Intelligence Layer must not transmit external Commands directly.
+Opportunity Domain Service and AI Intelligence Layer must not transmit external Commands directly.
 
 ### Audit Requirements
 
@@ -2987,94 +3274,82 @@ Material Opportunity activity must record:
 
 - `tenant_id`.
 - `opportunity_id`.
-- Qualified Lead and Customer references.
+- Qualified Lead and Customer.
 - Actor.
 - Role and permission.
 - Action.
 - Business purpose.
-- Previous value or secure hash.
-- New value or secure hash.
+- Previous and new value or secure hash.
 - Source.
 - Authority category.
 - Record version.
 - Applied Business Rules.
 - AI involvement.
 - Recommendation.
+- Action Class.
 - Human Decision.
-- Automation-policy reference.
+- Automation policy and evaluation.
+- Authorization snapshot hash.
 - Command.
-- Idempotency key.
+- Idempotency reference.
 - External Confirmation.
 - Evidence.
 - Timestamp.
-- Correlation identifier.
-- Causation identifier.
+- Correlation and causation.
 - Related Events.
 
 ### Security Events
 
 ASOS must detect and record:
 
-- Cross-Tenant Opportunity access attempts.
+- Cross-Tenant Opportunity access.
 - Unauthorized reassignment.
-- Unauthorized stage changes.
+- Unauthorized stage change.
 - Unauthorized pricing or forecast access.
-- Restricted margin export.
-- Consent-bypass attempts.
-- Duplicate Deal-conversion requests.
-- Artificial pipeline inflation.
-- Unauthorized reopening.
-- Closure manipulation.
-- AI retrieval outside approved scope.
+- Consent-bypass attempt.
+- Action Class downgrade attempt.
+- Forged Human Approval reference.
+- Forged policy identifier.
+- Expired or revoked authorization use.
+- Content changed after approval.
+- Recipient changed after approval.
+- Direct execution through Opportunity API.
+- Duplicate execution request.
 - Command replay.
 - External Confirmation mismatch.
+- AI execution attempt.
+- Unauthorized reopening.
+- Closure manipulation.
 - Audit-log tampering.
-- Suspicious bulk Opportunity export.
+- Suspicious bulk export.
 
-### Pipeline Integrity
+### Pipeline and Transaction Integrity
 
 The platform must detect or prevent:
 
 - Duplicate active Opportunities used to inflate pipeline.
 - Unsupported forecast overrides.
 - False stage progression.
-- Opportunities marked `WON` without valid Deal conversion.
-- Artificial expected-close-date manipulation.
-- Unauthorized loss-reason modification.
-- Removal of unfavorable Opportunities from reporting.
+- `WON` without valid Deal.
+- Artificial expected-close manipulation.
+- Unauthorized loss-reason change.
+- Removal of unfavorable Opportunities.
 - Conversion attribution manipulation.
-
-### Privacy and Retention
-
-Opportunity retention must follow:
-
-- Applicable law.
-- Tenant policy.
-- Customer privacy rights.
-- Contractual requirements.
-- Related Deal and finance obligations.
-- Legal holds.
-- Audit requirements.
-
-Privacy actions must propagate to:
-
-- Search indexes.
-- Vector stores.
-- Caches.
-- Analytics projections.
-- Exports.
-- Non-authoritative replicas.
-- Backups according to policy.
-
-Required non-personal commercial and audit evidence may remain only where lawful.
+- Customer communication without valid authority.
+- Automation policy used outside scope.
+- Action Class 3 treated as Action Class 2.
+- Execution marked complete without Confirmation.
+- Opportunity projection treated as authoritative execution state.
 
 ### Emergency Controls
 
-The platform must support immediate Tenant-scoped suspension of:
+Platform must support immediate Tenant-scoped suspension of:
 
 - Automated follow-up.
+- Action Class 2 automation policies.
 - Assignment automation.
 - Stage write-back.
+- Appointment workflow requests.
 - Quotation requests.
 - Deal conversion.
 - External CRM Commands.
@@ -3098,6 +3373,14 @@ Emergency suspension must be deterministic, auditable, and reversible only by au
 - [ASOS Qualified Lead](./QualifiedLead.md)
 - [ASOS Vehicle](./Vehicle.md)
 - [ASOS Inventory Record](./InventoryRecord.md)
+- [ASOS Appointment](./Appointment.md)
+- [ASOS Quotation](./Quotation.md)
+- [ASOS Trade-In](./TradeIn.md)
+- [ASOS Finance Application](./FinanceApplication.md)
+- [ASOS Financial Contract](./FinancialContract.md)
+- [ASOS Deal](./Deal.md)
+- [ASOS Interaction](./Interaction.md)
+- [ASOS Canonical Event Catalog Governance](../02-Event-Catalog/README.md)
 
 ---
 
@@ -3106,6 +3389,23 @@ Emergency suspension must be deterministic, auditable, and reversible only by au
 This document is the approved Canonical Opportunity baseline.
 
 Opportunity remains the governed active commercial pursuit between Qualified Lead and Deal.
+
+The Opportunity Domain Service owns next-action Recommendation, planning, Action Class, and authorization context.
+
+The Opportunity Domain Service does not own execution of Customer-facing or external Action Class 2 operations.
+
+Every Action Class 2 execution requires exactly one valid authority path:
+
+- Explicit Human Approval for the exact action instance; or
+- An active pre-approved automation policy covering the exact action instance.
+
+AI recommendation, Opportunity priority, stage, score, or User-interface state is not execution authority.
+
+The responsible execution service owns Command creation, idempotency, external execution, Confirmation, and reconciliation.
+
+The Opportunity API must not expose direct Customer communication, external Appointment creation, Inventory Reservation, Inventory Allocation, or external CRM execution mutations.
+
+Action Class 3 must not be downgraded to Action Class 2.
 
 Vehicle selection does not create Reservation or Allocation.
 
