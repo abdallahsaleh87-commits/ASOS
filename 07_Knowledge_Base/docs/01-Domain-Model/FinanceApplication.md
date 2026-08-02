@@ -4,7 +4,7 @@
 **Status:** Approved Baseline  
 **Canonical Owner:** Finance Application Domain Service  
 **Primary Isolation Boundary:** `tenant_id`  
-**Last Updated:** 2026-08-01  
+**Last Updated:** 2026-08-02  
 
 ---
 
@@ -31,21 +31,23 @@ It provides a controlled process for:
 - Comparing approved Lender offers.
 - Presenting permitted offers to the Customer.
 - Recording Customer selection or rejection.
-- Supporting Financial Contract preparation.
-- Monitoring funding requirements.
-- Projecting authoritative funding Confirmation.
+- Assessing contract and funding readiness.
+- Preparing and tracking the governed Financial Contract handoff.
+- Projecting authoritative contract and funding status after handoff.
 - Supporting Quotation and Deal workflows.
 - Preserving regulatory, Consent, Decision, and audit evidence.
 
 ### Finance Application Domain Boundary
 
-The Finance Application represents the credit-request, submission, underwriting, Decision-selection, and funding-readiness workflow.
+The Finance Application represents the credit-request, submission, underwriting, Decision-selection, contract-readiness, funding-readiness, and Financial Contract-handoff workflow.
 
 It does not independently represent:
 
 - Guaranteed finance approval.
 - A dealership-created credit Decision.
 - A signed Financial Contract.
+- A Financial Contract funding workflow.
+- A Funding Command.
 - Cleared Customer Payment.
 - Cleared Lender funding.
 - A completed Deal.
@@ -58,13 +60,16 @@ The following separation must remain explicit:
 ```text
 Finance Application
   = Applicant information, Consent, verification, Lender submissions,
-    underwriting Decisions, selected offer, conditions, and funding readiness
+    underwriting Decisions, selected offer, conditions, readiness,
+    and governed contracting handoff
 
 Financial Contract
-  = authoritative contractual terms and signature workflow
+  = authoritative contractual terms, signature workflow,
+    funding-request orchestration, and contract activation
 
 Deal
-  = governed automotive commercial transaction
+  = governed automotive commercial transaction,
+    completion gates, and non-owning funding projection
 
 Payment
   = Customer or third-party payment transaction and settlement evidence
@@ -152,42 +157,69 @@ ASOS, dealership Users, and AI Agents must not:
 
 Customer selection of a Lender offer does not create a signed contract.
 
-The Financial Contract workflow must preserve:
+The Finance Application Domain Service owns:
 
-- Selected Lender Decision.
-- Selected finance program.
-- Approved terms.
-- Required disclosures.
-- Contract version.
-- Signatories.
-- Signature evidence.
-- Contract activation state.
+- Contract-readiness assessment.
+- The selected-offer handoff snapshot.
+- The governed request to create or prepare a Financial Contract.
+- Handoff idempotency and handoff-status tracking.
+- The resulting Financial Contract reference after acceptance.
+- Read-only contract and funding projections needed by the application workflow.
 
-The Finance Application may reference the resulting Financial Contract.
+The Financial Contract Domain Service owns:
 
-It must not treat contract preparation as contract execution.
+- Authoritative contractual terms.
+- Contract versions and disclosures.
+- Signatories and signature evidence.
+- Contract effectiveness, activation, voiding, and termination.
+- The governed funding-request workflow after a valid and effective Financial Contract exists.
+- Funding Command creation, transmission, Confirmation tracking, shortfall handling, reversal handling, and reconciliation.
+
+The Finance Application must not treat contract preparation or handoff acceptance as contract execution, effectiveness, activation, or funding.
 
 ### Finance Application and Funding Separation
 
-Finance approval does not guarantee funding.
+Finance approval and funding readiness do not prove funding.
 
-Funding may require:
+The Finance Application Domain Service owns:
 
-- Signed Financial Contract.
-- Customer down payment.
-- Vehicle and Deal eligibility.
-- Registration or title evidence.
-- Insurance evidence.
-- Required Lender conditions.
-- Original documents.
-- Lender verification.
-- Dealership invoice.
-- Delivery controls.
-- Another Lender-specific requirement.
+- Funding-readiness assessment based on the selected Lender Decision.
+- Tracking outstanding pre-contract and underwriting requirements.
+- Preparing the selected-offer and readiness snapshot for Financial Contract.
+- Requesting the governed contracting handoff.
+- Preserving read-only funding-status projections after handoff.
+- Detecting when changed Applicant, commercial, Lender, or condition data requires re-underwriting or a new handoff.
 
-A funding request, API acknowledgment, or payment instruction does not prove that funds were received.
+The Financial Contract Domain Service owns:
 
-`FUNDED` requires authoritative funding evidence and reconciliation.
+- The governed funding-request workflow after a valid and effective Financial Contract exists.
+- Funding Command creation and idempotency.
+- Tracking authoritative External Confirmation.
+- Partial-funding, shortfall, failure, reversal, and reconciliation workflow.
+- Contract activation based on accepted funding evidence where funding is required.
+
+The configured Lender, bank, or funding authority owns the authoritative funding outcome.
+
+The Deal Domain Service stores only the funding projection, completion requirement, blocking status, and reconciliation references required by the commercial transaction.
+
+The Finance Application must not:
+
+- Create or transmit a funding Command.
+- Own a funding idempotency key.
+- Enter a canonical `FUNDING_PENDING`, `PARTIALLY_FUNDED`, or `FUNDED` lifecycle state.
+- Publish authoritative funding-request, funding-confirmed, funding-failed, or funding-reversed Events.
+- Treat a contract, funding request, API acknowledgment, or Payment instruction as proof that funds were received.
+
+After contracting handoff, the Finance Application may project:
+
+- Funding readiness.
+- Financial Contract reference.
+- External funding status.
+- Confirmed funding amount.
+- Funding Confirmation reference.
+- Funding reconciliation status.
+
+These values remain non-owning projections received from Financial Contract and the configured external funding authority.
 
 ### Application Versioning
 
@@ -292,7 +324,7 @@ The Finance Application Object provides canonical finance-request context to:
 - Appointment workflows.
 - Deal workflows.
 - Financial Contract workflows.
-- Payment and funding reconciliation.
+- Funding-readiness and read-only funding-status projection.
 - Lender integrations.
 - Credit-bureau integrations.
 - Identity-verification services.
@@ -329,14 +361,12 @@ The Finance Application Object may contain:
 | Lender underwriting Decision | Lender |
 | Approved finance terms | Lender Decision |
 | Customer offer selection | Customer evidence |
-| Financial Contract | Financial Contract Domain Service and signature provider |
+| Finance Application workflow and contracting handoff | Finance Application Domain Service |
+| Financial Contract, signature, activation, and funding workflow | Financial Contract Domain Service and configured authorities |
 | Funding outcome | Lender, bank, or configured funding authority |
-| Deal status | Deal Domain Service and configured external authority |
+| Deal status and completion gates | Deal Domain Service and configured external authority |
 | Predictions and Recommendations | Derived Intelligence |
-| Canonical Finance Application workflow | Finance Application Domain Service |
 | External operation completion | Configured External Confirmation authority |
-
----
 
 ## 2. Canonical Schema
 
@@ -374,7 +404,7 @@ All organizational identifiers must belong to the authenticated Tenant.
 - `financial_contract_id`.
 - `primary_interaction_id`.
 - `compliance_case_id`.
-- `funding_transaction_reference`.
+- `funding_confirmation_reference`.
 
 ### Application Identity
 
@@ -819,17 +849,19 @@ Customer selection must reference one exact authoritative Lender Decision versio
 ### Contracting Handoff
 
 - `contract_readiness_status`.
-- `contract_preparation_status`.
+- `contract_handoff_status`.
 - `financial_contract_id`.
-- `contract_creation_requested_at`.
-- `contract_creation_command_id`.
-- `contract_creation_idempotency_key`.
-- `contract_creation_confirmation_status`.
-- `contract_ready_at`.
+- `contract_handoff_requested_at`.
+- `contract_handoff_command_id`.
+- `contract_handoff_idempotency_key`.
+- `contract_handoff_confirmation_status`.
+- `contract_handoff_completed_at`.
+- `contract_handoff_snapshot_hash`.
+- `financial_contract_record_version_projection`.
 - `contract_signed_projection_status`.
 - `contract_signature_confirmation_reference`.
 
-A prepared contract is not a signed contract.
+A handoff request does not prove that a Financial Contract was created, signed, effective, activated, or funded.
 
 ### Funding Readiness
 
@@ -844,24 +876,41 @@ A prepared contract is not a signed contract.
 - `contract_requirement_status`.
 - `lender_condition_status`.
 - `funding_block_reasons`.
+- `funding_readiness_evaluated_at`.
+- `funding_readiness_snapshot_hash`.
+
+Funding readiness is a Finance Application assessment used for handoff. It is not a funding request or funding outcome.
 
 ### Funding Projection
 
-- `funding_status`.
-- `funding_requested_at`.
+The Finance Application stores a read-only projection of funding progress received from Financial Contract and the configured external funding authority.
+
+- `funding_status_projection`.
+- `funding_authority_reference`.
+- `funding_confirmation_status_projection`.
+- `funding_confirmation_reference`.
+- `confirmed_funding_amount_projection`.
+- `funding_currency_code_projection`.
+- `funding_confirmed_at_projection`.
+- `funding_shortfall_amount_projection`.
+- `funding_reversal_status_projection`.
+- `funding_reversal_reference`.
+- `funding_reconciliation_status_projection`.
+- `funding_projection_source`.
+- `funding_projection_source_record_id`.
+- `funding_projection_source_record_version`.
+- `funding_projection_observed_at`.
+- `funding_projection_last_synced_at`.
+- `funding_projection_freshness_status`.
+
+The Finance Application must not store or own:
+
 - `funding_command_id`.
 - `funding_idempotency_key`.
-- `funding_reference`.
-- `funding_amount_requested`.
-- `funded_amount`.
-- `funding_currency_code`.
-- `funding_received_at`.
-- `funding_confirmation_status`.
-- `funding_confirmation_reference`.
-- `funding_reconciliation_status`.
-- `funding_shortfall_amount`.
-- `funding_reversal_status`.
-- `funding_reversal_reference`.
+- Funding Command execution state.
+- Authoritative funding transaction state.
+
+Funding projections must remain traceable to Financial Contract or the configured external funding authority and must not be treated as locally authoritative.
 
 ### Closure
 
@@ -1125,18 +1174,18 @@ Every material derived output must preserve:
 
 | Field | Type | Required | Authority | Description |
 | :--- | :--- | :---: | :--- | :--- |
-| `contract_readiness_status` | Enum | Yes | Deterministic workflow | Readiness to create the Financial Contract. |
-| `financial_contract_id` | UUID | No | Canonical relationship | Financial Contract generated from the selected offer. |
-| `contract_signed_projection_status` | Enum | Yes | Financial Contract projection | Current signature projection. |
-| `funding_readiness_status` | Enum | Yes | Deterministic workflow | Readiness to request Lender funding. |
-| `funding_status` | Enum | Yes | Funding workflow | Current Lender-funding state. |
-| `funding_amount_requested` | Decimal | No | Contract or Deal | Amount requested from the Lender. |
-| `funded_amount` | Decimal | No | Authoritative funding source | Confirmed funds received. |
-| `funding_received_at` | Timestamp | No | Authoritative funding source | Time funding was received. |
-| `funding_confirmation_status` | Enum | Yes | Workflow Projection | External Confirmation status. |
-| `funding_reconciliation_status` | Enum | Yes | Reconciliation workflow | Current funding reconciliation state. |
-
----
+| `contract_readiness_status` | Enum | Yes | Finance Application workflow | Readiness to request the Financial Contract handoff. |
+| `contract_handoff_status` | Enum | Yes | Finance Application workflow | Current governed handoff state. |
+| `financial_contract_id` | UUID | No | Canonical relationship | Financial Contract reference accepted from Financial Contract Domain Service. |
+| `financial_contract_record_version_projection` | Integer | No | Financial Contract projection | Observed Financial Contract record version. |
+| `contract_signed_projection_status` | Enum | Yes | Financial Contract projection | Read-only signature-status projection. |
+| `funding_readiness_status` | Enum | Yes | Finance Application workflow | Readiness assessment used before handoff. |
+| `funding_status_projection` | Enum | No | Financial Contract or external projection | Observed funding lifecycle status. |
+| `confirmed_funding_amount_projection` | Decimal | No | External funding projection | Confirmed amount observed from the authoritative source. |
+| `funding_confirmed_at_projection` | Timestamp | No | External funding projection | Observed authoritative funding timestamp. |
+| `funding_confirmation_status_projection` | Enum | No | External Confirmation projection | Observed Confirmation status. |
+| `funding_reconciliation_status_projection` | Enum | No | Financial Contract projection | Observed reconciliation status. |
+| `funding_projection_source_record_version` | Integer | No | Projection metadata | Source record version used for freshness and reconciliation. |
 
 ## 4. Enumerations
 
@@ -1156,8 +1205,7 @@ Every material derived output must preserve:
 - `OFFER_PRESENTED`
 - `CUSTOMER_ACCEPTED`
 - `CONTRACTING`
-- `FUNDING_PENDING`
-- `FUNDED`
+- `CONTRACT_HANDOFF_COMPLETED`
 - `DECLINED`
 - `WITHDRAWN`
 - `EXPIRED`
@@ -1479,16 +1527,18 @@ Only the Lender may authoritatively satisfy or waive a Lender condition.
 - `EXPIRED`
 - `REVIEW_REQUIRED`
 
-### ContractPreparationStatus
+### ContractHandoffStatus
 
 - `NOT_STARTED`
 - `VALIDATION_PENDING`
-- `CREATION_PENDING`
-- `PENDING_EXTERNAL_CONFIRMATION`
-- `CREATED`
+- `HANDOFF_PENDING`
+- `PENDING_CONFIRMATION`
+- `ACCEPTED`
 - `FAILED`
 - `CANCELLED`
 - `RECONCILIATION_REQUIRED`
+
+This status belongs only to the Finance Application-to-Financial Contract handoff. It does not represent Financial Contract signature, effectiveness, activation, or funding.
 
 ### ContractSignatureProjectionStatus
 
@@ -1514,21 +1564,24 @@ The authoritative signature state belongs to Financial Contract or its configure
 - `EXPIRED`
 - `REVIEW_REQUIRED`
 
-### FinanceFundingStatus
+### FinanceFundingProjectionStatus
 
+- `UNKNOWN`
+- `NOT_REQUIRED`
 - `NOT_STARTED`
 - `REQUIREMENTS_PENDING`
-- `FUNDING_REQUEST_READY`
-- `COMMAND_PENDING`
-- `FUNDING_REQUESTED`
+- `READY`
+- `REQUEST_PENDING`
 - `PENDING_CONFIRMATION`
-- `PARTIALLY_FUNDED`
-- `FUNDED`
-- `FUNDING_FAILED`
-- `FUNDING_REVERSED`
+- `PARTIALLY_CONFIRMED`
+- `CONFIRMED`
+- `FAILED`
+- `REVERSED`
 - `DISPUTED`
-- `CANCELLED`
 - `RECONCILIATION_REQUIRED`
+- `STALE`
+
+This enumeration is a non-owning projection received from Financial Contract or the configured external funding authority.
 
 ### FinanceApplicationWithdrawalReason
 
@@ -1563,7 +1616,7 @@ The authoritative signature state belongs to Financial Contract or its configure
 - `LENDER_DECISION_EXPIRED`
 - `CUSTOMER_SELECTION_EXPIRED`
 - `CONTRACTING_WINDOW_EXPIRED`
-- `FUNDING_WINDOW_EXPIRED`
+- `FUNDING_READINESS_EXPIRED`
 - `OTHER`
 
 ### ConfirmationStatus
@@ -1716,7 +1769,7 @@ Finance Consent must not create general marketing Consent.
 - Customer cash contribution, down payment, Trade-In equity, fees, and requested finance must reconcile.
 - Material commercial changes require a new application version.
 - An expired or withdrawn Quotation must not support a new submission.
-- Vehicle and Inventory eligibility must be sufficiently current before submission and funding.
+- Vehicle and Inventory eligibility must be sufficiently current before submission and contracting handoff.
 
 ### Income and Financial Position Rules
 
@@ -1747,7 +1800,6 @@ debt_to_income_ratio
 payment_to_income_ratio
 loan_to_value_ratio
 down_payment_percentage
-funding_shortfall_amount
 ```
 
 Every calculation must preserve:
@@ -1923,7 +1975,7 @@ ASOS must not represent one Lender Decision as another Lender’s Decision.
 - Submitted evidence does not prove condition satisfaction.
 - Only authoritative Lender Confirmation may mark a Lender condition satisfied or waived.
 - Expired condition evidence must be revalidated.
-- Unresolved conditions must block contract or funding progression where required.
+- Unresolved conditions must block contracting handoff and downstream funding eligibility where required.
 - AI may summarize conditions but must not remove or reinterpret their legal meaning.
 
 ### Customer Offer Presentation Rules
@@ -1969,32 +2021,37 @@ Customer selection does not sign the Financial Contract.
 
 ### Contracting Rules
 
-Financial Contract creation requires:
+A governed Financial Contract handoff requires:
 
 - Valid Customer-selected offer.
 - Current Lender Decision.
 - All required conditions for contract preparation.
 - Valid Customer and Applicant identities.
 - Current commercial terms.
-- Required Human Decisions.
-- Idempotent creation request.
-- Exact selected-offer snapshot.
+- Required Human Decision or approved workflow authority.
+- Idempotent handoff request.
+- Exact selected-offer and readiness snapshot.
+- Audit evidence.
 
-The Finance Application must not become `FUNDED` because:
+The Finance Application owns only the handoff request and its acceptance status.
 
-- A contract was generated.
-- A contract was sent.
-- One Applicant signed.
-- A signature provider acknowledged receipt.
+The Financial Contract Domain Service owns authoritative contract creation, terms, signatures, effectiveness, activation, voiding, and funding workflow.
 
-Authoritative contract status belongs to Financial Contract and its configured authority.
+The Finance Application must not represent:
+
+- Handoff requested as Financial Contract created.
+- Financial Contract created as signed.
+- Financial Contract signed as effective or activated.
+- Contract activation as proof that funding occurred.
 
 ### Funding Readiness Rules
 
 Funding readiness requires applicable:
 
-- Signed and valid Financial Contract.
-- Current Lender approval.
+- Current selected Lender Decision.
+- Valid selected-offer version.
+- Current Customer and Applicant identity evidence.
+- Current commercial snapshot.
 - Required Lender conditions.
 - Eligible Deal.
 - Eligible Vehicle and Inventory.
@@ -2002,36 +2059,43 @@ Funding readiness requires applicable:
 - Required insurance.
 - Required registration or title evidence.
 - Required dealership invoice.
-- Required delivery or release controls.
+- Required contract prerequisites.
 - No compliance or reconciliation block.
+- Frozen readiness snapshot for handoff.
 
-Funding readiness does not prove funding.
+The Finance Application may calculate and communicate readiness to Financial Contract.
+
+Funding readiness does not prove:
+
+- Financial Contract signature.
+- Financial Contract effectiveness or activation.
+- Creation or transmission of a Funding Command.
+- Receipt of funds.
+- Deal completion.
 
 ### Funding Rules
 
-A funding request must:
+The Finance Application must not create, transmit, retry, cancel, reverse, or reconcile a Funding Command.
 
-- Reference the exact selected Lender Decision.
-- Reference the exact Financial Contract.
-- Reference the eligible Deal.
-- Preserve the requested amount.
-- Use an idempotency key.
-- Preserve the Command and External Confirmation.
-- Remain pending until authoritative evidence is received.
+The Financial Contract Domain Service owns the governed funding-request workflow after a valid and effective Financial Contract exists.
 
-`FUNDED` requires:
+The configured Lender, bank, or funding authority owns the authoritative funding outcome.
 
-- Authoritative funding Confirmation.
-- Confirmed amount.
-- Confirmed currency.
-- Funding timestamp.
-- Funding reference.
-- Reconciliation with Deal and contract.
-- No unresolved material shortfall.
+The Finance Application may receive and store only a read-only funding projection that:
 
-A partial funding outcome must remain `PARTIALLY_FUNDED`.
+- References the Financial Contract.
+- References the configured funding authority.
+- Preserves source record identifier and version.
+- Preserves authoritative Confirmation and evidence references.
+- Preserves observed amount, currency, timestamp, shortfall, reversal, and reconciliation status.
+- Remains distinguishable from Finance Application workflow state.
+- Is marked stale when source freshness requirements are not met.
 
-A funding reversal must use a new authoritative event and reconciliation workflow.
+A funding request, API acknowledgment, contract state, or payment instruction must not be interpreted as proof that funds were received.
+
+A changed, partial, failed, or reversed funding projection may block dependent Finance Application assumptions and may require re-underwriting, a new application version, Customer communication, dispute, or Human Review.
+
+Finance Application must not publish authoritative funding lifecycle Events.
 
 ### Decline Rules
 
@@ -2070,13 +2134,14 @@ Dealership cancellation requires:
 - Authorized Human Decision or policy.
 - Review of active submissions.
 - Review of selected offer.
-- Review of Financial Contract and funding state.
+- Review of the Financial Contract handoff.
+- Review of projected contract and funding state.
 - Required Customer communication.
 - Audit evidence.
 
-A funded application cannot be cancelled through an ordinary update.
+A Finance Application with observed confirmed funding must not be cancelled through an ordinary update.
 
-It requires a governed unwind, reversal, or correction workflow.
+The owning Financial Contract and Deal workflows must first complete any required unwind, reversal, or reconciliation. Finance Application then records only the resulting projections and closure evidence.
 
 ### Expiration Rules
 
@@ -2090,10 +2155,12 @@ An expired:
 - Credit report.
 - Lender Decision.
 - Customer offer.
-- Contracting window.
-- Funding window.
+- Contracting-handoff window.
+- Funding-readiness snapshot.
 
-must block dependent future actions until revalidation.
+must block dependent future Finance Application actions until revalidation.
+
+A stale or expired external contract or funding projection must be refreshed from the owning source before dependent action.
 
 Expiration must not delete historical records.
 
@@ -2106,9 +2173,8 @@ Expiration must not delete historical records.
 - Bureau requests must support deduplication and idempotency.
 - Lender submissions must support idempotency.
 - Customer selection must support idempotency.
-- Financial Contract creation must support idempotency.
-- Funding requests must support idempotency.
-- Retryable Commands must use `idempotency_key`.
+- Financial Contract handoff requests must support idempotency.
+- Retryable Commands owned by Finance Application must use `idempotency_key`.
 - Event Consumers must prevent duplicate effects using `event_id`.
 - Duplicate retries must not create duplicate:
   - Applications.
@@ -2118,9 +2184,9 @@ Expiration must not delete historical records.
   - Lender submissions.
   - Lender Decisions.
   - Customer selections.
-  - Financial Contracts.
-  - Funding requests.
-  - Funding transactions.
+  - Financial Contract handoffs.
+
+Funding Command and funding-transaction idempotency belong to Financial Contract Domain Service and the configured external funding authority.
 
 ### Fairness and Non-Discrimination Rules
 
@@ -2155,13 +2221,12 @@ Human Review is required according to policy for:
 - Lender submission exception.
 - Lender Decision conflict.
 - Customer selection dispute.
-- Contract mismatch.
-- Funding shortfall.
-- Funding reversal.
+- Contracting-handoff mismatch.
+- Observed funding shortfall, failure, or reversal requiring Finance Application action.
 - Reopening a terminal application.
 - Another high-risk legal, financial, or compliance exception.
 
----
+Human Review inside Finance Application must not replace authoritative Financial Contract, Lender, bank, or funding-authority decisions.
 
 ## 6. State Machine
 
@@ -2182,8 +2247,7 @@ APPROVED
 OFFER_PRESENTED
 CUSTOMER_ACCEPTED
 CONTRACTING
-FUNDING_PENDING
-FUNDED
+CONTRACT_HANDOFF_COMPLETED
 DECLINED
 WITHDRAWN
 EXPIRED
@@ -2284,23 +2348,20 @@ CUSTOMER_ACCEPTED → EXPIRED
 CUSTOMER_ACCEPTED → WITHDRAWN
 CUSTOMER_ACCEPTED → DISPUTED
 
-CONTRACTING → FUNDING_PENDING
+CONTRACTING → CONTRACT_HANDOFF_COMPLETED
 CONTRACTING → CUSTOMER_ACCEPTED
 CONTRACTING → EXPIRED
 CONTRACTING → CANCELLED
 CONTRACTING → DISPUTED
 
-FUNDING_PENDING → FUNDED
-FUNDING_PENDING → CONTRACTING
-FUNDING_PENDING → EXPIRED
-FUNDING_PENDING → CANCELLED
-FUNDING_PENDING → DISPUTED
+CONTRACT_HANDOFF_COMPLETED → DISPUTED
+CONTRACT_HANDOFF_COMPLETED → ARCHIVED
 
 DISPUTED → previous permitted non-terminal state
+DISPUTED → CONTRACT_HANDOFF_COMPLETED
 DISPUTED → WITHDRAWN
 DISPUTED → CANCELLED
 
-FUNDED → ARCHIVED
 DECLINED → ARCHIVED
 WITHDRAWN → ARCHIVED
 EXPIRED → ARCHIVED
@@ -2309,52 +2370,93 @@ CANCELLED → ARCHIVED
 
 Returning from `DISPUTED` requires an accepted resolution and supporting evidence.
 
+`CONTRACT_HANDOFF_COMPLETED` confirms only that the governed Financial Contract handoff was accepted.
+
+It does not prove contract signature, contract effectiveness, contract activation, funding, Vehicle delivery, or Deal completion.
+
 ### Forbidden Ordinary Transitions
 
 ```text
 DRAFT → SUBMITTED
 DRAFT → APPROVED
 DRAFT → CUSTOMER_ACCEPTED
-DRAFT → FUNDED
+DRAFT → CONTRACT_HANDOFF_COMPLETED
 
 CONSENT_PENDING → SUBMITTED
+CONSENT_PENDING → APPROVED
+CONSENT_PENDING → CONTRACT_HANDOFF_COMPLETED
+
 DOCUMENTS_PENDING → SUBMITTED
+DOCUMENTS_PENDING → APPROVED
+DOCUMENTS_PENDING → CONTRACT_HANDOFF_COMPLETED
+
 VERIFICATION_PENDING → SUBMITTED
+VERIFICATION_PENDING → APPROVED
+VERIFICATION_PENDING → CONTRACT_HANDOFF_COMPLETED
 
 READY_FOR_SUBMISSION → APPROVED
+READY_FOR_SUBMISSION → CUSTOMER_ACCEPTED
+READY_FOR_SUBMISSION → CONTRACT_HANDOFF_COMPLETED
+
 SUBMISSION_PENDING → APPROVED
+SUBMISSION_PENDING → CUSTOMER_ACCEPTED
+SUBMISSION_PENDING → CONTRACT_HANDOFF_COMPLETED
 
 SUBMITTED → CUSTOMER_ACCEPTED
-UNDER_REVIEW → CUSTOMER_ACCEPTED
+SUBMITTED → CONTRACTING
+SUBMITTED → CONTRACT_HANDOFF_COMPLETED
 
-CONDITIONALLY_APPROVED → FUNDED
-APPROVED → FUNDED
-OFFER_PRESENTED → FUNDED
-CUSTOMER_ACCEPTED → FUNDED
+UNDER_REVIEW → CUSTOMER_ACCEPTED
+UNDER_REVIEW → CONTRACTING
+UNDER_REVIEW → CONTRACT_HANDOFF_COMPLETED
+
+CONDITIONS_PENDING → CUSTOMER_ACCEPTED
+CONDITIONS_PENDING → CONTRACT_HANDOFF_COMPLETED
+
+CONDITIONALLY_APPROVED → CONTRACTING
+CONDITIONALLY_APPROVED → CONTRACT_HANDOFF_COMPLETED
+
+APPROVED → CONTRACTING
+APPROVED → CONTRACT_HANDOFF_COMPLETED
+
+OFFER_PRESENTED → CONTRACTING
+OFFER_PRESENTED → CONTRACT_HANDOFF_COMPLETED
+
+CUSTOMER_ACCEPTED → CONTRACT_HANDOFF_COMPLETED
+  without an accepted Financial Contract handoff
 
 DECLINED → APPROVED
 DECLINED → CUSTOMER_ACCEPTED
-DECLINED → FUNDED
+DECLINED → CONTRACTING
+DECLINED → CONTRACT_HANDOFF_COMPLETED
 
 WITHDRAWN → SUBMITTED
 WITHDRAWN → APPROVED
-WITHDRAWN → FUNDED
+WITHDRAWN → CUSTOMER_ACCEPTED
+WITHDRAWN → CONTRACT_HANDOFF_COMPLETED
 
 EXPIRED → SUBMITTED
 EXPIRED → CUSTOMER_ACCEPTED
-EXPIRED → FUNDED
+EXPIRED → CONTRACTING
+EXPIRED → CONTRACT_HANDOFF_COMPLETED
 
 CANCELLED → SUBMITTED
 CANCELLED → APPROVED
-CANCELLED → FUNDED
+CANCELLED → CONTRACTING
+CANCELLED → CONTRACT_HANDOFF_COMPLETED
 
-FUNDED → DRAFT
-FUNDED → CANCELLED
-FUNDED → EXPIRED
+CONTRACT_HANDOFF_COMPLETED → DRAFT
+CONTRACT_HANDOFF_COMPLETED → SUBMITTED
+CONTRACT_HANDOFF_COMPLETED → CUSTOMER_ACCEPTED
+CONTRACT_HANDOFF_COMPLETED → CONTRACTING
+CONTRACT_HANDOFF_COMPLETED → CANCELLED
+CONTRACT_HANDOFF_COMPLETED → EXPIRED
 
 ARCHIVED → DRAFT
 ARCHIVED → SUBMITTED
-ARCHIVED → FUNDED
+ARCHIVED → CUSTOMER_ACCEPTED
+ARCHIVED → CONTRACTING
+ARCHIVED → CONTRACT_HANDOFF_COMPLETED
 ```
 
 Corrections to terminal or financially significant outcomes require a separate governed correction, dispute, resubmission, reversal, or unwind workflow.
@@ -2498,38 +2600,41 @@ Requires:
 
 Requires:
 
-- Valid selected offer.
-- Contract readiness.
-- Financial Contract creation workflow.
-- Required Human authority.
-- Idempotency protection.
-- Current selected terms.
+- Accepted Customer selection of one current Lender offer.
+- Exact selected Lender Decision and offer version.
+- Current Finance Application version.
+- Current Applicant and commercial snapshots.
+- Required contracting prerequisites.
+- No blocking expired Consent, document, verification, Decision, or offer.
+- Financial Contract creation or handoff request.
+- Stable idempotency key.
+- Required Human authority or approved workflow authority.
+- Frozen contracting-handoff snapshot.
+- Audit evidence.
 
-### Entering FUNDING_PENDING
+`CONTRACTING` means the governed Financial Contract handoff is in progress.
 
-Requires:
+It does not prove that a Financial Contract was created, signed, effective, activated, or funded.
 
-- Applicable signed Financial Contract.
-- Current Lender approval.
-- Funding readiness.
-- Eligible Deal and Vehicle.
-- Required Customer contribution.
-- Required Lender conditions.
-- Funding request Command.
-- Idempotency key.
-
-### Entering FUNDED
+### Entering CONTRACT_HANDOFF_COMPLETED
 
 Requires:
 
-- Authoritative funding Confirmation.
-- Confirmed amount.
-- Confirmed currency.
-- Funding timestamp.
-- Funding reference.
-- Deal and contract reconciliation.
-- No unresolved material shortfall.
-- No active funding reversal.
+- Financial Contract Domain Service accepted the contracting handoff.
+- Valid `financial_contract_id`.
+- Financial Contract record version.
+- Exact Finance Application version used.
+- Exact selected Lender Decision and offer version.
+- Matching Applicant, Customer, Opportunity, Quotation, Vehicle, and Deal references where applicable.
+- Financial Contract creation Event or equivalent accepted Confirmation.
+- Matching `tenant_id`.
+- Handoff snapshot hash.
+- Handoff completion timestamp.
+- Completed reconciliation.
+
+`CONTRACT_HANDOFF_COMPLETED` confirms only that the Financial Contract workflow accepted the handoff.
+
+Funding progress after handoff remains a read-only projection received from Financial Contract or the configured external funding authority.
 
 ### Entering DECLINED
 
@@ -2554,9 +2659,11 @@ Requires:
 
 Requires:
 
-- Applicable application, Consent, document, verification, Decision, offer, contracting, or funding validity period ended.
+- Applicable application, Consent, document, verification, Decision, offer, or contracting-handoff validity period ended.
 - No accepted progression before expiration.
 - Expiration reason and timestamp.
+
+A stale funding projection does not independently change the Finance Application to `EXPIRED`; it blocks dependent action until refreshed or reconciled.
 
 ### Entering CANCELLED
 
@@ -2565,46 +2672,69 @@ Requires:
 - Authorized cancellation Decision or policy.
 - Valid reason.
 - Review of active Lender submissions.
-- Review of contract and funding state.
+- Review of the Financial Contract handoff and projected downstream state.
 - Required Customer communication.
 - Audit evidence.
 
 ### Terminal States
 
-For ordinary processing:
+For ordinary Finance Application processing, terminal closure states are:
 
-- `FUNDED`
 - `DECLINED`
 - `WITHDRAWN`
 - `CANCELLED`
 - `ARCHIVED`
 
+`CONTRACT_HANDOFF_COMPLETED` is the successful Finance Application handoff outcome.
+
+It may proceed only through a governed dispute or archival workflow.
+
+It does not prove:
+
+- Financial Contract signature.
+- Financial Contract effectiveness or activation.
+- Funding.
+- Vehicle delivery.
+- Deal completion.
+
 `EXPIRED` may be reopened only through an approved revalidation or new-version workflow.
 
 ### Correction, Resubmission, and Reversal
 
-Correcting or reopening a material Finance Application outcome requires:
+Correcting, resubmitting, or reopening a material Finance Application outcome requires:
 
-- Authorized Human Decision.
-- Correction or reopening reason.
+- Authorized Human Decision or approved policy authority.
+- Correction, resubmission, or reopening reason.
 - Supporting evidence.
-- New application version where applicable.
-- New Lender submission where applicable.
-- Contract, Deal, and funding reconciliation.
-- New Events.
+- New immutable Finance Application version where material submitted data changed.
+- New Lender submission where required.
+- Revalidation of Consent, documents, verification, Quotation, selected offer, and Lender Decision.
+- Impact assessment for Financial Contract and Deal.
+- Reconciliation references from the owning domains.
+- New immutable Events.
 - Preserved original history.
 
-A funding reversal requires:
+A changed, failed, short-funded, or reversed funding outcome is not executed by the Finance Application Domain Service.
 
-- Authoritative reversal evidence.
-- Lender or banking reference.
-- Deal and accounting review.
-- Customer-impact review.
-- Reconciliation.
-- Human escalation.
-- New immutable Event.
+The Financial Contract Domain Service owns the governed funding-failure, shortfall, reversal, and reconciliation workflow.
 
-AI Agents must not independently reopen, correct, resubmit, or reverse finance outcomes.
+When such an outcome is observed, the Finance Application must:
+
+- Receive the authoritative Event or External Confirmation projection.
+- Preserve the Financial Contract and funding-authority references.
+- Update only its read-only funding projection.
+- Mark affected readiness or handoff assumptions as stale where applicable.
+- Evaluate whether re-underwriting, a new application version, dispute, or Customer communication is required.
+- Preserve the original application and Lender Decision history.
+
+The Finance Application must not:
+
+- Create or transmit a funding-reversal Command.
+- Alter the authoritative funding outcome.
+- Perform authoritative funding reconciliation.
+- Represent a projected reversal as locally decided or executed.
+
+AI Agents must not independently reopen, correct, resubmit, reverse, or reinterpret authoritative finance outcomes.
 
 ### Transition Evidence
 
@@ -2630,7 +2760,7 @@ Every material transition must preserve:
 - Related Command.
 - Related External Confirmation.
 
----
+Funding projection changes must preserve the owning source, source record identifier, source record version, observation time, and reconciliation reference.
 
 ## 7. Relationships
 
@@ -2679,7 +2809,8 @@ Every material transition must preserve:
 - Physical-stock finance applications may reference one Inventory Record.
 - Inventory Record owns availability, Reservation, Allocation, sale, and delivery context.
 - Finance approval does not reserve or allocate Inventory.
-- Stale Inventory context must be revalidated before contracting or funding where required.
+- Stale Inventory context must be revalidated before contracting handoff where required.
+- Finance Application does not own Inventory intake, activation, or stock-cycle state.
 
 ### Trade-In
 
@@ -2691,21 +2822,24 @@ Every material transition must preserve:
 ### Appointment
 
 - Finance consultations or document collection may be coordinated through Appointment.
-- Appointment completion does not prove application submission, approval, contract signature, or funding.
+- Appointment completion does not prove application submission, approval, contract signature, contract activation, funding, or Deal completion.
 
 ### Financial Contract
 
 - One Customer-selected Lender offer may create one or more governed Financial Contract versions.
-- Financial Contract owns contractual terms, signatures, activation, and voiding.
-- Finance Application stores only necessary projections and references.
-- Signed contract does not automatically prove funding.
+- Finance Application owns the governed handoff request and its acceptance tracking.
+- Financial Contract owns authoritative contractual terms, signatures, effectiveness, activation, voiding, termination, and funding orchestration.
+- Finance Application stores only necessary references and read-only contract and funding projections.
+- Handoff acceptance does not prove signature, effectiveness, activation, or funding.
+- A signed contract does not automatically prove funding.
 
 ### Deal
 
 - Finance Application may support one primary Deal.
-- Deal owns the governed automotive transaction.
+- Deal owns the governed automotive commercial transaction and its completion gates.
 - Deal must preserve the selected Lender Decision and Financial Contract references.
-- Finance Application `FUNDED` does not independently confirm Vehicle delivery.
+- Deal stores only the funding projection and blocking or reconciliation references needed for commercial completion.
+- Finance Application `CONTRACT_HANDOFF_COMPLETED` does not independently confirm funding, Vehicle delivery, or Deal completion.
 
 ### Interaction
 
@@ -2718,7 +2852,8 @@ Interactions may provide:
 - Customer selection.
 - Customer withdrawal.
 - Condition follow-up.
-- Funding communication.
+- Contracting-handoff communication.
+- Funding-status communication based on an authoritative projection.
 
 Original communication evidence remains governed by Interaction and its provider.
 
@@ -2733,7 +2868,10 @@ A Lender relationship must preserve:
 - Data-sharing scope.
 - Security requirements.
 - External references.
-- Decision and funding authority.
+- Decision authority.
+- Funding-authority relationship where applicable.
+
+Finance Application may submit governed credit requests to the Lender but must not assume ownership of the downstream Funding Command.
 
 ### Credit Bureau
 
@@ -2779,7 +2917,11 @@ Funding evidence may come from:
 - Accounting platform.
 - Another configured authoritative system.
 
-ASOS must preserve the source authority and External Confirmation.
+The Financial Contract Domain Service coordinates the governed funding workflow.
+
+Finance Application consumes only the minimum read-only projection required for application status, readiness impact, Customer communication, and audit.
+
+The projection must preserve source authority, source record identifier, source record version, External Confirmation, observation time, and reconciliation reference.
 
 ### Supporting Child Records
 
@@ -2796,19 +2938,19 @@ Finance Application may own or govern:
 - Affordability calculations.
 - Application versions.
 - Lender submissions.
-- Lender Decisions.
+- Lender Decision projections.
 - Underwriting conditions.
 - Offer presentations.
 - Customer selections.
 - Contracting handoffs.
-- Funding requirements.
-- Funding projections.
+- Funding-readiness assessments.
+- Read-only contract and funding projections.
 - Derived Intelligence.
 - Data-quality issues.
-- Reconciliation cases.
+- Finance Application reconciliation cases.
 - Audit records.
 
----
+Finance Application must not own funding Commands, funding transactions, authoritative funding Confirmations, or authoritative funding-reversal records.
 
 ## 8. Domain Events
 
@@ -2930,22 +3072,33 @@ The following are required Finance Application Event concepts and do not replace
 
 ### Contracting Event Concepts
 
-- Financial Contract creation requested.
-- Financial Contract created.
-- Financial Contract creation failed.
-- Financial Contract signature status updated.
-- Contract reconciliation required.
+- Financial Contract handoff requested.
+- Financial Contract handoff accepted.
+- Financial Contract handoff rejected.
+- Financial Contract reference received.
+- Financial Contract signature projection updated.
+- Contracting-handoff reconciliation required.
+
+Finance Application Domain Service publishes only the handoff workflow facts it owns.
+
+Financial Contract Domain Service publishes authoritative Financial Contract creation, signature, effectiveness, activation, voiding, and lifecycle facts.
 
 ### Funding Event Concepts
 
 - Funding readiness evaluated.
-- Funding request created.
-- Funding Command sent.
-- Partial funding confirmed.
-- Funding confirmed.
-- Funding failed.
-- Funding reversed.
-- Funding reconciliation required.
+- Funding readiness became stale.
+- Funding-status projection received.
+- Funding-status projection updated.
+- Funding shortfall projection observed.
+- Funding failure projection observed.
+- Funding reversal projection observed.
+- Funding projection reconciliation required.
+
+Finance Application Domain Service must not publish authoritative funding-requested, Funding Command-sent, funding-confirmed, funding-failed, funding-reversed, or funding-reconciled Events.
+
+Financial Contract Domain Service publishes governed funding-workflow facts.
+
+The configured Lender, bank, or funding authority remains authoritative for the external funding outcome.
 
 ### Closure Event Concepts
 
@@ -2983,15 +3136,16 @@ Derived Intelligence Events must not imply:
 
 ### Producer Rules
 
-- Finance Application Domain Service publishes accepted canonical and workflow-state changes.
+- Finance Application Domain Service publishes accepted Finance Application canonical and workflow-state changes.
 - Customer Domain Service publishes accepted Customer identity changes.
 - Quotation Domain Service publishes accepted Quotation facts.
 - Vehicle and Inventory Domain Services publish accepted Vehicle and Inventory facts.
 - Trade-In Domain Service publishes accepted Trade-In facts.
-- Financial Contract Domain Service publishes accepted contract facts.
-- Integration services publish normalized Lender, Bureau, banking, and provider observations.
+- Financial Contract Domain Service publishes authoritative contract and governed funding-workflow facts.
+- Integration services publish normalized Lender, Bureau, banking, and provider observations according to configured authority.
 - Lenders remain authoritative for underwriting Decisions.
 - Funding authorities remain authoritative for funding outcomes.
+- Finance Application may publish that an external contract or funding projection was received, changed, became stale, or required reconciliation.
 - AI Agents may publish Agent-run, extraction, analysis, prediction, or Recommendation Events.
 - AI Agents must not publish authoritative Consent, verification, Lender Decision, contract, funding, or external-completion Events merely because they predicted or recommended the result.
 
@@ -3031,7 +3185,7 @@ Every material Finance Application Event must preserve, where applicable:
 
 Events are immutable.
 
-Corrections, withdrawal, resubmission, expiration, Decision correction, funding reversal, and reopening must use new Events linked to prior Events.
+Corrections, withdrawal, resubmission, expiration, Decision correction, projected funding changes, and reopening must use new Events linked to prior Events. Authoritative funding reversal Events are produced by Financial Contract or the configured funding authority.
 
 The Event Backbone may deliver the same Event more than once.
 
@@ -3244,21 +3398,21 @@ The AI Agent must not approve its own automation authority.
 
 Binding or high-impact actions require an Authoritative Human Decision or External Authoritative Decision.
 
-Examples include:
+Examples inside the Finance Application boundary include:
 
 - Lender submission authorization.
 - Manual affordability exception.
 - Compliance clearance.
 - Customer offer presentation approval where required.
 - Customer-selected offer acceptance processing.
-- Financial Contract authorization.
-- Funding request.
-- Funding-shortfall resolution.
+- Financial Contract handoff authorization.
 - Application cancellation after approval.
 - Disputed Decision handling.
-- Funding reversal handling.
+- Reopening or materially correcting a Finance Application.
 
-A dealership Human Decision cannot replace the Lender’s authoritative underwriting Decision.
+Funding-request authorization, funding-shortfall resolution, and funding-reversal handling belong to Financial Contract and the configured funding authority.
+
+A dealership Human Decision cannot replace the Lender’s authoritative underwriting Decision or the funding authority’s authoritative outcome.
 
 ### Fairness and Responsible AI
 
@@ -3378,9 +3532,8 @@ POST   /api/v1/finance-applications/{finance_application_id}/customer-selection-
 POST   /api/v1/finance-applications/{finance_application_id}/withdrawal-requests
 POST   /api/v1/finance-applications/{finance_application_id}/cancellation-requests
 
-POST   /api/v1/finance-applications/{finance_application_id}/contract-creation-requests
+POST   /api/v1/finance-applications/{finance_application_id}/contract-handoff-requests
 POST   /api/v1/finance-applications/{finance_application_id}/funding-readiness-checks
-POST   /api/v1/finance-applications/{finance_application_id}/funding-requests
 POST   /api/v1/finance-applications/{finance_application_id}/dispute-requests
 POST   /api/v1/finance-applications/{finance_application_id}/correction-requests
 POST   /api/v1/finance-applications/{finance_application_id}/reopen-requests
@@ -3391,10 +3544,15 @@ GET    /api/v1/finance-applications/{finance_application_id}/document-status
 GET    /api/v1/finance-applications/{finance_application_id}/verification-history
 GET    /api/v1/finance-applications/{finance_application_id}/lender-submissions
 GET    /api/v1/finance-applications/{finance_application_id}/lender-decisions
-GET    /api/v1/finance-applications/{finance_application_id}/funding-history
+GET    /api/v1/finance-applications/{finance_application_id}/contract-handoff
+GET    /api/v1/finance-applications/{finance_application_id}/funding-projection
 GET    /api/v1/finance-applications/{finance_application_id}/history
 GET    /api/v1/finance-applications/{finance_application_id}/reconciliation
 ```
+
+Finance Application APIs must not expose a funding-request mutation.
+
+Authoritative funding-request operations belong to the Financial Contract API boundary.
 
 ### Tenant Context
 
@@ -3452,7 +3610,7 @@ Idempotency-Key: 358ca7da-4ea2-4da8-9c10-1479dbe2fb1e
   "current_application_version": 1,
   "document_completion_status": "NOT_STARTED",
   "affordability_status": "NOT_ASSESSED",
-  "funding_status": "NOT_STARTED",
+  "funding_status_projection": "NOT_STARTED",
   "data_quality_status": "INCOMPLETE",
   "record_version": 1,
   "created_at": "2026-08-01T19:30:00Z"
@@ -3577,63 +3735,59 @@ The API must not describe the submission as received by the Lender until authori
 }
 ```
 
-### Example Contract-Creation Response
+### Example Contract-Handoff Response
 
 ```json
 {
   "finance_application_id": "9d2ad54a-d4af-45c9-a152-b4f64dcfd233",
   "status": "CONTRACTING",
-  "contract_preparation_status": "PENDING_EXTERNAL_CONFIRMATION",
+  "contract_handoff_status": "PENDING_CONFIRMATION",
   "financial_contract_id": "31174606-d6ec-45d4-a4a1-30213fd5daa6",
   "command_id": "cd74caa5-2c6c-4a33-90c7-fd74f20b6550",
   "record_version": 16
 }
 ```
 
-The API must not claim that the contract is signed.
+The API must not claim that the Financial Contract is signed, effective, activated, or funded.
 
-### Example Funding Request
+### Example Contract-Handoff Completion Projection
 
 ```json
 {
-  "deal_id": "9ea6b018-8ad8-40fb-9148-48cd8a17f2b3",
+  "finance_application_id": "9d2ad54a-d4af-45c9-a152-b4f64dcfd233",
+  "status": "CONTRACT_HANDOFF_COMPLETED",
+  "contract_handoff_status": "ACCEPTED",
   "financial_contract_id": "31174606-d6ec-45d4-a4a1-30213fd5daa6",
-  "lender_decision_id": "c82a9da1-80e7-4464-8610-c77831acb0de",
-  "funding_amount_requested": 1650000,
-  "currency_code": "EGP",
-  "expected_record_version": 18
+  "financial_contract_record_version_projection": 4,
+  "contract_handoff_completed_at": "2026-08-10T14:15:00Z",
+  "record_version": 18
 }
 ```
 
-The request must use an idempotency key.
-
-A pending response may be:
+### Example Funding Projection
 
 ```json
 {
   "finance_application_id": "9d2ad54a-d4af-45c9-a152-b4f64dcfd233",
-  "status": "FUNDING_PENDING",
-  "funding_status": "PENDING_CONFIRMATION",
-  "command_id": "506c091f-b925-4bb3-9189-d34e0937c985",
-  "record_version": 19
-}
-```
-
-A confirmed response may be:
-
-```json
-{
-  "finance_application_id": "9d2ad54a-d4af-45c9-a152-b4f64dcfd233",
-  "status": "FUNDED",
-  "funding_status": "FUNDED",
-  "funded_amount": 1650000,
-  "funding_currency_code": "EGP",
-  "funding_received_at": "2026-08-12T10:30:00Z",
-  "funding_confirmation_status": "RECEIVED",
-  "funding_reconciliation_status": "RESOLVED",
+  "financial_contract_id": "31174606-d6ec-45d4-a4a1-30213fd5daa6",
+  "funding_status_projection": "CONFIRMED",
+  "confirmed_funding_amount_projection": 1650000,
+  "funding_currency_code_projection": "EGP",
+  "funding_confirmed_at_projection": "2026-08-12T10:30:00Z",
+  "funding_confirmation_status_projection": "RECEIVED",
+  "funding_confirmation_reference": "confirmation://funding/4f8a91c7",
+  "funding_reconciliation_status_projection": "RESOLVED",
+  "funding_projection_source": "FINANCIAL_CONTRACT",
+  "funding_projection_source_record_id": "31174606-d6ec-45d4-a4a1-30213fd5daa6",
+  "funding_projection_source_record_version": 9,
+  "funding_projection_observed_at": "2026-08-12T10:31:20Z",
   "record_version": 22
 }
 ```
+
+The funding projection is read-only.
+
+Finance Application must not accept a client mutation that creates, retries, reverses, or reconciles a Funding Command.
 
 ### Mutation Requirements
 
@@ -3670,7 +3824,7 @@ A stale version must return a conflict response.
 
 ### Idempotency
 
-Retryable operations must support:
+Retryable operations owned by Finance Application must support:
 
 ```text
 Idempotency-Key
@@ -3684,9 +3838,9 @@ The same key and request intent must not create duplicate:
 - Bureau requests.
 - Lender submissions.
 - Customer selections.
-- Financial Contracts.
-- Funding requests.
-- Funding transactions.
+- Financial Contract handoffs.
+
+Funding-request and funding-transaction idempotency belong to Financial Contract Domain Service and the configured external funding authority.
 
 ### Pending External Confirmation
 
@@ -3739,8 +3893,9 @@ The API must distinguish at least:
 - `CUSTOMER_SELECTION_INVALID`
 - `CONTRACT_NOT_READY`
 - `CONTRACT_NOT_SIGNED`
-- `FUNDING_NOT_READY`
-- `FUNDING_SHORTFALL`
+- `FUNDING_READINESS_BLOCKED`
+- `FUNDING_PROJECTION_STALE`
+- `FUNDING_PROJECTION_CONFLICT`
 - `HUMAN_APPROVAL_REQUIRED`
 - `EXTERNAL_CONFIRMATION_PENDING`
 - `INVALID_LIFECYCLE_TRANSITION`
@@ -3797,9 +3952,8 @@ finance_underwriting_conditions
 finance_offer_presentations
 finance_customer_selections
 finance_contract_handoffs
-finance_funding_requirements
-finance_funding_requests
-finance_funding_confirmations
+finance_funding_readiness_assessments
+finance_funding_projections
 finance_external_references
 finance_external_confirmations
 finance_derived_intelligence
@@ -3809,6 +3963,8 @@ finance_status_history
 finance_record_versions
 finance_audit_log
 ```
+
+Authoritative funding Commands, requests, transactions, Confirmations, reversals, and reconciliation records must be stored under the Financial Contract or configured external funding boundary.
 
 ### Finance Applications Table
 
@@ -3825,7 +3981,7 @@ The `finance_applications` table should contain:
 - Current Lender-submission projection.
 - Current selected Lender Decision.
 - Current Customer selection.
-- Current contract and funding projections.
+- Current contract-handoff and read-only funding projections.
 - Data-quality and conflict state.
 - Source and synchronization state.
 - Record version.
@@ -3887,8 +4043,8 @@ idx_finance_applications_submission_status
 idx_finance_applications_decision_expiry
   (tenant_id, decision_valid_until)
 
-idx_finance_applications_funding
-  (tenant_id, funding_status)
+idx_finance_applications_funding_projection
+  (tenant_id, funding_status_projection, funding_projection_freshness_status)
 
 idx_finance_applications_reconciliation
   (tenant_id, reconciliation_status)
@@ -4186,43 +4342,70 @@ Corrections require a new Decision record linked to the original.
 - Finance Application.
 - Selected Lender Decision.
 - Customer-selected offer.
-- Financial Contract.
+- Financial Contract reference.
 - Requested by.
-- Human Decision.
-- Command.
-- Idempotency key.
-- External Confirmation.
+- Human Decision or approved workflow authority.
+- Handoff Command.
+- Handoff idempotency key.
+- Handoff snapshot and hash.
+- Acceptance or rejection Confirmation.
+- Source record version.
 - Status.
 - Failure reason.
+- Reconciliation state.
 - Related Events.
 
-### Funding Storage
+This table must not store authoritative Financial Contract lifecycle or Funding Command state.
 
-`finance_funding_requests` and `finance_funding_confirmations` should preserve:
+### Funding Projection Storage
 
-- Funding identifier.
+`finance_funding_readiness_assessments` should preserve:
+
+- Assessment identifier.
 - Finance Application.
-- Lender Decision.
-- Financial Contract.
-- Deal.
-- Requested amount.
-- Currency.
-- Funding requirements.
-- Command.
-- Idempotency key.
-- Requested time.
-- Confirmed amount.
-- Confirmed time.
-- External authority.
-- External Confirmation.
-- Shortfall.
-- Reversal.
-- Reconciliation.
+- Selected Lender Decision.
+- Financial Contract handoff reference where available.
+- Requirement snapshot.
+- Blocking reasons.
+- Readiness result.
+- Assessment rule versions.
+- Snapshot hash.
+- Evaluated time.
+- Expiration or staleness time.
 - Related Events.
+
+`finance_funding_projections` should preserve only:
+
+- Projection identifier.
+- Finance Application.
+- Financial Contract reference.
+- Deal reference where applicable.
+- Funding authority reference.
+- Observed funding status.
+- Observed confirmed amount and currency.
+- Observed Confirmation reference.
+- Observed shortfall, failure, reversal, and reconciliation status.
+- Source system.
+- Source record identifier.
+- Source record version.
+- Observation timestamp.
+- Last synchronization timestamp.
+- Freshness status.
+- Projection conflict state.
+- Related Events.
+
+`finance_funding_projections` must not store or own:
+
+- Funding Command.
+- Funding idempotency key.
+- Authoritative funding request.
+- Authoritative funding transaction.
+- Authoritative funding reversal.
+- Authoritative funding reconciliation decision.
 
 ### Derived Intelligence
 
-Derived Finance records must remain separate from authoritative Applicant, Bureau, Lender Decision, contract, and funding data.
+Derived Finance records must remain separate from authoritative Applicant, Bureau, Lender Decision, Financial Contract, and funding data.
 
 Each derived record should preserve:
 
@@ -4281,7 +4464,7 @@ A Finance Application must not be hard-deleted when referenced by:
 - Trade-In.
 - Deal.
 - Financial Contract.
-- Payment or funding.
+- Payment, Financial Contract, or funding projection.
 - Lender submission.
 - Credit-bureau request.
 - Consent evidence.
@@ -4387,14 +4570,14 @@ May perform permitted:
 - Lender submission preparation.
 - Offer presentation.
 - Contracting handoff.
-- Funding coordination.
+- Funding-readiness coordination and authoritative funding-status communication.
 
 Finance Specialist access does not authorize:
 
 - Altering Lender Decisions.
 - Fabricating Consent.
 - Bypassing compliance.
-- Confirming funding without evidence.
+- Representing a funding projection as locally confirmed or authoritative.
 - Cross-Tenant access.
 
 #### Finance Manager
@@ -4405,9 +4588,9 @@ May perform configured:
 - Exception review.
 - Applicant-structure review.
 - Lender-path review.
-- Funding-shortfall review.
+- Funding-projection conflict or shortfall escalation.
 - Dispute escalation.
-- Reconciliation approval.
+- Finance Application reconciliation approval.
 
 Manager access does not authorize:
 
@@ -4415,7 +4598,7 @@ Manager access does not authorize:
 - Consent override.
 - Credit-report alteration.
 - Contract signature.
-- False funding Confirmation.
+- False or locally fabricated funding Confirmation.
 
 #### Compliance or Legal Reviewer
 
@@ -4467,7 +4650,7 @@ AI access must be:
 
 #### Integration Service
 
-May access only fields required for an approved Lender, Bureau, verification, document, contract, or funding integration.
+May access only fields required for an approved Lender, Bureau, verification, document, contract-handoff, or funding-projection integration.
 
 Integration services must not access unrelated Applicant data.
 
@@ -4613,7 +4796,7 @@ Every query and Event Consumer must validate `tenant_id`.
 
 ### Command Security
 
-Outbound Finance Commands must include:
+Outbound Finance Application Commands must include:
 
 - Authenticated service identity.
 - `tenant_id`.
@@ -4629,6 +4812,10 @@ Outbound Finance Commands must include:
 - Idempotency key.
 - Audit evidence.
 - External Confirmation requirement.
+
+Finance Application Commands may cover its own bureau, verification, Lender-submission, communication, and Financial Contract-handoff workflows.
+
+Finance Application Domain Service must not create or transmit Funding Commands.
 
 The AI Intelligence Layer must not transmit external Commands directly.
 
@@ -4682,9 +4869,10 @@ ASOS must detect and record:
 - Lender Decision modification attempt.
 - Unauthorized offer presentation.
 - False Customer selection.
-- Contract-status manipulation.
-- False funding Confirmation.
-- Funding Command replay.
+- Contract-handoff or contract-status manipulation.
+- False or locally fabricated funding Confirmation.
+- Attempted Funding Command creation through the Finance Application boundary.
+- Funding-projection source or version mismatch.
 - External Confirmation mismatch.
 - AI access outside approved scope.
 - Prompt-injection attempts inside uploaded documents.
@@ -4779,8 +4967,8 @@ The platform must support immediate Tenant-scoped suspension of:
 - Applicant communications.
 - Document requests.
 - Electronic-signature requests.
-- Contract creation.
-- Funding requests.
+- Financial Contract handoff.
+- Funding-projection ingestion and synchronization.
 - External write-back.
 - AI finance analysis.
 - Finance data export.
@@ -4818,9 +5006,15 @@ Lender Decisions remain externally authoritative and must not be altered by ASOS
 
 Customer selection of a finance offer does not create a signed Financial Contract.
 
-Finance approval does not prove funding.
+Finance Application owns credit-request workflow, readiness assessment, and the governed Financial Contract handoff.
 
-A funding request does not prove that funds were received.
+Financial Contract owns authoritative contract lifecycle and the governed funding-request, shortfall, reversal, and reconciliation workflow.
+
+The configured Lender, bank, or funding authority owns the authoritative funding outcome.
+
+Finance Application stores only read-only funding projections after handoff and must not create or transmit Funding Commands.
+
+`CONTRACT_HANDOFF_COMPLETED` confirms only that Financial Contract accepted the handoff; it does not prove signature, activation, funding, Vehicle delivery, or Deal completion.
 
 Detailed Event names and Schemas will be governed by the Canonical Event Catalog.
 
