@@ -4,7 +4,7 @@
 **Status:** Approved Baseline  
 **Canonical Owner:** Deal Domain Service  
 **Primary Isolation Boundary:** `tenant_id`  
-**Last Updated:** 2026-08-01  
+**Last Updated:** 2026-08-02  
 
 ---
 
@@ -19,7 +19,7 @@ A Deal normally begins after:
 - A valid Customer and Opportunity exist.
 - The Customer has made a verifiable commercial commitment.
 - An accepted Quotation or another approved commercial basis exists.
-- The dealership has accepted the transaction for execution.
+- The dealership has accepted the transaction for controlled execution.
 - The Vehicle or approved Vehicle configuration is identified.
 - Applicable commercial approvals are valid.
 - No blocking legal, compliance, Inventory, identity, or authority conflict exists.
@@ -34,7 +34,7 @@ The Deal coordinates the governed transaction across:
 - Finance Application integration.
 - Financial Contract integration.
 - Customer Payment requirements.
-- Lender funding requirements.
+- Read-only Lender-funding projections and completion blockers.
 - Compliance and document requirements.
 - Vehicle registration and title requirements.
 - Insurance requirements.
@@ -42,6 +42,7 @@ The Deal coordinates the governed transaction across:
 - Vehicle handover.
 - Accounting and DMS posting.
 - Sale Confirmation.
+- Completion evaluation.
 - Cancellation.
 - Unwind.
 - Replacement Deal.
@@ -53,13 +54,15 @@ The Deal is the central automotive transaction aggregate.
 
 It owns:
 
-- The canonical transaction identity.
-- The exact accepted commercial basis.
-- The transaction participants.
-- The transaction execution workflow.
+- Canonical transaction identity.
+- Exact accepted commercial basis.
+- Transaction participants.
+- Transaction execution workflow.
 - Completion-condition orchestration.
-- Transaction-level approval state.
-- Transaction-level readiness state.
+- Deal-level approval state.
+- Deal-level readiness state.
+- Deal-level funding requirement and completion blocker.
+- Read-only funding projection required for execution and completion.
 - Cancellation and unwind coordination.
 - Final transaction outcome projection.
 - References to authoritative child workflows.
@@ -72,13 +75,20 @@ The Deal does not independently own authoritative:
 - Inventory availability.
 - Vehicle Reservation.
 - Vehicle Allocation.
+- Inventory Record creation or activation.
 - Quotation terms.
 - Trade-In appraisal.
+- Trade-In acquisition.
 - Lender underwriting Decision.
+- Finance Application lifecycle.
 - Financial Contract terms.
 - Contract signature.
+- Contract effectiveness or activation.
+- Funding Command creation.
+- Funding-request idempotency.
+- Funding-request transmission.
+- Lender or bank funding outcome.
 - Customer Payment settlement.
-- Lender funding.
 - Registration.
 - Insurance.
 - Vehicle delivery.
@@ -86,6 +96,33 @@ The Deal does not independently own authoritative:
 - Revenue recognition.
 
 Those facts belong to their responsible Domain Services or configured authoritative external systems.
+
+### Canonical Ownership Separation
+
+```text
+Finance Application
+  = Applicant information, Consent, verification, Lender submissions,
+    underwriting Decisions, selected offer, funding readiness,
+    and governed Financial Contract handoff
+
+Financial Contract
+  = authoritative contractual terms, signature workflow,
+    effectiveness, funding-request orchestration,
+    External Confirmation tracking, reconciliation, and activation
+
+Deal
+  = governed automotive commercial transaction,
+    transaction execution, completion gates,
+    and non-owning funding projection
+
+Payment
+  = Customer or third-party payment transaction and settlement evidence
+
+External Lender or Funding Authority
+  = authoritative credit Decision and funding outcome
+```
+
+The Deal must not recreate a workflow owned by Finance Application, Financial Contract, Payment, Inventory, Trade-In, Delivery, Registration, or Accounting.
 
 ### Deal and Opportunity Separation
 
@@ -152,11 +189,12 @@ The Deal must not silently modify the accepted Quotation.
 
 A material commercial change after Deal creation may require:
 
-- A new Quotation version.
+- New Quotation version.
 - Customer reconfirmation.
 - New approval.
 - Finance re-underwriting.
-- Financial Contract regeneration.
+- New Finance Application version.
+- Financial Contract regeneration or amendment.
 - Deal amendment.
 - Deal cancellation and replacement.
 
@@ -190,22 +228,24 @@ Delivery preparation
   ≠ Vehicle delivered
 ```
 
-A Deal must not directly overwrite authoritative Inventory availability.
+A Deal must not directly overwrite authoritative Inventory availability or stock-cycle state.
 
 ### Deal and Trade-In Separation
 
-The Trade-In Domain owns:
+The Trade-In Domain Service owns:
 
 - Trade-In Vehicle identity resolution.
 - Ownership verification.
 - Inspection.
 - Appraisal.
 - Actual cash value.
-- Customer allowance.
-- Lien and payoff.
-- Equity.
-- Acquisition.
-- Inventory intake.
+- Customer allowance support.
+- Lien and payoff workflow.
+- Equity calculation context.
+- Acquisition workflow.
+- Inventory-intake request and Confirmation tracking.
+
+The Inventory Domain Service owns authoritative Inventory Record creation, activation, and stock-cycle state after valid acquisition.
 
 The Deal preserves the exact accepted Trade-In and appraisal versions used in the transaction.
 
@@ -215,10 +255,11 @@ A Trade-In offer accepted by the Customer does not independently complete:
 - Payoff settlement.
 - Trade-In acquisition.
 - Inventory intake.
+- Inventory Record creation or activation.
 
 ### Deal and Finance Application Separation
 
-The Finance Application owns:
+The Finance Application Domain Service owns:
 
 - Applicants.
 - Finance Consent.
@@ -227,15 +268,32 @@ The Finance Application owns:
 - Lender submissions.
 - Lender Decisions.
 - Customer-selected finance offer.
-- Funding readiness.
+- Contract-readiness assessment.
+- Funding-readiness assessment.
+- Governed Financial Contract handoff.
+- Read-only contract and funding projections after handoff.
 
-The Deal may project the finance status required for transaction execution.
+The Deal may preserve:
 
-The Deal must not alter a Lender Decision or represent a pending application as approved.
+- Finance Application reference.
+- Exact application version.
+- Selected Lender Decision reference and version.
+- Funding-readiness projection.
+- Finance-related completion blockers.
+- Staleness and reconciliation references.
+
+The Deal must not:
+
+- Alter a Lender Decision.
+- Represent a pending application as approved.
+- Treat prequalification as approval.
+- Create a Funding Command.
+- Own funding-request idempotency.
+- Publish authoritative funding outcomes.
 
 ### Deal and Financial Contract Separation
 
-The Financial Contract owns:
+The Financial Contract Domain Service owns:
 
 - Contract terms.
 - Contract versions.
@@ -243,15 +301,23 @@ The Financial Contract owns:
 - Signatories.
 - Signature evidence.
 - Contract effectiveness.
+- Funding-request workflow.
+- Funding Command creation and transmission.
+- Funding idempotency.
+- External funding Confirmation tracking.
+- Partial-funding and shortfall workflow.
+- Funding failure, reversal, and reconciliation.
 - Contract activation.
 - Amendments.
 - Termination.
 - Settlement projections.
 
+The Deal consumes authoritative Financial Contract facts and stores only the projections required for transaction execution and completion.
+
 The Deal must distinguish:
 
 ```text
-Contract preparation requested
+Contract handoff accepted
   ≠ Contract created
 
 Contract created
@@ -261,7 +327,16 @@ Contract fully signed
   ≠ Contract effective
 
 Contract effective
+  ≠ Funding requested
+
+Funding requested
   ≠ Lender funded
+
+Lender funded
+  ≠ Contract activated
+
+Contract activated
+  ≠ Deal completed
 ```
 
 ### Deal and Payment Separation
@@ -278,7 +353,7 @@ A Payment Object or configured Payment authority owns:
 - Chargeback.
 - Reconciliation.
 
-The Deal may maintain authoritative projections and references.
+The Deal owns Payment requirements and stores read-only Payment projections and references.
 
 The Deal must distinguish:
 
@@ -292,34 +367,50 @@ Payment requested
 Payment authorized
   ≠ Payment cleared
 
-Payment received projection
+Payment cleared
   ≠ Payment reconciled
 ```
 
-Only cleared and applicable funds may satisfy a Deal Payment requirement.
+Only cleared, applicable, and reconciled funds may satisfy a configured Deal Payment requirement.
 
 ### Deal and Funding Separation
 
-Lender approval does not prove funding.
+Finance approval and funding readiness do not prove funding.
 
-A funding request does not prove that funds were received.
+The Financial Contract Domain Service is the sole canonical owner of the funding-request mutation after a valid and effective Financial Contract exists.
 
-Funding remains authoritative to:
+The configured Lender, bank, or funding authority owns the authoritative funding outcome.
 
-- Lender.
-- Bank.
-- F&I platform.
-- DMS.
-- Accounting platform.
-- Another configured funding authority.
+The Deal Domain Service owns only:
 
-The Deal may become funding-ready before funding is confirmed.
+- Whether external funding is required for this transaction.
+- The funding amount required by the accepted transaction.
+- Read-only funding-status projection.
+- Confirmed amount projection.
+- Shortfall calculation.
+- Funding-related delivery and completion blockers.
+- Funding Confirmation references.
+- Reconciliation and freshness indicators.
+- Unwind triggers when a previously confirmed outcome is reversed.
+
+The Deal must not:
+
+- Create or transmit a Funding Command.
+- Own a funding idempotency key.
+- Expose a funding-request mutation.
+- Publish authoritative funding-requested, funding-confirmed, funding-failed, or funding-reversed Events.
+- Treat an API response, transport acknowledgement, provider receipt, or Payment instruction as proof of funding.
+- Alter or reinterpret the authoritative external outcome.
+
+The Deal may become transaction-ready for funding before funding is requested.
+
+The Deal may become delivery-ready only when its configured funding requirement is satisfied by current authoritative evidence.
 
 ### Deal and Delivery Separation
 
 The Deal coordinates delivery readiness.
 
-The authoritative delivery workflow owns:
+The authoritative Delivery workflow owns:
 
 - Delivery Appointment.
 - Vehicle release authorization.
@@ -331,6 +422,7 @@ The authoritative delivery workflow owns:
 - Customer acceptance.
 - Delivery timestamp.
 - Delivery evidence.
+- Delivery Confirmation.
 
 The Deal must distinguish:
 
@@ -381,7 +473,7 @@ The snapshot may include:
 - Inventory Record.
 - Quotation.
 - Trade-In.
-- Finance.
+- Finance Application.
 - Financial Contract.
 - Prices.
 - Discounts.
@@ -390,7 +482,7 @@ The snapshot may include:
 - Fees.
 - Optional products.
 - Customer contribution.
-- Funding.
+- Funding requirement and projection.
 - Approvals.
 - Delivery conditions.
 - Completion requirements.
@@ -409,7 +501,6 @@ The Deal Object provides canonical transaction context to:
 - Finance Application workflows.
 - Financial Contract workflows.
 - Payment workflows.
-- Funding workflows.
 - Compliance workflows.
 - Registration workflows.
 - Insurance workflows.
@@ -437,12 +528,16 @@ The Deal may contain:
 | Opportunity outcome | Opportunity Domain Service |
 | Accepted Quotation | Quotation Domain Service |
 | Vehicle identity | Vehicle Domain Service |
-| Inventory availability, Reservation, and Allocation | Inventory Domain Service or configured external authority |
-| Trade-In appraisal and acquisition | Trade-In Domain Service |
+| Inventory availability, Reservation, Allocation, and stock-cycle state | Inventory Domain Service or configured external authority |
+| Trade-In appraisal and acquisition workflow | Trade-In Domain Service |
+| Inventory Record creation after Trade-In acquisition | Inventory Domain Service |
 | Lender Decision | Lender through Finance Application |
-| Financial Contract and signature | Financial Contract Domain Service and signature authority |
+| Finance Application workflow and Financial Contract handoff | Finance Application Domain Service |
+| Financial Contract, signature, funding workflow, and activation | Financial Contract Domain Service |
+| Funding Command creation and idempotency | Financial Contract Domain Service |
+| Authoritative Lender funding outcome | Lender, bank, or configured funding authority |
+| Deal funding requirement, blocker, and non-owning projection | Deal Domain Service |
 | Customer Payment settlement | Payment or banking authority |
-| Lender funding | Lender, bank, or funding authority |
 | Insurance verification | Approved insurance authority |
 | Registration and title outcome | Government, DMS, or registration authority |
 | Delivery outcome | Delivery workflow or configured external authority |
@@ -498,7 +593,7 @@ All organizational identifiers must belong to the authenticated Tenant.
 - `delivery_appointment_id`.
 - `primary_interaction_id`.
 - `payment_references`.
-- `funding_reference`.
+- `funding_confirmation_reference`.
 - `delivery_reference`.
 - `accounting_reference`.
 - `compliance_case_id`.
@@ -580,7 +675,7 @@ The snapshot preserves transaction context and does not replace Customer authori
 - `vehicle_location_projection`.
 - `vehicle_readiness_projection`.
 
-### Reservation
+### Reservation Projection
 
 - `reservation_required`.
 - `reservation_status`.
@@ -596,7 +691,11 @@ The snapshot preserves transaction context and does not replace Customer authori
 - `reservation_release_reference`.
 - `reservation_reconciliation_status`.
 
-### Allocation
+Reservation Commands may be orchestrated by the Deal only when the configured Inventory contract delegates that request to Deal.
+
+The Inventory Domain Service remains authoritative for the outcome.
+
+### Allocation Projection
 
 - `allocation_required`.
 - `allocation_status`.
@@ -656,12 +755,16 @@ The snapshot preserves transaction context and does not replace Customer authori
 - `trade_in_acquisition_status`.
 - `trade_in_payoff_status`.
 - `trade_in_ownership_transfer_status`.
+- `trade_in_inventory_intake_status_projection`.
+- `trade_in_inventory_record_id_projection`.
 
 ### Finance Snapshot
 
 - `finance_required`.
 - `finance_application_id`.
 - `finance_application_version`.
+- `finance_application_status_projection`.
+- `contract_handoff_status_projection`.
 - `selected_lender_submission_id`.
 - `selected_lender_decision_id`.
 - `selected_lender_decision_version`.
@@ -678,6 +781,7 @@ The snapshot preserves transaction context and does not replace Customer authori
 - `approved_periodic_payment_amount`.
 - `approved_balloon_payment_amount`.
 - `finance_conditions_status`.
+- `finance_funding_readiness_projection`.
 - `finance_snapshot`.
 - `finance_snapshot_hash`.
 
@@ -686,15 +790,18 @@ The snapshot preserves transaction context and does not replace Customer authori
 - `financial_contract_required`.
 - `financial_contract_id`.
 - `financial_contract_version`.
-- `financial_contract_status`.
-- `contract_signature_status`.
-- `contract_effectiveness_status`.
-- `contract_activation_status`.
-- `contract_signed_at`.
-- `contract_effective_at`.
-- `contract_activated_at`.
+- `financial_contract_status_projection`.
+- `contract_signature_status_projection`.
+- `contract_effectiveness_status_projection`.
+- `contract_activation_status_projection`.
+- `contract_signed_at_projection`.
+- `contract_effective_at_projection`.
+- `contract_activated_at_projection`.
 - `signed_contract_document_hash`.
-- `contract_reconciliation_status`.
+- `contract_projection_source_record_version`.
+- `contract_projection_observed_at`.
+- `contract_projection_freshness_status`.
+- `contract_reconciliation_status_projection`.
 
 ### Payment Requirements
 
@@ -713,41 +820,59 @@ The snapshot preserves transaction context and does not replace Customer authori
 
 ### Payment Projections
 
-- `payment_status`.
-- `deposit_status`.
-- `down_payment_status`.
-- `customer_payment_status`.
-- `total_payment_authorized_amount`.
-- `total_payment_captured_amount`.
-- `total_payment_cleared_amount`.
-- `total_payment_refunded_amount`.
-- `total_payment_reversed_amount`.
-- `total_payment_chargeback_amount`.
-- `net_customer_payment_amount`.
+- `payment_status_projection`.
+- `deposit_status_projection`.
+- `down_payment_status_projection`.
+- `customer_payment_status_projection`.
+- `total_payment_authorized_amount_projection`.
+- `total_payment_captured_amount_projection`.
+- `total_payment_cleared_amount_projection`.
+- `total_payment_refunded_amount_projection`.
+- `total_payment_reversed_amount_projection`.
+- `total_payment_chargeback_amount_projection`.
+- `net_customer_payment_amount_projection`.
 - `payment_shortfall_amount`.
-- `last_payment_confirmed_at`.
-- `payment_reconciliation_status`.
+- `last_payment_confirmed_at_projection`.
+- `payment_reconciliation_status_projection`.
+- `payment_projection_source_record_version`.
+- `payment_projection_observed_at`.
+- `payment_projection_freshness_status`.
 - `payment_references`.
 
-### Funding Requirements and Projection
+### Funding Requirement and Read-Only Projection
 
 - `funding_required`.
-- `funding_readiness_status`.
-- `funding_status`.
 - `funding_amount_required`.
-- `funding_amount_requested`.
-- `funded_amount`.
 - `funding_currency_code`.
+- `funding_requirement_source`.
+- `funding_requirement_source_record_version`.
+- `funding_requirement_evaluated_at`.
+- `funding_completion_block_status`.
+- `funding_completion_block_reasons`.
+- `funding_status_projection`.
+- `confirmed_funding_amount_projection`.
 - `funding_shortfall_amount`.
-- `funding_requested_at`.
-- `funding_received_at`.
-- `funding_reference`.
-- `funding_command_id`.
-- `funding_idempotency_key`.
-- `funding_confirmation_status`.
+- `funding_authority_reference`.
+- `funding_confirmation_status_projection`.
 - `funding_confirmation_reference`.
-- `funding_reversal_status`.
-- `funding_reconciliation_status`.
+- `funding_confirmed_at_projection`.
+- `funding_reversal_status_projection`.
+- `funding_reversal_reference`.
+- `funding_reconciliation_status_projection`.
+- `funding_projection_source`.
+- `funding_projection_source_record_id`.
+- `funding_projection_source_record_version`.
+- `funding_projection_observed_at`.
+- `funding_projection_last_synced_at`.
+- `funding_projection_freshness_status`.
+
+The Deal must not store or own:
+
+- Funding Command identifiers.
+- Funding-request idempotency keys.
+- Funding Command execution state.
+- Authoritative funding transaction state.
+- A locally decided funding outcome.
 
 ### Approval Context
 
@@ -845,32 +970,34 @@ The snapshot preserves transaction context and does not replace Customer authori
 
 ### Delivery Projection
 
-- `delivery_status`.
+- `delivery_status_projection`.
 - `delivery_reference`.
 - `delivery_appointment_id`.
-- `delivery_scheduled_at`.
-- `delivery_started_at`.
-- `vehicle_handover_at`.
-- `delivery_confirmed_at`.
-- `delivery_confirmation_status`.
+- `delivery_scheduled_at_projection`.
+- `delivery_started_at_projection`.
+- `vehicle_handover_at_projection`.
+- `delivery_confirmed_at_projection`.
+- `delivery_confirmation_status_projection`.
 - `delivery_evidence_references`.
-- `delivery_reconciliation_status`.
+- `delivery_reconciliation_status_projection`.
+- `delivery_projection_source_record_version`.
+- `delivery_projection_freshness_status`.
 
 ### Sale and Accounting Projection
 
-- `sale_posting_status`.
+- `sale_posting_status_projection`.
 - `sale_posting_reference`.
 - `sale_posting_requested_at`.
-- `sale_posting_confirmed_at`.
-- `sale_confirmation_status`.
-- `accounting_handoff_status`.
+- `sale_posting_confirmed_at_projection`.
+- `sale_confirmation_status_projection`.
+- `accounting_handoff_status_projection`.
 - `accounting_reference`.
-- `accounting_confirmation_status`.
+- `accounting_confirmation_status_projection`.
 - `accounting_period_reference`.
-- `revenue_recognition_status`.
-- `cost_of_sale_status`.
-- `tax_posting_status`.
-- `accounting_reconciliation_status`.
+- `revenue_recognition_status_projection`.
+- `cost_of_sale_status_projection`.
+- `tax_posting_status_projection`.
+- `accounting_reconciliation_status_projection`.
 
 ### Profitability Projection
 
@@ -878,18 +1005,18 @@ The snapshot preserves transaction context and does not replace Customer authori
 - `reconditioning_cost_amount`.
 - `accessory_cost_amount`.
 - `optional_product_cost_amount`.
-- `funding_cost_amount`.
+- `funding_cost_amount_projection`.
 - `trade_in_cost_impact_amount`.
 - `front_end_gross_amount`.
 - `back_end_gross_amount`.
 - `estimated_gross_profit_amount`.
 - `estimated_gross_margin_percentage`.
-- `confirmed_gross_profit_amount`.
-- `confirmed_gross_margin_percentage`.
-- `commissionable_gross_amount`.
+- `confirmed_gross_profit_amount_projection`.
+- `confirmed_gross_margin_percentage_projection`.
+- `commissionable_gross_amount_projection`.
 - `profitability_status`.
 - `profitability_source`.
-- `profitability_confirmed_at`.
+- `profitability_confirmed_at_projection`.
 
 Estimated and confirmed profitability must remain distinguishable.
 
@@ -898,7 +1025,7 @@ Estimated and confirmed profitability must remain distinguishable.
 - `commission_calculation_status`.
 - `commission_plan_id`.
 - `commission_plan_version`.
-- `commissionable_amount`.
+- `commissionable_amount_projection`.
 - `commission_amount_projection`.
 - `commission_reference`.
 - `commission_confirmation_status`.
@@ -1007,7 +1134,7 @@ Every material derived output must preserve:
 - `days_to_approval`.
 - `days_to_reservation`.
 - `days_to_contract`.
-- `days_to_funding`.
+- `days_to_funding_confirmation`.
 - `days_to_delivery`.
 - `days_to_completion`.
 - `document_completion_percentage`.
@@ -1016,7 +1143,7 @@ Every material derived output must preserve:
 - `payment_shortfall_amount`.
 - `funding_shortfall_amount`.
 - `estimated_total_receipts_amount`.
-- `confirmed_total_receipts_amount`.
+- `confirmed_total_receipts_amount_projection`.
 
 ### Source, Synchronization, and Audit
 
@@ -1059,59 +1186,9 @@ Every material derived output must preserve:
 | `accepted_quotation_id` | UUID | Conditional | Canonical relationship | Exact accepted Quotation used as the commercial basis. |
 | `vehicle_id` | UUID | Yes | Canonical relationship | Vehicle identity included in the transaction. |
 | `inventory_record_id` | UUID | Conditional | Inventory relationship | Physical Inventory Record where applicable. |
-| `deal_type` | Enum | Yes | Workflow State | Commercial transaction structure. |
-| `sales_channel` | Enum | Yes | Workflow State | Channel through which the transaction originated. |
 | `status` | Enum | Yes | Deal workflow | Current aggregate transaction lifecycle state. |
 | `workflow_authority_mode` | Enum | Yes | Configuration | Defines ASOS or external authority over Deal workflow state. |
 | `record_version` | Integer | Yes | ASOS | Optimistic-concurrency version. |
-
-### Accepted Quotation Fields
-
-| Field | Type | Required | Authority | Description |
-| :--- | :--- | :---: | :--- | :--- |
-| `accepted_quotation_version` | Integer | Conditional | Quotation | Exact accepted Quotation version. |
-| `accepted_quotation_document_hash` | String | Conditional | Quotation | Hash of the issued and accepted document. |
-| `quotation_accepted_at` | Timestamp | Conditional | Customer evidence | Time valid acceptance occurred. |
-| `accepted_quotation_snapshot_hash` | String | Conditional | ASOS | Integrity hash of the accepted commercial snapshot. |
-| `quotation_acceptance_evidence_references` | Array | Conditional | Evidence repository | Evidence supporting Customer acceptance. |
-
-### Commercial Fields
-
-| Field | Type | Required | Authority | Description |
-| :--- | :--- | :---: | :--- | :--- |
-| `currency_code` | String | Yes | Quotation | ISO 4217 transaction currency. |
-| `vehicle_selling_price_amount` | Decimal | Yes | Accepted Quotation | Approved Vehicle selling price. |
-| `total_discount_amount` | Decimal | Yes | Accepted Quotation | Approved discount total. |
-| `total_rebate_amount` | Decimal | Yes | Accepted Quotation | Approved rebate total. |
-| `total_incentive_amount` | Decimal | Yes | Accepted Quotation | Approved incentive total. |
-| `total_fee_amount` | Decimal | Yes | Accepted Quotation | Approved disclosed fee total. |
-| `total_tax_amount` | Decimal | Yes | Accepted Quotation | Approved tax total. |
-| `total_transaction_amount` | Decimal | Yes | Deterministic calculation | Total transaction value. |
-| `customer_cash_due_amount` | Decimal | Yes | Deterministic calculation | Total applicable Customer cash requirement. |
-| `commercial_snapshot_hash` | String | Yes | ASOS | Integrity hash of the Deal commercial snapshot. |
-
-### Inventory Fields
-
-| Field | Type | Required | Authority | Description |
-| :--- | :--- | :---: | :--- | :--- |
-| `inventory_eligibility_status` | Enum | Yes | Inventory Projection | Whether the physical Inventory Record remains transaction-eligible. |
-| `inventory_availability_status` | Enum | Yes | Inventory Projection | Current authoritative availability projection. |
-| `reservation_status` | Enum | Yes | Inventory Projection | Current commercial Reservation state. |
-| `allocation_status` | Enum | Yes | Inventory Projection | Current Deal Allocation state. |
-| `reservation_confirmation_status` | Enum | Yes | Workflow Projection | External Reservation Confirmation state. |
-| `allocation_confirmation_status` | Enum | Yes | Workflow Projection | External Allocation Confirmation state. |
-
-### Trade-In Fields
-
-| Field | Type | Required | Authority | Description |
-| :--- | :--- | :---: | :--- | :--- |
-| `primary_trade_in_id` | UUID | No | Canonical relationship | Primary Trade-In supporting the transaction. |
-| `trade_in_appraisal_version` | Integer | No | Trade-In | Exact appraisal version used. |
-| `trade_in_allowance_amount` | Decimal | Yes | Quotation and Trade-In projection | Customer-facing Trade-In allowance. |
-| `trade_in_payoff_amount` | Decimal | Yes | Trade-In and payoff authority | Verified payoff included in the transaction. |
-| `trade_in_positive_equity_amount` | Decimal | Yes | Deterministic calculation | Positive Trade-In equity. |
-| `trade_in_negative_equity_amount` | Decimal | Yes | Deterministic calculation | Negative Trade-In equity. |
-| `trade_in_acquisition_status` | Enum | Yes | Trade-In Projection | Current authoritative acquisition projection. |
 
 ### Finance and Contract Fields
 
@@ -1119,59 +1196,49 @@ Every material derived output must preserve:
 | :--- | :--- | :---: | :--- | :--- |
 | `finance_required` | Boolean | Yes | Deal structure | Whether Lender finance is required. |
 | `finance_application_id` | UUID | Conditional | Canonical relationship | Finance Application supporting the Deal. |
+| `finance_application_version` | Integer | Conditional | Finance Application | Exact immutable application version used. |
 | `selected_lender_decision_id` | UUID | Conditional | Finance Application relationship | Exact selected Lender Decision. |
-| `finance_decision_status` | Enum | Yes | Lender Projection | Current authoritative Decision projection. |
+| `selected_lender_decision_version` | Integer | Conditional | Lender Decision projection | Exact selected Decision version. |
+| `contract_handoff_status_projection` | Enum | No | Finance Application projection | Observed contracting-handoff status. |
 | `financial_contract_id` | UUID | Conditional | Canonical relationship | Financial Contract supporting the transaction. |
-| `contract_signature_status` | Enum | Yes | Financial Contract Projection | Current signature state. |
-| `contract_effectiveness_status` | Enum | Yes | Financial Contract Projection | Current legal effectiveness state. |
-| `contract_activation_status` | Enum | Yes | Financial Contract Projection | Current activation state. |
+| `financial_contract_version` | Integer | Conditional | Financial Contract projection | Observed Contract version. |
+| `contract_signature_status_projection` | Enum | Yes | Financial Contract projection | Current signature state. |
+| `contract_effectiveness_status_projection` | Enum | Yes | Financial Contract projection | Current legal effectiveness state. |
+| `contract_activation_status_projection` | Enum | Yes | Financial Contract projection | Current activation state. |
+| `contract_projection_freshness_status` | Enum | Yes | Projection metadata | Whether Contract data is current enough for dependent decisions. |
 
 ### Payment Fields
 
 | Field | Type | Required | Authority | Description |
 | :--- | :--- | :---: | :--- | :--- |
-| `deposit_required_amount` | Decimal | Yes | Deal requirement | Required deposit. |
-| `down_payment_required_amount` | Decimal | Yes | Deal and Lender terms | Required Customer down payment. |
-| `total_customer_payment_required_amount` | Decimal | Yes | Deterministic calculation | Total required Customer funds. |
-| `total_payment_authorized_amount` | Decimal | Yes | Payment Projection | Total authorized amount. |
-| `total_payment_captured_amount` | Decimal | Yes | Payment Projection | Total captured amount. |
-| `total_payment_cleared_amount` | Decimal | Yes | Payment authority | Total cleared amount applicable to the Deal. |
-| `net_customer_payment_amount` | Decimal | Yes | Deterministic projection | Cleared amount less applicable refunds and reversals. |
+| `total_customer_payment_required_amount` | Decimal | Yes | Deal requirement | Total required Customer funds. |
+| `total_payment_cleared_amount_projection` | Decimal | Yes | Payment authority projection | Total cleared amount applicable to the Deal. |
+| `net_customer_payment_amount_projection` | Decimal | Yes | Deterministic projection | Cleared amount less applicable refunds and reversals. |
 | `payment_shortfall_amount` | Decimal | Yes | Deterministic calculation | Remaining Customer Payment requirement. |
-| `payment_status` | Enum | Yes | Payment Projection | Aggregate Payment state. |
+| `payment_status_projection` | Enum | Yes | Payment projection | Aggregate observed Payment state. |
+| `payment_reconciliation_status_projection` | Enum | Yes | Payment projection | Observed reconciliation state. |
+| `payment_projection_freshness_status` | Enum | Yes | Projection metadata | Whether Payment data is current enough for dependent decisions. |
 
 ### Funding Fields
 
 | Field | Type | Required | Authority | Description |
 | :--- | :--- | :---: | :--- | :--- |
 | `funding_required` | Boolean | Yes | Deal structure | Whether external funding is required. |
-| `funding_readiness_status` | Enum | Yes | Deterministic workflow | Readiness to request funding. |
-| `funding_status` | Enum | Yes | Funding Projection | Current authoritative funding state. |
-| `funding_amount_required` | Decimal | Yes | Financial Contract and Deal | Required external funding amount. |
-| `funded_amount` | Decimal | Yes | Funding authority | Authoritatively confirmed funded amount. |
+| `funding_amount_required` | Decimal | Yes | Accepted transaction and Contract terms | Required external funding amount. |
+| `funding_currency_code` | String | Conditional | Accepted transaction and Contract terms | Currency used by the requirement and projection. |
+| `funding_completion_block_status` | Enum | Yes | Deal workflow | Whether funding currently blocks delivery or completion. |
+| `funding_status_projection` | Enum | No | Financial Contract or external projection | Observed funding workflow and outcome status. |
+| `confirmed_funding_amount_projection` | Decimal | No | Funding authority projection | Authoritatively confirmed amount observed by the Deal. |
 | `funding_shortfall_amount` | Decimal | Yes | Deterministic calculation | Difference between required and confirmed funding. |
-| `funding_confirmation_status` | Enum | Yes | Workflow Projection | External funding Confirmation state. |
+| `funding_confirmation_status_projection` | Enum | No | Financial Contract projection | Observed External Confirmation status. |
+| `funding_confirmation_reference` | String | No | Funding authority or Confirmation adapter | Evidence reference supporting the observed outcome. |
+| `funding_confirmed_at_projection` | Timestamp | No | Funding authority projection | Observed authoritative funding timestamp. |
+| `funding_reversal_status_projection` | Enum | No | Financial Contract projection | Observed reversal state. |
+| `funding_reconciliation_status_projection` | Enum | No | Financial Contract projection | Observed reconciliation state. |
+| `funding_projection_source_record_version` | String | No | Projection metadata | Source version used for freshness and reconciliation. |
+| `funding_projection_freshness_status` | Enum | Yes | Projection metadata | Whether funding data is current enough for dependent decisions. |
 
-### Delivery Fields
-
-| Field | Type | Required | Authority | Description |
-| :--- | :--- | :---: | :--- | :--- |
-| `delivery_readiness_status` | Enum | Yes | Deterministic workflow | Aggregate readiness for Vehicle handover. |
-| `delivery_status` | Enum | Yes | Delivery Projection | Current authoritative delivery state. |
-| `delivery_appointment_id` | UUID | No | Appointment relationship | Appointment scheduled for handover. |
-| `vehicle_handover_at` | Timestamp | No | Delivery evidence | Time physical handover was recorded. |
-| `delivery_confirmed_at` | Timestamp | No | Delivery authority | Time authoritative delivery Confirmation occurred. |
-| `delivery_confirmation_status` | Enum | Yes | Workflow Projection | Current External Confirmation state. |
-
-### Accounting Fields
-
-| Field | Type | Required | Authority | Description |
-| :--- | :--- | :---: | :--- | :--- |
-| `sale_posting_status` | Enum | Yes | DMS or accounting projection | Current authoritative sale-posting state. |
-| `accounting_handoff_status` | Enum | Yes | Accounting workflow | Current accounting handoff state. |
-| `revenue_recognition_status` | Enum | Yes | Accounting authority | Current revenue-recognition projection. |
-| `confirmed_gross_profit_amount` | Decimal | No | Accounting authority | Confirmed transaction gross profit. |
-| `accounting_reconciliation_status` | Enum | Yes | Reconciliation workflow | Current accounting reconciliation state. |
+The Deal must not contain Funding Command identifiers or funding-request idempotency keys.
 
 ---
 
@@ -1220,18 +1287,6 @@ Every material derived output must preserve:
 - `WHOLESALE_TRANSACTION`
 - `OTHER`
 
-### DealSalesChannel
-
-- `SHOWROOM`
-- `DIGITAL`
-- `PHONE_ASSISTED`
-- `BDC`
-- `FLEET`
-- `OEM_REFERRAL`
-- `MARKETPLACE`
-- `PARTNER_REFERRAL`
-- `OTHER`
-
 ### DealPriority
 
 - `STANDARD`
@@ -1247,25 +1302,6 @@ Priority must not override legal, safety, Consent, approval, Payment, funding, o
 - `EXTERNAL_DMS_AUTHORITATIVE`
 - `EXTERNAL_CRM_AUTHORITATIVE`
 - `GOVERNED_BIDIRECTIONAL`
-
-### CustomerCommitmentStatus
-
-- `NOT_RECEIVED`
-- `PENDING_VALIDATION`
-- `VALIDATED`
-- `EXPIRED`
-- `WITHDRAWN`
-- `DISPUTED`
-- `REVALIDATION_REQUIRED`
-
-### CustomerCommitmentType
-
-- `ACCEPTED_QUOTATION`
-- `SIGNED_ORDER_FORM`
-- `VALID_DEPOSIT_COMMITMENT`
-- `APPROVED_DIGITAL_ACCEPTANCE`
-- `APPROVED_PHYSICAL_ACCEPTANCE`
-- `OTHER_GOVERNED_COMMITMENT`
 
 ### DealApprovalStatus
 
@@ -1291,49 +1327,9 @@ Priority must not override legal, safety, Consent, approval, Payment, funding, o
 - `FAILED`
 - `RECONCILIATION_REQUIRED`
 
-### InventoryEligibilityStatus
+### DealPaymentProjectionStatus
 
-- `NOT_EVALUATED`
-- `ELIGIBLE`
-- `CONDITIONALLY_ELIGIBLE`
-- `INELIGIBLE`
-- `STALE`
-- `CONFLICTED`
-- `REVIEW_REQUIRED`
-
-### DealReservationStatus
-
-- `NOT_REQUIRED`
-- `NOT_REQUESTED`
-- `REQUEST_PENDING`
-- `REQUESTED`
-- `PENDING_CONFIRMATION`
-- `RESERVED`
-- `EXPIRED`
-- `RELEASE_PENDING`
-- `RELEASED`
-- `REJECTED`
-- `FAILED`
-- `CONFLICTED`
-- `RECONCILIATION_REQUIRED`
-
-### DealAllocationStatus
-
-- `NOT_REQUIRED`
-- `NOT_REQUESTED`
-- `REQUEST_PENDING`
-- `REQUESTED`
-- `PENDING_CONFIRMATION`
-- `ALLOCATED`
-- `RELEASE_PENDING`
-- `RELEASED`
-- `REJECTED`
-- `FAILED`
-- `CONFLICTED`
-- `RECONCILIATION_REQUIRED`
-
-### DealPaymentStatus
-
+- `UNKNOWN`
 - `NOT_REQUIRED`
 - `NOT_STARTED`
 - `PAYMENT_REQUIRED`
@@ -1354,113 +1350,59 @@ Priority must not override legal, safety, Consent, approval, Payment, funding, o
 - `CHARGEBACK`
 - `DISPUTED`
 - `RECONCILIATION_REQUIRED`
+- `STALE`
 
-### DealFundingReadinessStatus
+### DealFundingProjectionStatus
 
-- `NOT_REQUIRED`
-- `NOT_READY`
-- `PARTIALLY_READY`
-- `READY`
-- `BLOCKED`
-- `EXPIRED`
-- `REVIEW_REQUIRED`
-
-### DealFundingStatus
-
+- `UNKNOWN`
 - `NOT_REQUIRED`
 - `NOT_STARTED`
 - `REQUIREMENTS_PENDING`
-- `REQUEST_READY`
+- `READY`
 - `REQUEST_PENDING`
-- `REQUESTED`
 - `PENDING_CONFIRMATION`
-- `PARTIALLY_FUNDED`
-- `FUNDED`
+- `PARTIALLY_CONFIRMED`
+- `CONFIRMED`
 - `SHORTFALL`
 - `FAILED`
 - `REVERSED`
-- `CANCELLED`
 - `DISPUTED`
+- `RECONCILIATION_REQUIRED`
+- `STALE`
+
+This is a non-owning projection received from Financial Contract or the configured external funding authority.
+
+### FundingCompletionBlockStatus
+
+- `NOT_EVALUATED`
+- `NOT_REQUIRED`
+- `BLOCKING`
+- `PARTIALLY_SATISFIED`
+- `SATISFIED`
+- `STALE`
+- `CONFLICTED`
 - `RECONCILIATION_REQUIRED`
 
 ### ContractProjectionStatus
 
+- `UNKNOWN`
 - `NOT_REQUIRED`
 - `NOT_STARTED`
-- `PREPARATION_PENDING`
+- `HANDOFF_PENDING`
 - `CREATED`
 - `SIGNATURE_PENDING`
 - `PARTIALLY_SIGNED`
 - `FULLY_SIGNED`
 - `EFFECTIVENESS_PENDING`
 - `EFFECTIVE`
+- `FUNDING_PENDING`
 - `ACTIVE`
 - `VOIDED`
 - `TERMINATED`
 - `EXPIRED`
 - `DISPUTED`
 - `RECONCILIATION_REQUIRED`
-
-### DocumentCompletionStatus
-
-- `NOT_STARTED`
-- `INCOMPLETE`
-- `PARTIALLY_COMPLETE`
-- `COMPLETE`
-- `REJECTED`
-- `EXPIRED`
-- `REVALIDATION_REQUIRED`
-
-### DealComplianceStatus
-
-- `NOT_ASSESSED`
-- `PENDING`
-- `PARTIALLY_COMPLETE`
-- `CLEARED`
-- `CLEARED_WITH_CONDITIONS`
-- `BLOCKED`
-- `EXPIRED`
-- `DISPUTED`
-- `REVIEW_REQUIRED`
-
-### RegistrationStatus
-
-- `NOT_REQUIRED`
-- `NOT_STARTED`
-- `DOCUMENTS_PENDING`
-- `REQUEST_PENDING`
-- `REQUESTED`
-- `PENDING_CONFIRMATION`
-- `REGISTERED`
-- `REJECTED`
-- `FAILED`
-- `EXPIRED`
-- `DISPUTED`
-- `RECONCILIATION_REQUIRED`
-
-### TitleTransferStatus
-
-- `NOT_REQUIRED`
-- `NOT_STARTED`
-- `PENDING`
-- `PENDING_CONFIRMATION`
-- `TRANSFERRED`
-- `REJECTED`
-- `FAILED`
-- `DISPUTED`
-- `RECONCILIATION_REQUIRED`
-
-### InsuranceStatus
-
-- `NOT_REQUIRED`
-- `NOT_STARTED`
-- `PENDING`
-- `VERIFIED`
-- `REJECTED`
-- `FAILED`
-- `EXPIRED`
-- `DISPUTED`
-- `REVIEW_REQUIRED`
+- `STALE`
 
 ### DeliveryReadinessStatus
 
@@ -1472,8 +1414,9 @@ Priority must not override legal, safety, Consent, approval, Payment, funding, o
 - `EXPIRED`
 - `REVIEW_REQUIRED`
 
-### DealDeliveryStatus
+### DealDeliveryProjectionStatus
 
+- `UNKNOWN`
 - `NOT_STARTED`
 - `PREPARATION_PENDING`
 - `READY`
@@ -1488,45 +1431,7 @@ Priority must not override legal, safety, Consent, approval, Payment, funding, o
 - `CANCELLED`
 - `DISPUTED`
 - `RECONCILIATION_REQUIRED`
-
-### SalePostingStatus
-
-- `NOT_STARTED`
-- `READY`
-- `REQUEST_PENDING`
-- `REQUESTED`
-- `PENDING_CONFIRMATION`
-- `POSTED`
-- `REJECTED`
-- `FAILED`
-- `REVERSED`
-- `DISPUTED`
-- `RECONCILIATION_REQUIRED`
-
-### AccountingHandoffStatus
-
-- `NOT_STARTED`
-- `PREPARATION_PENDING`
-- `READY`
-- `PENDING`
-- `PENDING_CONFIRMATION`
-- `COMPLETED`
-- `FAILED`
-- `REVERSED`
-- `DISPUTED`
-- `RECONCILIATION_REQUIRED`
-
-### RevenueRecognitionStatus
-
-- `NOT_EVALUATED`
-- `NOT_ELIGIBLE`
-- `ELIGIBLE`
-- `PENDING`
-- `RECOGNIZED`
-- `PARTIALLY_RECOGNIZED`
-- `REVERSED`
-- `DISPUTED`
-- `RECONCILIATION_REQUIRED`
+- `STALE`
 
 ### DealCompletionStatus
 
@@ -1556,23 +1461,6 @@ Priority must not override legal, safety, Consent, approval, Payment, funding, o
 - `DISPUTED`
 - `RECONCILIATION_REQUIRED`
 
-### DealCancellationReason
-
-- `CUSTOMER_REQUEST`
-- `CUSTOMER_PAYMENT_FAILED`
-- `FINANCE_DECLINED`
-- `FINANCE_EXPIRED`
-- `CONTRACT_NOT_SIGNED`
-- `VEHICLE_UNAVAILABLE`
-- `VEHICLE_INELIGIBLE`
-- `TRADE_IN_FAILED`
-- `COMPLIANCE_BLOCK`
-- `DOCUMENTS_INCOMPLETE`
-- `COMMERCIAL_TERMS_CHANGED`
-- `DUPLICATE_DEAL`
-- `DEALERSHIP_DECLINED`
-- `OTHER`
-
 ### DealUnwindStatus
 
 - `NOT_REQUIRED`
@@ -1588,45 +1476,6 @@ Priority must not override legal, safety, Consent, approval, Payment, funding, o
 - `FAILED`
 - `DISPUTED`
 - `RECONCILIATION_REQUIRED`
-
-### DealUnwindReason
-
-- `POST_COMPLETION_CANCELLATION`
-- `CONTRACT_VOIDED`
-- `FUNDING_REVERSED`
-- `PAYMENT_REVERSED`
-- `VEHICLE_RETURNED`
-- `DELIVERY_REVERSED`
-- `LEGAL_INVALIDITY`
-- `FRAUD_CONFIRMED`
-- `ACCOUNTING_CORRECTION`
-- `DUPLICATE_TRANSACTION`
-- `CUSTOMER_RESCISSION`
-- `OTHER`
-
-### DealDisputeStatus
-
-- `NONE`
-- `OPEN`
-- `UNDER_REVIEW`
-- `EVIDENCE_PENDING`
-- `RESOLUTION_PENDING`
-- `RESOLVED`
-- `REJECTED`
-- `ESCALATED`
-- `LEGAL_HOLD`
-- `CLOSED`
-
-### ReviewStatus
-
-- `NOT_REQUIRED`
-- `PENDING`
-- `IN_REVIEW`
-- `APPROVED`
-- `REJECTED`
-- `ESCALATED`
-- `CANCELLED`
-- `EXPIRED`
 
 ### ConfirmationStatus
 
@@ -1648,6 +1497,15 @@ Priority must not override legal, safety, Consent, approval, Payment, funding, o
 - `RESOLVED`
 - `FAILED`
 - `MANUAL_REVIEW_REQUIRED`
+
+### ProjectionFreshnessStatus
+
+- `CURRENT`
+- `AGING`
+- `STALE`
+- `UNKNOWN`
+- `CONFLICTED`
+- `RECONCILIATION_REQUIRED`
 
 ### DataQualityStatus
 
@@ -1675,7 +1533,7 @@ Priority must not override legal, safety, Consent, approval, Payment, funding, o
 - `tenant_id` must come from the authenticated security context.
 - Request bodies must not override `tenant_id`.
 - All related Domain Objects must belong to the authorized Tenant.
-- Dealership, branch, legal entity, team, User, approver, and operational authority must belong to the permitted organizational scope.
+- Dealership, branch, legal entity, team, User, approver, and operational authority must belong to permitted scope.
 - Cross-Tenant Deal access, matching, processing, AI retrieval, export, or synchronization is prohibited unless governed by an approved and auditable mechanism.
 - Background Jobs, Event Consumers, connectors, and AI Agents must receive trusted Tenant execution context.
 
@@ -1740,34 +1598,14 @@ An ambiguous duplicate must not be merged or cancelled solely by AI.
 
 ### Accepted Quotation Rules
 
-- The Deal must reference the exact accepted Quotation version.
-- The accepted Quotation must be issued, current at acceptance, and valid under the accepted policy.
-- The accepted document hash must match.
-- Customer acceptance evidence must satisfy the configured policy.
+- Deal must reference the exact accepted Quotation version.
+- Accepted Quotation must be issued, current at acceptance, and valid under the accepted policy.
+- Accepted document hash must match.
+- Customer acceptance evidence must satisfy configured policy.
 - Commercial values must match the accepted Quotation.
 - Quotation acceptance must not be inferred from view, sentiment, or AI prediction.
 - An expired, withdrawn, rejected, or superseded Quotation must not create a new Deal.
 - A material commercial change requires a new Quotation version and Deal revalidation.
-
-### Customer Commitment Rules
-
-Customer commitment must be supported by an approved evidence type.
-
-Possible evidence may include:
-
-- Valid accepted Quotation.
-- Approved order form.
-- Approved digital acceptance.
-- Approved physical acceptance.
-- Valid deposit commitment combined with applicable acceptance.
-- Another governed commitment.
-
-Customer commitment does not prove:
-
-- Payment clearing.
-- Contract signature.
-- Finance approval.
-- Vehicle delivery.
 
 ### Vehicle and Inventory Rules
 
@@ -1793,90 +1631,24 @@ Vehicle or Inventory changes after Deal approval require:
 - Contract review.
 - Customer reconfirmation where material.
 
-### Reservation Rules
+### Reservation and Allocation Rules
 
-A Reservation request requires:
+The Deal may initiate Reservation or Allocation requests only through the approved Inventory contract.
+
+Each request requires:
 
 - Eligible Deal.
 - Eligible Inventory Record.
 - Applicable Customer commitment.
-- Valid Reservation policy.
-- Required deposit or approval where applicable.
-- Idempotency key.
 - Current Inventory version.
-- No incompatible existing Reservation or Allocation.
+- Required deposit or approval where applicable.
+- Stable idempotency key.
+- No incompatible active Reservation or Allocation.
+- External Confirmation where Inventory authority is external.
 
-The Deal must remain pending until authoritative Reservation Confirmation is received where Inventory authority is external.
+The Deal must remain pending until authoritative Inventory Confirmation.
 
-A Reservation does not prove Allocation, sale, or delivery.
-
-Reservation expiration or release must trigger Deal review.
-
-### Allocation Rules
-
-Allocation requires:
-
-- Eligible Deal.
-- Eligible Inventory Record.
-- Valid Reservation where required.
-- Applicable commercial, finance, Payment, or contract conditions.
-- Allocation authority.
-- Concurrency-safe operation.
-- Idempotency key.
-- External Confirmation where applicable.
-
-The Deal must not represent a requested Allocation as confirmed.
-
-Allocation does not prove sale or delivery.
-
-### Commercial Calculation Rules
-
-All authoritative Deal monetary calculations must be deterministic.
-
-AI must not calculate authoritative totals.
-
-The calculation service must validate:
-
-- Vehicle selling price.
-- Optional products.
-- Taxes.
-- Fees.
-- Discounts.
-- Rebates.
-- Incentives.
-- Trade-In allowance.
-- Trade-In payoff.
-- Equity.
-- Customer contribution.
-- Finance amount.
-- Total transaction amount.
-- Payment shortfall.
-- Funding shortfall.
-- Estimated profitability.
-
-Every calculation must preserve:
-
-- Formula.
-- Rule version.
-- Input-record versions.
-- Currency.
-- Rounding.
-- Tax jurisdiction.
-- Output.
-- Timestamp.
-- Integrity hash.
-
-Calculation mismatch must block approval, execution, delivery, and completion.
-
-### Commercial Snapshot Rules
-
-- The approved Deal commercial snapshot must be immutable during execution.
-- Material changes require an amendment or replacement process.
-- Customer-visible values must match the accepted Quotation and applicable contracts.
-- Hidden charges are prohibited.
-- Internal costs and margins must not appear in Customer-facing documents.
-- Expired incentives or invalid discounts require revalidation.
-- Currency conversion requires approved source, timestamp, rate, and disclosure.
+A request does not prove Reservation, Allocation, sale, transfer, or delivery.
 
 ### Trade-In Rules
 
@@ -1888,8 +1660,9 @@ When a Trade-In is included:
 - Ownership and payoff evidence must be sufficiently current.
 - Equity must be calculated deterministically.
 - Trade-In acquisition readiness must be evaluated.
-- Trade-In changes may require a new Quotation and Deal revalidation.
-- Deal completion must not falsely imply Trade-In acquisition if acquisition remains pending.
+- Inventory intake must remain distinct from authoritative Inventory Record creation and activation.
+- Trade-In changes may require new Quotation and Deal revalidation.
+- Deal completion must not falsely imply Trade-In acquisition or Inventory intake if either remains pending.
 
 ### Finance Rules
 
@@ -1902,28 +1675,33 @@ A financed Deal requires:
 - Current Lender Decision.
 - Current approved finance terms.
 - Satisfied or permitted outstanding conditions.
+- Accepted Financial Contract handoff where required.
 - Applicable Financial Contract.
-- Funding readiness.
+- Current funding-readiness projection.
 
 The Deal must not:
 
 - Alter Lender terms.
 - Mark finance approved from an AI score.
 - Treat prequalification as approval.
-- Treat contract preparation as signature.
-- Treat approval as funding.
+- Treat Contract handoff as signature.
+- Treat approval or readiness as funding.
+- Create a Funding Command.
+- Own a funding-request idempotency key.
 
 ### Financial Contract Rules
 
 When a Financial Contract is required:
 
-- The Deal must reference the correct Contract.
-- Contract Customer, Deal, Vehicle, Quotation, and finance terms must match.
+- Deal must reference the correct Contract.
+- Contract Customer, Deal, Vehicle, Quotation, Finance Application, and finance terms must match.
 - Required signatures must be authoritative.
 - Contract effectiveness must be evaluated separately.
+- Funding workflow must remain owned by Financial Contract.
 - Contract activation must remain separately projected.
 - Contract mismatch must block delivery and completion.
 - A fully signed Contract must not be treated as effective unless effectiveness is confirmed.
+- A confirmed funding outcome must not be treated as Contract activation unless all activation conditions are satisfied.
 
 ### Payment Rules
 
@@ -1949,32 +1727,63 @@ The Deal must not count:
 
 as cleared available funds.
 
-Customer Payment readiness requires the configured cleared amount.
+Customer Payment readiness requires the configured cleared and reconciled amount.
 
-Duplicate Payment events must not create duplicate financial effects.
+Duplicate Payment Events must not create duplicate financial effects.
 
-### Funding Rules
+### Funding Projection Rules
 
-A financed Deal must not become funded until:
+The Deal is not the funding-request owner.
+
+The Deal may evaluate funding completion only from:
+
+- Current Financial Contract projection.
+- Current external funding authority projection.
+- Accepted External Confirmation.
+- Matching Contract and Deal references.
+- Confirmed amount.
+- Currency.
+- Authoritative timestamp.
+- Source authority.
+- Source record version where available.
+- Reconciliation result.
+- Freshness status.
+
+The Deal must calculate:
+
+```text
+funding_shortfall_amount
+  = max(funding_amount_required - confirmed_funding_amount_projection, 0)
+```
+
+A financed Deal must not satisfy its funding completion requirement until:
 
 - Authoritative funding Confirmation exists.
 - Confirmed amount is known.
-- Currency is known.
+- Currency matches.
 - Funding reference is known.
 - Funding timestamp is known.
-- Funding is reconciled to the Contract and Deal.
+- Projection matches the Financial Contract and Deal.
 - Material shortfall is resolved.
+- Reconciliation is current.
+- Projection freshness is acceptable.
+- No reversal or dispute is active.
 
-A partial funding outcome must remain explicit.
+Partial funding must remain explicit.
 
-A funding reversal must trigger:
+Funding failure must remain explicit.
+
+Funding reversal must trigger:
 
 - Deal block.
 - Delivery review.
 - Accounting review.
 - Contract review.
 - Human escalation.
+- Unwind assessment.
 - Reconciliation.
+
+The Deal must not transmit or retry the underlying funding request.
 
 ### Approval Rules
 
@@ -1986,7 +1795,7 @@ Deal approval may be required for:
 - Trade-In over-allowance.
 - Negative-equity treatment.
 - Payment exception.
-- Funding exception.
+- Funding completion exception.
 - Reservation exception.
 - Allocation exception.
 - Compliance exception.
@@ -2009,49 +1818,7 @@ Approval must preserve:
 
 AI must not approve a Deal or exception.
 
-### Compliance Rules
-
-Applicable Customer, Vehicle, transaction, fraud, sanctions, source-of-funds, and legal checks must complete before prohibited progression.
-
-A compliance block overrides:
-
-- Sales priority.
-- Customer urgency.
-- Management preference.
-- AI Recommendation.
-- Delivery schedule.
-
-AI may recommend review but must not clear a compliance block.
-
-### Document Rules
-
-- Required documents must be determined by current policy.
-- Document completion and document verification must remain separate.
-- Raw documents must remain in controlled storage.
-- Missing, expired, rejected, or disputed documents must remain explicit.
-- Document completion does not prove authenticity.
-- Document authenticity does not prove Payment, funding, registration, or delivery.
-
-### Registration and Title Rules
-
-- Required registration and title workflows must be identified.
-- Registration requests must be idempotent.
-- A sent registration Command does not prove registration.
-- External Confirmation must be preserved.
-- Material registration failure must block delivery where required.
-- Title and registration state must not be invented from document submission.
-- AI must not confirm registration or title transfer.
-
-### Insurance Rules
-
-Where insurance is required:
-
-- Applicable coverage must match the Customer, Vehicle, and Deal.
-- Coverage must be effective.
-- Coverage must satisfy required conditions.
-- Provider and policy references must be verified.
-- Expired or cancelled coverage must block dependent delivery.
-- AI extraction does not create authoritative insurance verification.
+A Deal approval must not override an external authoritative funding result.
 
 ### Delivery Readiness Rules
 
@@ -2063,7 +1830,7 @@ Possible requirements include:
 - Vehicle physically ready.
 - Required Payment cleared.
 - Required funding confirmed.
-- Financial Contract effective.
+- Financial Contract effective or active as policy requires.
 - Required documents complete.
 - Required compliance cleared.
 - Registration ready.
@@ -2073,41 +1840,7 @@ Possible requirements include:
 - Delivery Appointment available.
 - No legal or operational hold.
 
-`READY` must not be set solely from a User interface action or AI Recommendation.
-
-### Delivery Rules
-
-Delivery may begin only when:
-
-- Delivery readiness is `READY`.
-- Vehicle is authorized for release.
-- Correct Customer or representative is present.
-- Required identity checks pass.
-- Required documents are available.
-- Required Payment and funding conditions pass.
-- Required Contract conditions pass.
-- Required registration and insurance conditions pass.
-- Delivery workflow is authorized.
-
-The Deal must not become delivered solely because:
-
-- Appointment was completed.
-- Vehicle left a location.
-- Salesperson marked a checklist.
-- Customer sent a message.
-- AI detected likely handover.
-
-Authoritative delivery evidence is required.
-
-### Sale and Accounting Rules
-
-- Sale posting must use the configured DMS or accounting authority.
-- A sent sale-posting Command does not prove posting.
-- Revenue and cost recognition remain accounting-controlled.
-- Estimated profitability must remain separate from confirmed profitability.
-- Commission projections must not create payroll liability.
-- Accounting failure or reversal must trigger reconciliation.
-- Deal completion must not falsify accounting completion.
+`READY` must not be set solely from a User-interface action or AI Recommendation.
 
 ### Completion Rules
 
@@ -2119,8 +1852,9 @@ These may include:
 - Current accepted commercial snapshot.
 - Required Vehicle Reservation and Allocation.
 - Valid and effective Financial Contract where required.
+- Required Contract activation where required.
 - Required Customer Payment cleared.
-- Required Lender funding confirmed.
+- Required Lender funding confirmed through current authoritative projection.
 - Required Trade-In conditions completed or governed.
 - Required compliance cleared.
 - Required documents completed.
@@ -2129,137 +1863,76 @@ These may include:
 - Authoritative delivery Confirmation where required.
 - Authoritative sale posting where required.
 - Accounting reconciliation at the required completion level.
-- No material dispute, reversal, or reconciliation block.
+- No material dispute, reversal, stale projection, or reconciliation block.
 - Completion Decision or External Confirmation where required.
 - `completed_at`.
 
-Completion requirements must remain configurable by:
+The Deal completion workflow may evaluate funding evidence but must not create or alter the funding transaction.
 
-- Transaction type.
-- Jurisdiction.
-- Lender.
-- Legal entity.
-- Dealership.
-- Product.
-- Delivery model.
-- Accounting authority.
-
-### Cancellation Rules
+### Cancellation and Unwind Rules
 
 Cancellation normally applies before irreversible or effective transaction outcomes.
 
-Cancellation requires:
+An effective, delivered, funded, posted, or completed Deal may require unwind rather than ordinary cancellation.
 
-- Valid reason.
-- Authorized Human Decision or applicable policy.
-- Assessment of Reservation and Allocation.
-- Payment refund or release handling.
-- Finance Application handling.
-- Financial Contract handling.
-- Trade-In handling.
-- Registration handling.
-- Delivery handling.
-- Customer communication.
-- External Confirmation where applicable.
-- Reconciliation.
+Unwind assessment must include:
 
-An effective, delivered, funded, or completed Deal may require unwind rather than ordinary cancellation.
-
-### Unwind Rules
-
-Unwind is required when reversing or correcting a materially executed transaction.
-
-An unwind plan must assess:
-
-- Customer.
-- Opportunity.
-- Quotation.
-- Vehicle.
-- Inventory.
-- Reservation.
-- Allocation.
-- Trade-In.
-- Finance Application.
-- Financial Contract.
-- Payment.
-- Funding.
-- Registration.
-- Insurance.
+- Payment reversals and refunds.
+- Financial Contract status.
+- Funding reversal or recovery.
+- Inventory Reservation and Allocation.
+- Trade-In acquisition and payoff.
+- Registration and title.
 - Delivery.
 - Sale posting.
-- Accounting.
-- Tax.
-- Commission.
+- Accounting and tax.
 - Customer communication.
 - Legal obligations.
 
-Unwind requires:
-
-- Authoritative Human Decision.
-- Legal and financial review.
-- Controlled execution.
-- External Confirmations.
-- Reconciliation.
-- Complete evidence.
-- Preserved original Deal.
-
-AI must not independently authorize or execute an unwind.
-
-### Replacement Deal Rules
-
-A replacement Deal may be created only through a governed process.
-
-It must:
-
-- Reference the original Deal.
-- Preserve the replacement reason.
-- Use a new `deal_id`.
-- Share or reference the appropriate `deal_series_id`.
-- Revalidate Customer, Quotation, Vehicle, Inventory, Trade-In, finance, Contract, Payment, and approvals.
-- Avoid duplicate external posting.
-- Preserve the original Deal history.
-
-The original Deal must not be overwritten.
+AI must not independently authorize or execute cancellation or unwind.
 
 ### Concurrency and Idempotency Rules
 
-- Every mutation must validate `record_version`.
+- Every Deal mutation must validate `record_version`.
 - Stale updates must return a version conflict.
 - Deal creation must support idempotency.
 - Replacement Deal creation must support idempotency.
 - Reservation requests must support idempotency.
 - Allocation requests must support idempotency.
-- Payment Commands must support idempotency.
-- Funding requests must support idempotency.
 - Registration requests must support idempotency.
 - Sale-posting requests must support idempotency.
 - Completion processing must support idempotency.
 - Cancellation and unwind requests must support idempotency.
 - Event Consumers must prevent duplicate effects using `event_id`.
-- Duplicate retries must not create duplicate:
-  - Deals.
-  - Reservations.
-  - Allocations.
-  - Payments.
-  - Funding requests.
-  - Registration requests.
-  - Delivery outcomes.
-  - Sale postings.
-  - Cancellation records.
-  - Unwind records.
-  - Replacement Deals.
+- The Deal must not create or own funding-request idempotency.
+
+Duplicate retries must not create duplicate:
+
+- Deals.
+- Reservations.
+- Allocations.
+- Payment requirements.
+- Registration requests.
+- Delivery outcomes.
+- Sale postings.
+- Completion outcomes.
+- Cancellation records.
+- Unwind records.
+- Replacement Deals.
 
 ### External Authority Rules
 
 When an external CRM, DMS, Inventory, Payment, funding, registration, delivery, or accounting system is authoritative:
 
-- ASOS must issue approved Commands through Command Orchestration.
-- Retryable Commands must use `idempotency_key`.
+- ASOS must issue approved Commands only from the owning workflow.
+- Retryable Commands must use the owning workflow's `idempotency_key`.
 - Local state must remain pending until External Confirmation.
 - Transport success does not equal business completion.
 - Conflicting data must create reconciliation.
 - Higher-authority evidence must not be silently overwritten.
-- Missing Confirmation must trigger retry, polling, timeout, reconciliation, or Human escalation.
+- Missing Confirmation must trigger retry, polling, timeout, reconciliation, or Human escalation by the owning workflow.
+
+For funding, the owning workflow is Financial Contract, not Deal.
 
 ### Human Review Requirements
 
@@ -2275,7 +1948,7 @@ Human Review is required according to policy for:
 - Finance Decision conflict.
 - Financial Contract mismatch.
 - Payment shortfall.
-- Funding shortfall or reversal.
+- Funding shortfall, failure, reversal, or stale projection.
 - Compliance block.
 - Registration failure.
 - Delivery dispute.
@@ -2312,7 +1985,7 @@ SUPERSEDED
 ARCHIVED
 ```
 
-Reservation, Allocation, Payment, funding, Contract, registration, delivery, sale-posting, and accounting states are governed as separate projections.
+Reservation, Allocation, Payment, Finance Application, Financial Contract, funding, registration, delivery, sale-posting, and accounting states are governed as separate projections.
 
 ### Principal Allowed Transitions
 
@@ -2418,42 +2091,6 @@ ARCHIVED → COMPLETED
 
 Corrections to terminal or materially executed outcomes require a governed correction, replacement, dispute, or unwind workflow.
 
-### Entering CREATED
-
-Requires:
-
-- Valid Tenant context.
-- Customer.
-- Opportunity.
-- Vehicle.
-- Commercial commitment.
-- Accepted Quotation or approved commercial basis.
-- Responsible organizational context.
-- Creation authority.
-- Idempotency protection.
-- Initial audit evidence.
-
-### Entering VALIDATION_PENDING
-
-Requires:
-
-- Complete transaction snapshot.
-- Source-record versions.
-- Validation scope.
-- Commercial calculation request.
-- Duplicate check.
-- Responsible workflow.
-
-### Entering APPROVAL_PENDING
-
-Requires:
-
-- Successful core validation.
-- Identified approval reasons.
-- Frozen approval-request snapshot.
-- Required approval roles.
-- No blocking compliance conflict.
-
 ### Entering APPROVED
 
 Requires:
@@ -2482,25 +2119,15 @@ Requires:
 
 Requires:
 
-- Delivery readiness evaluation.
+- Delivery-readiness evaluation.
 - All configured readiness requirements satisfied.
-- Required Payment and funding conditions.
-- Required Contract conditions.
+- Required Payment condition.
+- Required funding condition based on current authoritative projection.
+- Required Contract condition.
 - Required Vehicle and Inventory conditions.
 - Required documents and compliance.
 - Required registration and insurance.
-- No blocking conflict.
-
-### Entering DELIVERY_PENDING
-
-Requires:
-
-- Delivery authorization.
-- Valid Delivery Appointment or approved delivery workflow.
-- Vehicle release authorization.
-- Customer identity and handover controls.
-- Delivery reference.
-- No blocking condition.
+- No blocking conflict, reversal, stale projection, or reconciliation requirement.
 
 ### Entering COMPLETION_PENDING
 
@@ -2510,7 +2137,8 @@ Requires:
 - Required sale-posting workflow.
 - Accounting handoff.
 - Completion requirements evaluated.
-- Any outstanding External Confirmations identified.
+- Outstanding External Confirmations identified.
+- Funding projection current and reconciled where funding is required.
 
 ### Entering COMPLETED
 
@@ -2519,33 +2147,13 @@ Requires:
 - All configured completion requirements satisfied.
 - Authoritative outcome evidence.
 - Required external systems reconciled.
-- No unresolved material shortfall or dispute.
+- No unresolved material shortfall, reversal, stale projection, dispute, or reconciliation block.
 - Completion Decision where required.
 - `completed_at`.
 
-### Entering CANCELLATION_PENDING
+`COMPLETED` is a Deal outcome.
 
-Requires:
-
-- Cancellation request.
-- Valid reason.
-- Impact assessment.
-- Required authority.
-- Review of active Commands and external workflows.
-
-### Entering CANCELLED
-
-Requires:
-
-- Approved cancellation.
-- Reservation and Allocation handling.
-- Payment handling.
-- Finance and Contract handling.
-- Trade-In handling.
-- Registration and delivery handling.
-- Customer communication.
-- External Confirmations where applicable.
-- Cancellation evidence.
+It does not replace Financial Contract completion, Payment settlement, funding authority, Delivery authority, or Accounting authority.
 
 ### Entering UNWIND_PENDING
 
@@ -2556,30 +2164,6 @@ Requires:
 - Impact assessment.
 - Legal, financial, accounting, Inventory, and Customer plan.
 - Required Human Decision.
-
-### Entering UNWOUND
-
-Requires:
-
-- Approved unwind plan completed.
-- Required refunds, reversals, releases, and external corrections.
-- Vehicle and Inventory reconciled.
-- Contract and funding reconciled.
-- Registration and delivery reconciled.
-- Accounting reconciled.
-- Customer obligations resolved.
-- Unwind evidence.
-- `unwound_at`.
-
-### Entering SUPERSEDED
-
-Requires:
-
-- Valid replacement Deal.
-- Replacement reference.
-- Original Deal no longer active.
-- Required external reconciliation.
-- Lineage evidence.
 
 ### Terminal States
 
@@ -2600,7 +2184,7 @@ Correcting or reopening a material Deal outcome requires:
 - Reason.
 - Supporting evidence.
 - Commercial, legal, finance, Payment, Inventory, delivery, and accounting review.
-- New Event.
+- New immutable Event.
 - Preserved original history.
 - Replacement Deal or unwind where applicable.
 
@@ -2656,119 +2240,55 @@ Every material transition must preserve:
 ### Quotation
 
 - Every standard Deal references one exact accepted Quotation version.
-- Deal preserves the issued and accepted document hashes.
+- Deal preserves issued and accepted document hashes.
 - Deal must not alter Quotation terms.
 - Material changes require Quotation and Deal governance.
 
-### Vehicle
+### Vehicle and Inventory Record
 
 - Every Vehicle transaction references one Vehicle.
-- Vehicle owns identity and specifications.
-- Deal preserves the Vehicle snapshot used in the transaction.
-
-### Inventory Record
-
 - A physical Vehicle Deal references one Inventory Record.
-- Inventory Record owns availability, Reservation, Allocation, sale, transfer, and delivery projections.
+- Vehicle owns identity and specifications.
+- Inventory owns availability, Reservation, Allocation, sale, transfer, Inventory Record activation, and stock-cycle state.
 - Deal requests and consumes authoritative Inventory outcomes.
 
 ### Trade-In
 
 - Deal may reference one or more permitted Trade-In records.
-- Trade-In owns appraisal, payoff, ownership transfer, acquisition, and Inventory intake.
+- Trade-In owns appraisal, payoff, ownership transfer, acquisition, and Inventory-intake request tracking.
+- Inventory owns authoritative Inventory Record creation and activation.
 - Deal preserves exact appraisal and offer versions.
 
 ### Finance Application
 
 - A financed Deal references one Finance Application.
 - It preserves the exact application version and selected Lender Decision.
-- Finance Application remains authoritative for the finance workflow.
+- Finance Application remains authoritative for underwriting, selected offer, readiness, and Contract handoff.
+- Deal consumes non-owning projections.
 
 ### Financial Contract
 
 - Deal may reference one current applicable Financial Contract.
-- Financial Contract owns contractual terms, signatures, effectiveness, amendments, and legal lifecycle.
-- Deal consumes authoritative Contract state.
+- Financial Contract owns contractual terms, signatures, effectiveness, funding-request workflow, reconciliation, activation, amendments, and legal lifecycle.
+- Deal consumes authoritative Contract and funding-workflow facts.
 
 ### Payment
 
 - Deal may reference multiple Payment transactions.
-- Payment authority owns authorization, clearing, refund, reversal, and chargeback.
-- Deal calculates transaction-level Payment requirements and projections.
+- Payment authority owns authorization, clearing, refund, reversal, chargeback, and settlement.
+- Deal owns transaction-level Payment requirements and projections.
 
 ### Funding Authority
 
-- Deal may reference one or more funding transactions or Confirmations.
-- Funding authority owns the confirmed funding outcome.
-- Deal preserves only required transaction projections.
-
-### Appointment
-
-Appointments may support:
-
-- Contract signing.
-- Document collection.
-- Payment coordination.
-- Delivery.
-- Handover.
-
-Appointment completion does not independently prove the corresponding Deal outcome.
-
-### Interaction
-
-Interactions may provide:
-
-- Customer commitment.
-- Quotation acceptance.
-- Payment communication.
-- Contract communication.
-- Delivery coordination.
-- Cancellation request.
-- Dispute evidence.
-
-Original communication evidence remains governed by Interaction and its provider.
-
-### Compliance Case
-
-A Deal may reference:
-
-- Identity review.
-- Fraud review.
-- Sanctions review.
-- Source-of-funds review.
-- Legal review.
-- Customer dispute.
-- Delivery dispute.
-
-Restricted case details must remain purpose-limited.
-
-### Registration and Title Authority
-
-Registration and title systems own authoritative:
-
-- Registration outcome.
-- Ownership registration.
-- Title transfer.
-- Plate assignment.
-- Government reference.
-
-Deal stores only required projections and references.
-
-### Insurance Authority
-
-Insurance provider or approved verifier owns authoritative policy status.
+- Financial Contract owns the funding-request workflow.
+- External Lender, bank, or configured authority owns the funding outcome.
+- Deal stores only required transaction projections, blockers, and evidence references.
+- Deal must not create a funding transaction.
 
 ### Delivery Workflow
 
-Delivery workflow owns:
-
-- Delivery schedule.
-- Release authorization.
-- Handover checklist.
-- Customer identity at handover.
-- Vehicle condition at handover.
-- Delivery evidence.
-- Delivery Confirmation.
+- Delivery workflow owns delivery schedule, release authorization, handover checklist, Customer identity at handover, Vehicle condition at handover, delivery evidence, and Delivery Confirmation.
+- Deal owns delivery requirements and completion gating.
 
 ### Accounting and DMS
 
@@ -2786,14 +2306,6 @@ Accounting or DMS systems may own:
 
 ASOS preserves Canonical Projections and reconciliation.
 
-### Replacement Deal
-
-A replacement Deal must reference the original Deal.
-
-The original Deal must reference the replacement where applicable.
-
-Circular replacement chains are prohibited.
-
 ### Supporting Child Records
 
 Deal may own or govern:
@@ -2802,10 +2314,11 @@ Deal may own or govern:
 - Approval requests.
 - Approval Decisions.
 - Completion requirements.
-- Reservation requests.
-- Allocation requests.
+- Reservation requests where delegated.
+- Allocation requests where delegated.
 - Payment requirements.
-- Funding requirements.
+- Funding completion requirements.
+- Funding projections.
 - Compliance projections.
 - Document requirements.
 - Delivery-readiness evaluations.
@@ -2818,11 +2331,13 @@ Deal may own or govern:
 - Reconciliation cases.
 - Audit records.
 
+Deal must not own Funding Commands or funding-request execution records.
+
 ---
 
 ## 8. Domain Events
 
-The Canonical Event Catalog is the authoritative source for final:
+The Canonical Event Catalog is authoritative for final:
 
 - Event names.
 - Event versions.
@@ -2861,93 +2376,79 @@ The following are required Deal Event concepts and do not replace the Event Cata
 ### Inventory Event Concepts
 
 - Deal Reservation requested.
-- Deal Reservation confirmed.
+- Deal Reservation Confirmation observed.
 - Deal Reservation rejected.
 - Deal Reservation expired.
 - Deal Reservation released.
 - Deal Allocation requested.
-- Deal Allocation confirmed.
+- Deal Allocation Confirmation observed.
 - Deal Allocation rejected.
 - Deal Allocation released.
 - Deal Inventory conflict detected.
 - Deal Inventory reconciliation required.
 
+Inventory Domain Service publishes authoritative Reservation, Allocation, activation, and stock-cycle facts.
+
 ### Contract Event Concepts
 
-- Deal Contract preparation requested.
-- Deal Financial Contract created.
-- Deal Contract signature status updated.
-- Deal Contract became effective.
-- Deal Contract activated.
+- Deal Contract handoff status observed.
+- Deal Financial Contract created projection updated.
+- Deal Contract signature projection updated.
+- Deal Contract effectiveness projection updated.
+- Deal Contract activation projection updated.
 - Deal Contract mismatch detected.
 - Deal Contract reconciliation required.
+
+Financial Contract Domain Service publishes authoritative Contract lifecycle facts.
 
 ### Payment Event Concepts
 
 - Deal Payment requirement created.
-- Deal Payment requested.
-- Deal Payment authorized.
-- Deal Payment captured.
-- Deal Payment cleared.
+- Deal Payment projection updated.
 - Deal Payment shortfall detected.
-- Deal Payment refunded.
-- Deal Payment reversed.
-- Deal Payment chargeback received.
+- Deal Payment reversal observed.
+- Deal Payment chargeback observed.
 - Deal Payment reconciliation required.
 
-### Funding Event Concepts
+Payment or banking authority publishes authoritative Payment facts.
 
-- Deal funding readiness evaluated.
-- Deal funding requested.
-- Deal funding Command sent.
-- Deal partially funded.
-- Deal funding confirmed.
+### Funding Projection Event Concepts
+
+- Deal funding requirement evaluated.
+- Deal funding projection updated.
+- Deal funding Confirmation observed.
 - Deal funding shortfall detected.
-- Deal funding failed.
-- Deal funding reversed.
+- Deal funding failure observed.
+- Deal funding reversal observed.
+- Deal funding projection became stale.
+- Deal funding completion blocker added.
+- Deal funding completion blocker removed.
 - Deal funding reconciliation required.
+- Deal unwind assessment required after funding reversal.
 
-### Compliance and Document Event Concepts
+The Deal Domain Service must not publish authoritative:
 
-- Deal documents requested.
-- Deal document requirement completed.
-- Deal compliance review requested.
-- Deal compliance cleared.
-- Deal compliance blocked.
-- Deal compliance dispute opened.
+- Funding request created.
+- Funding Command sent.
+- Funding confirmed.
+- Funding failed.
+- Funding reversed.
 
-### Registration and Insurance Event Concepts
+The Financial Contract Domain Service publishes accepted funding-workflow facts.
 
-- Deal registration requested.
-- Deal registration confirmed.
-- Deal registration failed.
-- Deal title transfer confirmed.
-- Deal insurance verified.
-- Deal insurance expired.
-- Deal registration reconciliation required.
+The configured Lender, bank, or funding authority remains authoritative for the external outcome.
 
 ### Delivery Event Concepts
 
 - Deal delivery readiness evaluated.
 - Deal became ready for delivery.
 - Deal delivery scheduling requested.
-- Deal delivery started.
-- Deal Vehicle handover recorded.
-- Deal delivery confirmed.
+- Deal delivery projection updated.
+- Deal Vehicle handover projection observed.
+- Deal delivery Confirmation observed.
 - Deal delivery failed.
 - Deal delivery disputed.
 - Deal delivery reconciliation required.
-
-### Sale and Accounting Event Concepts
-
-- Deal sale posting requested.
-- Deal sale posting confirmed.
-- Deal sale posting failed.
-- Deal accounting handoff requested.
-- Deal accounting confirmed.
-- Deal profitability confirmed.
-- Deal accounting reversed.
-- Deal accounting reconciliation required.
 
 ### Completion Event Concepts
 
@@ -3009,10 +2510,11 @@ Derived Intelligence Events must not imply:
 - Opportunity and Quotation Domain Services publish accepted commercial facts.
 - Vehicle and Inventory Domain Services publish accepted Vehicle and Inventory facts.
 - Trade-In Domain Service publishes accepted Trade-In facts.
-- Finance Application and Financial Contract Domain Services publish accepted finance and contract facts.
-- Payment, funding, registration, delivery, DMS, and accounting integrations publish normalized external observations.
+- Finance Application publishes accepted underwriting, selected-offer, readiness, and handoff facts.
+- Financial Contract publishes accepted Contract and funding-workflow facts.
+- Payment, registration, delivery, DMS, accounting, and external funding integrations publish normalized observations through their owning services.
 - AI Agents may publish Agent-run, analysis, prediction, anomaly, or Recommendation Events.
-- AI Agents must not publish authoritative Reservation, Allocation, Payment, funding, signature, delivery, accounting, completion, cancellation, or unwind Events merely because they predicted or recommended the outcome.
+- AI Agents must not publish authoritative Reservation, Allocation, Payment, funding, signature, delivery, accounting, completion, cancellation, or unwind Events merely because they predicted or recommended an outcome.
 
 ### Event Requirements
 
@@ -3051,7 +2553,7 @@ Every material Deal Event must preserve, where applicable:
 
 Events are immutable.
 
-Corrections, cancellation, unwind, replacement, Payment reversal, funding reversal, delivery reversal, and accounting reversal must use new Events linked to prior Events.
+Corrections, cancellation, unwind, replacement, Payment reversal, funding reversal observation, delivery reversal, and accounting reversal must use new Events linked to prior Events.
 
 The Event Backbone may deliver the same Event more than once.
 
@@ -3071,6 +2573,7 @@ AI Agents may assist with:
 - Contract-to-Deal mismatch detection.
 - Payment-shortfall analysis.
 - Funding-delay analysis.
+- Funding-projection staleness detection.
 - Delivery-readiness analysis.
 - Missing-document detection.
 - Compliance-delay risk detection.
@@ -3094,7 +2597,9 @@ AI Agents must not independently:
 - Approve a discount or margin exception.
 - Reserve or allocate a Vehicle.
 - Confirm Payment.
+- Create or transmit a Funding Command.
 - Confirm Lender funding.
+- Alter a funding projection without authoritative evidence.
 - Confirm Contract signature.
 - Confirm Contract effectiveness.
 - Clear compliance.
@@ -3141,7 +2646,7 @@ AI may recommend that a Deal appears ready for:
 - Approval.
 - Contracting.
 - Payment follow-up.
-- Funding request.
+- Funding-readiness review.
 - Delivery preparation.
 - Completion review.
 
@@ -3149,23 +2654,7 @@ The deterministic Policy Engine and authoritative source data must validate all 
 
 AI readiness must not become authoritative Deal state by itself.
 
-### Commercial Analysis
-
-AI may explain:
-
-- Approved commercial terms.
-- Customer-visible differences.
-- Material mismatches.
-- Potential margin risk.
-- Missing approval.
-
-AI must not:
-
-- Alter the Quotation.
-- Alter the Deal snapshot.
-- Expose internal margin to the Customer.
-- Invent prices, taxes, fees, incentives, or approval authority.
-- Present a Recommendation as approved commercial terms.
+AI must not recommend or invoke a Deal-owned funding request because Deal does not own that mutation.
 
 ### Payment and Funding Analysis
 
@@ -3173,13 +2662,16 @@ AI may identify possible:
 
 - Payment shortfall.
 - Funding delay.
+- Funding shortfall.
+- Funding-projection staleness.
 - Reconciliation gap.
 - Missing Confirmation.
 - Inconsistent amount.
+- Reversal impact.
 
 AI must not treat:
 
-- Provider acknowledgment.
+- Provider acknowledgement.
 - Bank instruction.
 - Pending transfer.
 - Customer statement.
@@ -3187,26 +2679,11 @@ AI must not treat:
 
 as authoritative cleared funds.
 
-### Delivery Analysis
-
-AI may recommend delivery preparation steps.
-
-It must not confirm:
-
-- Customer identity.
-- Vehicle release authorization.
-- Physical handover.
-- Delivery.
-- Registration.
-- Insurance.
-
-without authoritative evidence.
-
 ### Customer-Facing Drafting
 
 AI may draft Deal-related communication only when:
 
-- The purpose is permitted.
+- Purpose is permitted.
 - Customer contact is permitted.
 - Current authoritative Deal facts are supplied.
 - Applicable template is approved.
@@ -3223,10 +2700,10 @@ AI must not claim:
 
 ### Action Class 2
 
-Controlled Deal status updates, document requests, Payment reminders, and delivery coordination messages may proceed through:
+Controlled Deal status updates, document requests, Payment reminders, and delivery-coordination messages may proceed through:
 
 - Explicit Human Approval; or
-- An applicable pre-approved automation policy.
+- Applicable pre-approved automation policy.
 
 The deterministic Policy Engine must validate:
 
@@ -3257,7 +2734,7 @@ Examples include:
 - Commercial exception.
 - Reservation or Allocation override.
 - Payment exception.
-- Funding request.
+- Funding completion exception.
 - Delivery authorization.
 - Completion.
 - Cancellation after material execution.
@@ -3265,6 +2742,8 @@ Examples include:
 - Replacement Deal.
 - Accounting correction.
 - Dispute resolution.
+
+The funding request itself remains owned by Financial Contract.
 
 ### AI Context and Embeddings
 
@@ -3289,16 +2768,6 @@ Normally excluded fields include:
 - Fraud and compliance details.
 - Dispute evidence.
 - Unwind plans.
-
-Approved redacted context may include:
-
-- Deal type.
-- General Deal status.
-- Non-sensitive blocker categories.
-- General document-completion category.
-- General delivery-readiness category.
-- Non-sensitive next-action summary.
-- Redacted commercial summary.
 
 Every vector record must enforce:
 
@@ -3333,29 +2802,6 @@ Document content must not:
 - Alter accounting.
 - Modify audit records.
 
-### Explainability
-
-Material Deal Recommendations must explain:
-
-- Evidence used.
-- Authority of each input.
-- Data freshness.
-- Deal record version.
-- Commercial snapshot.
-- Outstanding requirements.
-- Material mismatches.
-- Payment and funding state.
-- Contract state.
-- Inventory state.
-- Delivery state.
-- Accounting state.
-- Assumptions.
-- Limitations.
-- Confidence where meaningful.
-- Required Human authority.
-- External Confirmation requirements.
-- Expiration.
-
 ---
 
 ## 10. API Contract
@@ -3383,9 +2829,10 @@ POST   /api/v1/deals/{deal_id}/allocation-requests
 POST   /api/v1/deals/{deal_id}/allocation-release-requests
 
 POST   /api/v1/deals/{deal_id}/payment-requirements
-POST   /api/v1/deals/{deal_id}/payment-reconciliation-requests
-POST   /api/v1/deals/{deal_id}/funding-readiness-checks
-POST   /api/v1/deals/{deal_id}/funding-requests
+POST   /api/v1/deals/{deal_id}/payment-reconciliation-review-requests
+POST   /api/v1/deals/{deal_id}/funding-requirement-evaluations
+POST   /api/v1/deals/{deal_id}/funding-projection-refresh-requests
+POST   /api/v1/deals/{deal_id}/funding-reconciliation-review-requests
 
 POST   /api/v1/deals/{deal_id}/document-requests
 POST   /api/v1/deals/{deal_id}/compliance-review-requests
@@ -3412,197 +2859,39 @@ GET    /api/v1/deals/{deal_id}/reconciliation
 GET    /api/v1/deals/{deal_id}/history
 ```
 
-### Tenant Context
+The Deal API must not expose a funding-request mutation.
 
-- `tenant_id` must come from the authenticated security context.
-- Request bodies must not override `tenant_id`.
-- Legal entity, dealership, branch, team, User, and approval scope must be validated.
-- Cross-Tenant queries must be blocked by default.
-
-### Example Deal-Conversion Request
-
-```json
-{
-  "opportunity_id": "a524e9f1-6d7e-4820-a0c3-5039f5089346",
-  "customer_id": "a2d85b86-7079-4aaf-964a-580cc040046b",
-  "accepted_quotation_id": "70b12969-bf19-4264-bf9f-30bd736c1262",
-  "accepted_quotation_version": 1,
-  "accepted_quotation_document_hash": "sha256:8ac44d5d...",
-  "vehicle_id": "550e8400-e29b-41d4-a716-446655440000",
-  "inventory_record_id": "123e4567-e89b-12d3-a456-426614174000",
-  "trade_in_ids": [
-    "a6cd98db-b21d-43a0-ad40-e027a62994da"
-  ],
-  "finance_application_id": "9d2ad54a-d4af-45c9-a152-b4f64dcfd233",
-  "dealership_id": "2dc50e3c-392a-44d7-9dc4-8fd7e586ff03",
-  "branch_id": "6835ea02-a8df-4d3d-a1ec-4e309ea9ac38",
-  "legal_entity_id": "aed9092a-b3db-4a28-b96e-bc4bbb4b99dc",
-  "deal_type": "RETAIL_FINANCE",
-  "transaction_type": "NEW_VEHICLE",
-  "sales_channel": "SHOWROOM"
-}
-```
-
-The request must include:
-
-```text
-Idempotency-Key: a8d065e2-98e6-4de0-9d14-a2492957bc29
-```
-
-### Example Created Response
-
-```json
-{
-  "deal_id": "9ea6b018-8ad8-40fb-9148-48cd8a17f2b3",
-  "deal_series_id": "c3555054-7aae-483f-bc04-69b582d78736",
-  "deal_number": "DL-2026-000248",
-  "opportunity_id": "a524e9f1-6d7e-4820-a0c3-5039f5089346",
-  "customer_id": "a2d85b86-7079-4aaf-964a-580cc040046b",
-  "status": "CREATED",
-  "approval_status": "NOT_EVALUATED",
-  "reservation_status": "NOT_REQUESTED",
-  "allocation_status": "NOT_REQUESTED",
-  "payment_status": "PAYMENT_REQUIRED",
-  "funding_status": "NOT_STARTED",
-  "delivery_readiness_status": "NOT_ASSESSED",
-  "completion_status": "NOT_EVALUATED",
-  "data_quality_status": "COMPLETE",
-  "record_version": 1,
-  "created_at": "2026-08-01T20:30:00Z"
-}
-```
-
-### Example Reservation Request
-
-```json
-{
-  "inventory_record_id": "123e4567-e89b-12d3-a456-426614174000",
-  "expected_inventory_record_version": 12,
-  "expected_deal_record_version": 4
-}
-```
-
-The request must use an idempotency key.
-
-A pending response may be:
-
-```json
-{
-  "deal_id": "9ea6b018-8ad8-40fb-9148-48cd8a17f2b3",
-  "reservation_status": "PENDING_CONFIRMATION",
-  "reservation_confirmation_status": "PENDING",
-  "command_id": "c10fd71e-9835-471d-a02c-20474a403420",
-  "record_version": 5
-}
-```
-
-The API must not describe the Vehicle as reserved until authoritative Confirmation exists.
-
-### Example Approval Response
-
-```json
-{
-  "deal_id": "9ea6b018-8ad8-40fb-9148-48cd8a17f2b3",
-  "status": "APPROVED",
-  "approval_status": "APPROVED",
-  "commercial_snapshot_hash": "sha256:e51af221...",
-  "approved_at": "2026-08-02T11:00:00Z",
-  "record_version": 8
-}
-```
+Funding-request mutations belong only to the Financial Contract API.
 
 ### Example Funding Projection
 
 ```json
 {
   "deal_id": "9ea6b018-8ad8-40fb-9148-48cd8a17f2b3",
+  "financial_contract_id": "fb48670c-7650-4a7e-bace-69f8db34b9e0",
   "funding_required": true,
-  "funding_readiness_status": "READY",
-  "funding_status": "PENDING_CONFIRMATION",
   "funding_amount_required": 1650000,
-  "funded_amount": 0,
-  "funding_shortfall_amount": 1650000,
   "funding_currency_code": "EGP",
-  "command_id": "4cf52c54-f0c2-494f-b87f-09314193a354",
+  "funding_status_projection": "PENDING_CONFIRMATION",
+  "confirmed_funding_amount_projection": 0,
+  "funding_shortfall_amount": 1650000,
+  "funding_confirmation_status_projection": "PENDING",
+  "funding_reconciliation_status_projection": "PENDING",
+  "funding_projection_source": "FINANCIAL_CONTRACT",
+  "funding_projection_source_record_version": "18",
+  "funding_projection_freshness_status": "CURRENT",
+  "funding_completion_block_status": "BLOCKING",
   "record_version": 14
 }
 ```
 
-The Deal must not represent the funding as received.
+This response is a projection.
 
-### Example Delivery-Readiness Response
-
-```json
-{
-  "deal_id": "9ea6b018-8ad8-40fb-9148-48cd8a17f2b3",
-  "delivery_readiness_status": "PARTIALLY_READY",
-  "outstanding_delivery_requirements": [
-    "FUNDING_CONFIRMATION",
-    "REGISTRATION_CONFIRMATION"
-  ],
-  "payment_readiness_status": "READY",
-  "contract_readiness_status": "READY",
-  "vehicle_readiness_status": "READY",
-  "record_version": 18
-}
-```
-
-### Example Completion Request
-
-```json
-{
-  "expected_record_version": 26,
-  "expected_delivery_confirmation_reference": "delivery://confirmations/DLV-2026-8821",
-  "expected_sale_posting_reference": "dms://sales/SALE-2026-11582"
-}
-```
-
-A pending response may be:
-
-```json
-{
-  "deal_id": "9ea6b018-8ad8-40fb-9148-48cd8a17f2b3",
-  "status": "COMPLETION_PENDING",
-  "completion_status": "PENDING_CONFIRMATION",
-  "outstanding_completion_requirements": [
-    "ACCOUNTING_CONFIRMATION"
-  ],
-  "record_version": 27
-}
-```
-
-A confirmed response may be:
-
-```json
-{
-  "deal_id": "9ea6b018-8ad8-40fb-9148-48cd8a17f2b3",
-  "status": "COMPLETED",
-  "completion_status": "COMPLETED",
-  "delivery_status": "DELIVERED",
-  "sale_posting_status": "POSTED",
-  "accounting_handoff_status": "COMPLETED",
-  "completed_at": "2026-08-15T14:40:00Z",
-  "record_version": 30
-}
-```
-
-### Example Unwind Request
-
-```json
-{
-  "unwind_reason": "FUNDING_REVERSED",
-  "business_reason": "The Lender reversed the funding after authoritative post-delivery review.",
-  "expected_record_version": 31
-}
-```
-
-The request must not directly reverse Payment, Inventory, Contract, delivery, or accounting state.
-
-It creates a governed unwind workflow.
+It does not create, retry, confirm, fail, or reverse a funding request.
 
 ### Mutation Requirements
 
-Every mutation must enforce:
+Every Deal mutation must enforce:
 
 - Authentication.
 - Tenant scope.
@@ -3615,59 +2904,21 @@ Every mutation must enforce:
 - Commercial-snapshot validation.
 - Vehicle and Inventory checks.
 - Trade-In and finance checks.
-- Contract, Payment, funding, compliance, and delivery checks.
+- Contract, Payment, funding projection, compliance, and delivery checks.
 - Required Human Decision.
 - Idempotency where required.
 - Audit recording.
 - Event publication after accepted state change.
 - External Confirmation tracking where applicable.
 
-### Optimistic Concurrency
+A Deal mutation must reject any attempt to set:
 
-Updates must use an approved mechanism such as:
-
-```text
-If-Match: <record_version>
-```
-
-A stale version must return a conflict response.
-
-### Idempotency
-
-Retryable operations must support:
-
-```text
-Idempotency-Key
-```
-
-The same key and request intent must not create duplicate:
-
-- Deals.
-- Replacement Deals.
-- Reservations.
-- Allocations.
-- Payment requests.
-- Funding requests.
-- Registration requests.
-- Sale postings.
-- Completion outcomes.
-- Cancellation requests.
-- Unwind requests.
-
-### Pending External Confirmation
-
-Operations requiring an external authority may return:
-
-```json
-{
-  "operation_status": "PENDING_CONFIRMATION",
-  "deal_id": "9ea6b018-8ad8-40fb-9148-48cd8a17f2b3",
-  "command_id": "c10fd71e-9835-471d-a02c-20474a403420",
-  "record_version": 5
-}
-```
-
-The API must not describe the operation as complete until authoritative evidence exists.
+- Funding Command identifiers.
+- Funding-request idempotency keys.
+- Authoritative funding status.
+- Authoritative funded amount.
+- Authoritative funding timestamp.
+- Authoritative reversal outcome.
 
 ### Error Categories
 
@@ -3696,10 +2947,15 @@ The API must distinguish at least:
 - `FINANCE_DECISION_EXPIRED`
 - `FINANCIAL_CONTRACT_REQUIRED`
 - `CONTRACT_NOT_EFFECTIVE`
+- `CONTRACT_NOT_ACTIVE`
 - `PAYMENT_SHORTFALL`
 - `PAYMENT_NOT_CLEARED`
-- `FUNDING_NOT_READY`
+- `FUNDING_PROJECTION_REQUIRED`
+- `FUNDING_PROJECTION_STALE`
+- `FUNDING_CONFIRMATION_PENDING`
 - `FUNDING_SHORTFALL`
+- `FUNDING_REVERSED`
+- `FUNDING_REQUEST_NOT_OWNED_BY_DEAL`
 - `COMPLIANCE_BLOCK`
 - `DOCUMENTS_INCOMPLETE`
 - `REGISTRATION_REQUIRED`
@@ -3727,7 +2983,9 @@ A GraphQL implementation must enforce the same:
 - Field authority.
 - Commercial-snapshot immutability.
 - Inventory authority.
-- Payment and funding authority.
+- Payment authority.
+- Financial Contract funding-workflow ownership.
+- Funding projection-only behaviour in Deal.
 - Contract and delivery authority.
 - Concurrency.
 - Idempotency.
@@ -3757,7 +3015,7 @@ deal_finance_references
 deal_contract_references
 deal_payment_requirements
 deal_payment_projections
-deal_funding_requirements
+deal_funding_completion_requirements
 deal_funding_projections
 deal_approval_requests
 deal_approval_decisions
@@ -3786,20 +3044,13 @@ deal_record_versions
 deal_audit_log
 ```
 
-### Deal Series Table
+The Deal database must not contain a Deal-owned funding-command or funding-request execution table.
 
-`deal_series` should contain:
+The canonical funding workflow belongs to:
 
-- `deal_series_id`.
-- `tenant_id`.
-- Opportunity.
-- Customer.
-- Original Deal.
-- Current Deal.
-- Latest replacement.
-- Series status.
-- Created time.
-- Updated time.
+```text
+financial_contract_funding_workflows
+```
 
 ### Deals Table
 
@@ -3809,11 +3060,12 @@ The `deals` table should contain:
 - Deal series.
 - Tenant and organizational scope.
 - Opportunity and Customer.
-- Current Quotation, Vehicle, Inventory, Trade-In, finance, Contract, and delivery references.
+- Current Quotation, Vehicle, Inventory, Trade-In, Finance Application, Financial Contract, and Delivery references.
 - Current aggregate lifecycle state.
 - Current approval state.
 - Current Reservation and Allocation projections.
-- Current Payment and funding projections.
+- Current Payment projection.
+- Current funding requirement and projection.
 - Current compliance and document projections.
 - Current registration, insurance, delivery, sale-posting, accounting, and completion projections.
 - Cancellation, unwind, replacement, and dispute projections.
@@ -3824,34 +3076,60 @@ The `deals` table should contain:
 
 Historical and repeating data must remain in child or history tables.
 
-### Primary Keys
+### Funding Completion Requirement Storage
 
-```text
-PRIMARY KEY (deal_series_id)
-```
+`deal_funding_completion_requirements` should preserve:
 
-for `deal_series`.
+- Requirement identifier.
+- `tenant_id`.
+- Deal.
+- Financial Contract.
+- Finance Application.
+- Selected Lender Decision.
+- Required amount.
+- Currency.
+- Requirement source.
+- Source record version.
+- Completion-block status.
+- Block reasons.
+- Evaluation timestamp.
+- Applied policy.
+- Related Events.
 
-```text
-PRIMARY KEY (deal_id)
-```
+It must not store:
 
-for `deals`.
+- Funding Command.
+- Funding idempotency key.
+- Request-transmission state.
+- Authoritative outcome.
 
-### Tenant Protection
+### Funding Projection Storage
 
-Every Deal-related table must include:
+`deal_funding_projections` should preserve:
 
-```text
-tenant_id
-```
+- Projection identifier.
+- `tenant_id`.
+- Deal.
+- Financial Contract.
+- External funding authority reference.
+- Observed funding status.
+- Confirmed amount.
+- Currency.
+- Confirmation reference.
+- Confirmation timestamp.
+- Shortfall.
+- Failure projection.
+- Reversal projection.
+- Reconciliation status.
+- Source system.
+- Source record identifier.
+- Source record version.
+- Observation timestamp.
+- Last synchronization timestamp.
+- Freshness status.
+- Related Events.
 
-Tenant consistency must be enforced using:
-
-- Composite Tenant-aware foreign keys; or
-- Equivalent database and service controls.
-
-Row-Level Security should be used where supported.
+Projection rows must be traceable to Financial Contract or the configured external funding authority.
 
 ### Recommended Indexes
 
@@ -3883,20 +3161,17 @@ idx_deals_tenant_finance
 idx_deals_tenant_contract
   (tenant_id, financial_contract_id)
 
-idx_deals_reservation
-  (tenant_id, reservation_status)
+idx_deals_payment_projection
+  (tenant_id, payment_status_projection)
 
-idx_deals_allocation
-  (tenant_id, allocation_status)
+idx_deals_funding_projection
+  (tenant_id, funding_status_projection)
 
-idx_deals_payment
-  (tenant_id, payment_status)
-
-idx_deals_funding
-  (tenant_id, funding_status)
+idx_deals_funding_block
+  (tenant_id, funding_completion_block_status)
 
 idx_deals_delivery
-  (tenant_id, delivery_status)
+  (tenant_id, delivery_status_projection)
 
 idx_deals_completion
   (tenant_id, completion_status)
@@ -3924,285 +3199,28 @@ UNIQUE (tenant_id, source_system, source_record_id)
 
 where the source guarantees uniqueness.
 
-A partial unique constraint or equivalent service control should normally enforce one primary active Deal per Opportunity:
+A partial unique constraint or equivalent service control should normally enforce one primary active Deal per Opportunity.
+
+### Tenant Protection
+
+Every Deal-related table must include:
 
 ```text
-UNIQUE (tenant_id, opportunity_id)
-WHERE is_primary_deal = true
-  AND status NOT IN (
-    'CANCELLED',
-    'UNWOUND',
-    'SUPERSEDED',
-    'ARCHIVED'
-  )
+tenant_id
 ```
 
-One active physical Inventory Record should not be allocated to incompatible Deals.
+Tenant consistency must be enforced using:
 
-That constraint must be enforced by Inventory authority through concurrency-safe controls.
+- Composite Tenant-aware foreign keys; or
+- Equivalent database and service controls.
 
-### Deal Snapshots
-
-`deal_snapshots` should preserve:
-
-- Snapshot identifier.
-- Deal.
-- Record version.
-- Customer snapshot.
-- Quotation snapshot.
-- Vehicle snapshot.
-- Inventory snapshot.
-- Trade-In snapshot.
-- Finance snapshot.
-- Commercial snapshot.
-- Calculation snapshot.
-- Approval snapshot.
-- Completion-requirement snapshot.
-- Source-record versions.
-- Snapshot hashes.
-- Created by.
-- Created at.
-- Related Events.
-
-Approved execution snapshots must remain immutable.
-
-### Reservation and Allocation Storage
-
-Reservation and Allocation tables should preserve:
-
-- Request identifier.
-- Deal.
-- Inventory Record.
-- Expected Inventory version.
-- Status.
-- Command.
-- Idempotency key.
-- Requested time.
-- External reference.
-- Confirmation.
-- Expiration.
-- Release.
-- Failure reason.
-- Reconciliation state.
-- Related Events.
-
-### Payment Requirement Storage
-
-`deal_payment_requirements` should preserve:
-
-- Requirement identifier.
-- Deal.
-- Requirement type.
-- Required amount.
-- Currency.
-- Due time.
-- Refundability.
-- Policy.
-- Status.
-- Satisfaction references.
-- Related Events.
-
-Payment projections must reference authoritative Payment transactions rather than duplicate them.
-
-### Funding Storage
-
-Funding tables should preserve:
-
-- Funding requirement.
-- Deal.
-- Finance Application.
-- Lender Decision.
-- Financial Contract.
-- Required amount.
-- Requested amount.
-- Confirmed amount.
-- Currency.
-- Command.
-- Idempotency key.
-- External Confirmation.
-- Shortfall.
-- Reversal.
-- Reconciliation.
-- Related Events.
-
-### Approval Storage
-
-Approval tables should preserve:
-
-- Request identifier.
-- Deal and snapshot version.
-- Requested scope.
-- Triggered policy.
-- Values.
-- Required role.
-- Assigned approver.
-- Decision.
-- Reason.
-- Evidence.
-- Effective period.
-- Revocation.
-- Related Events.
-
-### Delivery Requirements Storage
-
-`deal_delivery_requirements` should preserve:
-
-- Requirement identifier.
-- Deal.
-- Requirement type.
-- Authority.
-- Required state.
-- Current projection.
-- Evidence.
-- Expiration.
-- Satisfaction status.
-- Related Event.
-
-### Completion Requirements Storage
-
-`deal_completion_requirements` should preserve:
-
-- Requirement identifier.
-- Deal.
-- Requirement set and version.
-- Requirement type.
-- Authority.
-- Required state.
-- Current state.
-- Evidence.
-- External Confirmation.
-- Satisfaction timestamp.
-- Reversal state.
-- Related Events.
-
-### Cancellation Storage
-
-`deal_cancellations` should preserve:
-
-- Cancellation identifier.
-- Deal.
-- Deal record version.
-- Reason.
-- Requesting actor.
-- Decision.
-- Impact assessment.
-- Reservation handling.
-- Allocation handling.
-- Payment handling.
-- Finance handling.
-- Contract handling.
-- Trade-In handling.
-- Registration handling.
-- Delivery handling.
-- External Confirmations.
-- Reconciliation.
-- Related Events.
-
-### Unwind Storage
-
-`deal_unwinds` should preserve:
-
-- Unwind identifier.
-- Deal.
-- Reason.
-- Requesting actor.
-- Human Decision.
-- Legal review.
-- Financial review.
-- Inventory plan.
-- Payment plan.
-- Funding plan.
-- Contract plan.
-- Trade-In plan.
-- Delivery plan.
-- Registration plan.
-- Accounting plan.
-- Commands.
-- External Confirmations.
-- Progress.
-- Completion.
-- Reconciliation.
-- Related Events.
-
-### Replacement Storage
-
-`deal_replacements` should preserve:
-
-- Original Deal.
-- Replacement Deal.
-- Deal series.
-- Reason.
-- Actor.
-- Decision.
-- Created time.
-- Source snapshot.
-- Reconciliation.
-- Related Events.
-
-### Profitability Storage
-
-Estimated and confirmed profitability must remain separate.
-
-Profitability records should preserve:
-
-- Source authority.
-- Cost components.
-- Revenue components.
-- Estimate or confirmed classification.
-- Formula.
-- Rule version.
-- Accounting period.
-- Timestamp.
-- Reversal.
-- Related Events.
-
-### Derived Intelligence
-
-Derived Deal records must remain separate from authoritative workflow, Payment, funding, delivery, and accounting fields.
-
-Each derived record should preserve:
-
-- Output type.
-- Value.
-- Model, formula, or algorithm version.
-- Prompt version where applicable.
-- Input-record versions.
-- Evidence references.
-- Confidence.
-- Assumptions.
-- Generated time.
-- Expiration time.
-- Review status.
+Row-Level Security should be used where supported.
 
 ### Audit Storage
 
 Deal audit records must be append-only or protected through an equivalent immutable-audit mechanism.
 
-Secure hashes should replace raw financial, identity, contract, Payment, funding, and dispute values where full retention is unnecessary.
-
-### Partitioning
-
-Large deployments may partition by:
-
-- `tenant_id`.
-- Region.
-- Legal entity.
-- Dealership.
-- Creation date.
-- Completion date.
-- Status.
-- Retention class.
-- Audit date.
-
-Partitioning must not weaken:
-
-- Tenant isolation.
-- Opportunity uniqueness.
-- Deal lineage.
-- Inventory concurrency.
-- Snapshot immutability.
-- Referential integrity.
-- Audit integrity.
+Secure hashes should replace raw financial, identity, Contract, Payment, funding, and dispute values where full retention is unnecessary.
 
 ### Hard Deletion
 
@@ -4217,7 +3235,7 @@ A Deal must not be hard-deleted when referenced by:
 - Finance Application.
 - Financial Contract.
 - Payment.
-- Funding.
+- Funding projection.
 - Registration.
 - Delivery.
 - Accounting.
@@ -4286,131 +3304,6 @@ Authorization must consider:
 - Delegated authority.
 - Legal hold.
 
-### Example Role Boundaries
-
-#### Sales Consultant
-
-May access permitted:
-
-- Assigned Deal summary.
-- Customer-facing commercial terms.
-- Reservation and Allocation status.
-- Document status.
-- Customer Payment requirement summary.
-- Delivery readiness.
-- Approved follow-up.
-
-Must not independently:
-
-- Approve restricted pricing.
-- Confirm Payment.
-- Confirm funding.
-- Alter Lender terms.
-- Confirm Contract effectiveness.
-- Override compliance.
-- Authorize restricted Vehicle release.
-- Confirm accounting.
-- Complete or unwind the Deal.
-
-#### Sales Manager
-
-May perform configured:
-
-- Deal approval.
-- Commercial exception review.
-- Assignment.
-- Deal escalation.
-- Cancellation review.
-- Replacement Deal review.
-
-Manager access does not automatically authorize:
-
-- Lender underwriting.
-- Contract legal validity.
-- Payment settlement.
-- Funding Confirmation.
-- Accounting posting.
-- Cross-Tenant access.
-
-#### Finance Specialist
-
-May access finance, Contract, funding, and Customer contribution context required for assigned Deals.
-
-Finance access does not authorize altering Lender Decisions or confirming funding without evidence.
-
-#### Finance Manager
-
-May perform configured:
-
-- Funding readiness review.
-- Finance exception review.
-- Funding-shortfall handling.
-- Contract and funding reconciliation.
-
-#### Inventory User
-
-May access Vehicle, Reservation, Allocation, location, readiness, and release context required for the Deal.
-
-Inventory access does not authorize pricing, finance, Payment, or Deal completion.
-
-#### Delivery Coordinator
-
-May access:
-
-- Delivery readiness.
-- Delivery Appointment.
-- Vehicle release requirements.
-- Customer identity checks required for handover.
-- Handover workflow.
-
-Delivery Coordinator must not bypass Payment, funding, Contract, registration, insurance, or compliance controls.
-
-#### Accounting User
-
-May access:
-
-- Sale posting.
-- Customer receivable projection.
-- Cost and profitability.
-- Tax.
-- Reconciliation.
-- Accounting reversal.
-
-Accounting access does not authorize Customer contract changes or Vehicle delivery.
-
-#### Compliance or Legal Reviewer
-
-May access restricted Deal evidence required for the assigned review.
-
-#### Data Steward
-
-May review:
-
-- Duplicate Deals.
-- Relationship conflicts.
-- Source mappings.
-- Reconciliation.
-- Data-quality issues.
-- Deal lineage.
-
-#### AI Agent
-
-May access only the minimum Deal context required for its approved task.
-
-AI access must be:
-
-- Tenant-scoped.
-- Purpose-limited.
-- Field-restricted.
-- Logged.
-- Time-limited where appropriate.
-- Prevented from cross-Tenant retrieval.
-- Prevented from unrestricted access to Payment, banking, funding, Contract, identity, compliance, margin, commission, and dispute data.
-
-#### Integration Service
-
-May access only fields required for an approved CRM, DMS, Inventory, Payment, funding, registration, delivery, or accounting integration.
-
 ### Field-Level Protection
 
 Restricted fields must use:
@@ -4439,21 +3332,6 @@ Restricted examples include:
 - Compliance findings.
 - Unwind plans.
 
-### Customer-Facing Protection
-
-Customer-facing Deal views must not expose:
-
-- Internal Vehicle cost.
-- Internal gross profit.
-- Margin.
-- Commission.
-- Approval thresholds.
-- Fraud indicators.
-- Internal compliance notes.
-- Internal funding instructions.
-- Internal accounting status beyond permitted summaries.
-- Unrelated Customer or Deal information.
-
 ### Payment and Funding Protection
 
 Payment and funding data must use:
@@ -4462,10 +3340,12 @@ Payment and funding data must use:
 - Tokenized account references where applicable.
 - Field-level authorization.
 - Controlled instructions.
-- Idempotency protection.
+- Idempotency protection in the owning workflow.
 - External Confirmation.
 - Reconciliation.
 - Audit logging.
+
+Deal must not store funding-request credentials, raw banking instructions, or a funding idempotency key.
 
 Payment or funding instructions must never be copied into:
 
@@ -4474,33 +3354,6 @@ Payment or funding instructions must never be copied into:
 - General-purpose embeddings.
 - Public documents.
 - Unapproved Customer messages.
-
-### Contract and Document Protection
-
-Contract and Deal documents must:
-
-- Use controlled storage.
-- Preserve hashes.
-- Preserve versions.
-- Use authenticated access.
-- Prevent public indexing.
-- Prevent uncontrolled sharing.
-- Support legal holds.
-- Preserve access logs.
-- Exclude sensitive content from unrestricted AI context.
-
-### Inventory and Delivery Protection
-
-Exact Vehicle location, release codes, key-control information, secure storage details, and delivery instructions must be restricted.
-
-The platform must prevent:
-
-- Unauthorized Vehicle release.
-- Unauthorized Allocation change.
-- False handover.
-- Delivery to the wrong Customer.
-- Exposure of secure Vehicle location.
-- Release before required Payment, funding, Contract, compliance, registration, or insurance conditions.
 
 ### Tenant Isolation
 
@@ -4517,7 +3370,7 @@ Tenant isolation must apply to:
 - Caches.
 - Documents.
 - Payments.
-- Funding.
+- Funding projections.
 - Delivery.
 - Accounting.
 - Analytics.
@@ -4542,9 +3395,13 @@ Outbound Deal Commands must include:
 - Requested action.
 - Field-level authority.
 - Human Decision or automation-policy reference.
-- Idempotency key.
+- Idempotency key where Deal owns the request.
 - Audit evidence.
 - External Confirmation requirement.
+
+The Deal Domain Service must reject a funding Command request.
+
+Funding Commands must originate only from Financial Contract Domain Service.
 
 The AI Intelligence Layer must not transmit external Commands directly.
 
@@ -4579,8 +3436,8 @@ Material Deal activity must record:
 - Automation-policy reference.
 - AI involvement.
 - Recommendation.
-- Command.
-- Idempotency key.
+- Command where applicable.
+- Idempotency key where applicable.
 - External Confirmation.
 - Evidence.
 - Timestamp.
@@ -4599,7 +3456,9 @@ ASOS must detect and record:
 - Unauthorized price or margin changes.
 - Reservation or Allocation manipulation.
 - False Payment recording.
+- Attempted Deal-owned Funding Command.
 - False funding Confirmation.
+- Funding projection tampering.
 - Contract-status manipulation.
 - Compliance bypass.
 - Unauthorized Vehicle release.
@@ -4626,42 +3485,15 @@ The platform must detect or prevent:
 - Vehicle or Inventory substitution without governance.
 - Reservation and Allocation conflict.
 - Payment counted before clearing.
-- Funding counted before Confirmation.
+- Funding counted before accepted Confirmation.
+- Deal-created Funding Commands.
 - Contract signature treated as effectiveness.
+- Funding Confirmation treated as Contract activation without policy.
 - Delivery before readiness.
 - Completion with outstanding requirements.
 - Unwind without consequence handling.
 - Replacement Deal without lineage.
 - Deal status manipulation.
-
-### Privacy and Retention
-
-Deal retention must follow:
-
-- Applicable law.
-- Tenant policy.
-- Customer privacy rights.
-- Tax and accounting obligations.
-- Contractual requirements.
-- Payment and funding obligations.
-- Registration requirements.
-- Dispute requirements.
-- Legal holds.
-- Audit requirements.
-
-Privacy actions must propagate to:
-
-- Search indexes.
-- Vector stores.
-- Caches.
-- Analytics projections.
-- Exports.
-- Non-authoritative replicas.
-- Document stores.
-- External systems where lawfully required.
-- Backups according to policy.
-
-Required commercial, contractual, financial, accounting, security, and audit evidence may remain only where lawful.
 
 ### Emergency Controls
 
@@ -4671,8 +3503,8 @@ The platform must support immediate Tenant-scoped suspension of:
 - Deal approval.
 - Reservation.
 - Allocation.
-- Payment Commands.
-- Funding requests.
+- Payment-related Deal requests.
+- Funding-projection ingestion.
 - Contract handoff.
 - Registration requests.
 - Delivery authorization.
@@ -4713,15 +3545,31 @@ This document is the approved Canonical Deal baseline.
 
 Deal is the governed automotive transaction aggregate.
 
-Deal remains separate from Opportunity, Quotation, Inventory Record, Trade-In, Finance Application, Financial Contract, Payment, funding, delivery, and accounting authority.
+Deal owns transaction execution, completion gates, cancellation, unwind, and non-owning projections required to complete the transaction.
+
+Deal remains separate from Opportunity, Quotation, Inventory Record, Trade-In, Finance Application, Financial Contract, Payment, external funding authority, Delivery, and Accounting authority.
+
+Finance Application owns underwriting, selected-offer, readiness, and Financial Contract handoff.
+
+Financial Contract owns the funding-request workflow, Funding Commands, idempotency, External Confirmation tracking, partial-funding, failure, reversal, reconciliation, and Contract activation.
+
+The configured Lender, bank, or funding authority owns the authoritative funding outcome.
+
+Deal stores only the funding requirement, read-only funding projection, completion blocker, Confirmation references, freshness, and reconciliation state.
+
+Deal APIs must not expose a funding-request mutation.
 
 Vehicle Reservation and Allocation require authoritative Inventory Confirmation.
+
+Trade-In requests and tracks Inventory intake; Inventory owns authoritative Inventory Record creation, activation, and stock-cycle state.
 
 Payment authorization does not prove cleared funds.
 
 Finance approval does not prove funding.
 
 A fully signed Financial Contract is not automatically effective.
+
+Funding Confirmation does not automatically prove Contract activation or Deal completion.
 
 Delivery readiness does not prove Vehicle delivery.
 
