@@ -5,7 +5,7 @@
 **Document Owner:** ASOS Architecture Governance  
 **Architecture Type:** Logical, Vendor-Neutral, Multi-Tenant Platform Architecture  
 **Applies To:** All ASOS services, AI Agents, workflows, integrations, deployments, and dealership configurations  
-**Last Updated:** 2026-08-01  
+**Last Updated:** 2026-08-02  
 
 ---
 
@@ -18,20 +18,21 @@ ASOS is a configurable decision-support and workflow-orchestration platform desi
 This architecture defines:
 
 - Platform boundaries.
-- Core architectural components.
+- Core architectural capabilities.
 - Data ownership and authority boundaries.
 - Event, Recommendation, Decision, Command, and Confirmation semantics.
+- Event identity ownership and delivery responsibilities.
 - AI and Agent responsibilities.
 - Human Review and approval controls.
 - Integration patterns.
-- Security and tenant isolation.
-- Audit and observability requirements.
+- Security and Tenant isolation.
+- Audit, observability, reliability, and recovery requirements.
 - Deployment and configuration principles.
 - Architectural evolution and change control.
 
 This document is vendor-neutral.
 
-Specific technologies, cloud providers, AI models, workflow platforms, databases, and Pilot tools must be documented in separate deployment profiles or Architectural Decision Records.
+Specific technologies, cloud providers, AI models, workflow platforms, databases, messaging platforms, and Pilot tools must be documented in separate deployment profiles or Architectural Decision Records.
 
 ASOS must remain reusable across dealerships.
 
@@ -49,9 +50,19 @@ Every service, Agent, integration, Prompt, Business Rule, Event, API, Schema, wo
 
 ### Authorized Human Authority
 
-Binding and high-impact decisions remain under the authority of approved Human roles.
+Binding and high-impact Decisions remain under the authority of approved Human roles.
 
-Authority must be enforced through role, permission, scope, threshold, and delegation policies.
+Authority must be enforced through:
+
+- Role.
+- Permission.
+- Tenant scope.
+- Dealership and branch scope.
+- Monetary or risk threshold.
+- Delegation.
+- Separation of duties.
+- Approval validity.
+- Revocation.
 
 ### AI Does Not Execute Directly
 
@@ -65,30 +76,36 @@ The AI Intelligence Layer may:
 - Prioritize.
 - Detect risks and opportunities.
 - Draft content.
-- Generate recommendations and explanations.
+- Generate Recommendations.
+- Generate explanations.
 
 The AI Intelligence Layer must not directly perform external actions.
 
 Execution must pass through:
 
 - Deterministic policy controls.
-- Authorization controls.
+- Authentication and authorization.
 - Required Human Approval or approved automation policy.
-- Command Orchestration services.
+- Command Orchestration.
 - Controlled external connectors.
+- Required External Confirmation.
+- Audit and reconciliation.
 
 ### Evidence Before Assertion
 
 ASOS must distinguish between:
 
 - Authoritative facts.
-- Observations.
+- External observations.
+- Canonical Projections.
+- ASOS Authoritative Workflow State.
 - Derived Intelligence.
 - Assumptions or hypotheses.
 - Recommendations.
 - Human Decisions.
 - Commands.
 - External Confirmations.
+- Reconciled canonical outcomes.
 
 ### Deterministic Control
 
@@ -103,6 +120,10 @@ The following capabilities must not depend solely on probabilistic AI reasoning:
 - Consent controls.
 - Data-retention controls.
 - Prohibited-action enforcement.
+- Lifecycle transition validation.
+- Event-envelope validation.
+- Event identity validation.
+- Consumer deduplication.
 - Command idempotency.
 - External-confirmation validation.
 - Security policy enforcement.
@@ -115,7 +136,15 @@ No external or internal system should automatically be treated as the universal 
 
 ### Event-Driven Coordination
 
-Material state changes should produce governed Domain Events that allow authorized services to coordinate without uncontrolled direct dependencies.
+Material state changes should produce governed Domain or Workflow Events that allow authorized services to coordinate without uncontrolled direct dependencies.
+
+### Producer-Owned Event Identity
+
+Every canonical Event must receive its immutable `event_id` from the approved Event-producing boundary before the Event is published.
+
+The Event and Messaging Backbone must preserve that identifier unchanged.
+
+It must not create a replacement identifier for an already-created canonical Event.
 
 ### Immutable Event History
 
@@ -127,17 +156,17 @@ Corrections, reversals, cancellations, and revocations must be represented throu
 
 ### At-Least-Once Delivery Safety
 
-The Event and Messaging Backbone may deliver an Event more than once.
+The Event and Messaging Backbone may deliver the same Event more than once.
 
-Every Event Consumer must use the Event identifier and idempotent processing controls to prevent duplicate business effects.
+Every Event Consumer must use the preserved `event_id` and idempotent processing controls to prevent duplicate business effects.
 
 ### Tenant Isolation
 
-Dealership, branch, User, Customer, Vehicle, Deal, communication, financial, and operational data must remain isolated according to tenant and permission boundaries.
+Dealership, branch, User, Customer, Vehicle, Deal, communication, financial, and operational data must remain isolated according to Tenant and permission boundaries.
 
 ### Auditability
 
-Material recommendations, decisions, approvals, commands, confirmations, overrides, corrections, failures, and outcomes must remain traceable.
+Material Recommendations, Decisions, approvals, Commands, Confirmations, overrides, corrections, failures, and outcomes must remain traceable.
 
 ### Graceful Degradation
 
@@ -145,8 +174,9 @@ Failure of an AI model or optional integration must not:
 
 - Disable deterministic security controls.
 - Disable authorization.
-- Break tenant isolation.
+- Break Tenant isolation.
 - Corrupt authoritative business state.
+- Rewrite Event identity.
 - Remove audit evidence.
 
 ### Modularity
@@ -170,7 +200,10 @@ ASOS may support:
 - Executives.
 - Finance Specialists.
 - Compliance or Legal Reviewers.
-- Data Owners.
+- Inventory personnel.
+- Delivery personnel.
+- Accounting personnel.
+- Data Owners and Data Stewards.
 - System Administrators.
 - Approved operational personnel.
 
@@ -182,7 +215,7 @@ ASOS may integrate with:
 - Dealer Management Systems.
 - Inventory Management Systems.
 - Finance and Insurance platforms.
-- Lender systems.
+- Lender and bank systems.
 - Communication providers.
 - Website and Lead providers.
 - Appointment and calendar platforms.
@@ -190,6 +223,7 @@ ASOS may integrate with:
 - Pricing and market-data providers.
 - Contract and document platforms.
 - Payment platforms.
+- Delivery systems.
 - OEM systems.
 - Government or regulatory services.
 - Approved spreadsheets and legacy data sources.
@@ -209,26 +243,33 @@ ASOS may be authoritative for platform-native state such as:
 - Internal priority queues.
 - Agent execution records.
 - Outbound Command state.
+- Event publication state.
+- Consumer-processing state.
 - Synchronization state.
 - Data-quality exceptions.
+- Reconciliation state.
 - Audit evidence.
 - Derived Intelligence.
 
 ### External Authoritative State
 
-ASOS must not treat an internal projection, recommendation, Human Decision, or outbound Command as externally confirmed unless evidence is received from the configured authoritative source.
+ASOS must not treat an internal projection, Recommendation, Human Decision, outbound Command, or provider acknowledgement as externally confirmed unless accepted evidence is received from the configured authoritative source.
 
 Examples may include:
 
 - Final Vehicle availability.
+- External Inventory stock posting.
 - Final pricing posted in the dealership system.
 - Credit or finance approval.
 - Contract status.
 - Payment status.
-- Vehicle reservation.
+- Funding outcome.
+- Vehicle Reservation.
 - Vehicle delivery.
 - External Appointment acceptance.
+- Registration.
 - Final Deal posting.
+- Accounting outcome.
 
 ---
 
@@ -252,8 +293,9 @@ flowchart LR
 
     EXT <--> EDGE
     EDGE <--> DOMAIN
-    DOMAIN <--> BUS
-    BUS <--> POLICY
+    DOMAIN --> BUS
+    BUS --> DOMAIN
+    BUS --> POLICY
     POLICY --> CONTEXT
     CONTEXT --> AI
     AI --> REVIEW
@@ -264,6 +306,7 @@ flowchart LR
 
     CONTROL -. governs .-> EDGE
     CONTROL -. governs .-> DOMAIN
+    CONTROL -. governs .-> BUS
     CONTROL -. governs .-> POLICY
     CONTROL -. governs .-> AI
     CONTROL -. governs .-> REVIEW
@@ -282,15 +325,26 @@ flowchart LR
 
 Responsible for:
 
-- Receiving inbound data.
+- Receiving inbound data and external Events.
 - Sending approved outbound Commands.
 - Mapping external identifiers.
+- Preserving external source identifiers.
+- Creating normalized external-observation records.
+- Acting as the approved Event Producer for normalized integration Events where configured.
+- Assigning the ASOS `event_id` for each new normalized Event it produces.
+- Preserving the external provider Event identifier separately, such as `source_event_id` or `external_event_id`.
 - Verifying signatures and credentials.
 - Applying rate limits.
 - Managing retries.
 - Enforcing idempotency.
-- Receiving external responses and confirmations.
+- Receiving external responses and Confirmations.
 - Isolating vendor-specific integration behavior.
+
+An external provider identifier must not replace the ASOS canonical `event_id`.
+
+A retry of the same normalized Event must retain the same ASOS `event_id`.
+
+A materially new external occurrence requires a new ASOS `event_id`.
 
 ### 4.2 Canonical Domain and Data Services
 
@@ -306,23 +360,42 @@ Responsible for:
 - Data-quality status.
 - Tenant-aware persistence.
 - Reconciliation with authoritative sources.
+- Creating Domain and Workflow Event records for accepted material occurrences.
+- Assigning each new Event its immutable `event_id` before publication.
+- Persisting the Event atomically with the accepted state change or through an approved transactional-outbox pattern.
+- Publishing the created Event without changing its identity.
+- Preserving correlation, causation, authority, evidence, and aggregate version.
+
+The responsible Domain or Workflow Service is the approved Event-producing boundary for the facts it owns unless the Event Catalog explicitly assigns another Producer.
 
 ### 4.3 Event and Messaging Backbone
 
 Responsible for:
 
-- Publishing immutable business Events.
-- Assigning unique Event identifiers.
+- Accepting immutable Events created by approved Producers.
+- Validating required Event-envelope fields.
+- Validating that `event_id` is present, correctly formed, and not reused for another occurrence.
+- Preserving the Producer-assigned `event_id` unchanged.
 - Delivering Events to authorized Consumers.
 - Supporting asynchronous workflows.
 - Supporting at-least-once Event delivery.
 - Preserving ordering where explicitly required.
 - Retry and dead-letter handling.
 - Controlled Event replay.
-- Correlation and causation tracking.
+- Correlation and causation propagation.
+- Tenant-aware routing and authorization.
 - Preventing unauthorized Event access.
+- Recording publication and delivery evidence.
 
-The Event Backbone must not promise exactly-once physical delivery.
+The Event Backbone must not:
+
+- Mint the canonical `event_id` for a Domain or Workflow Event that has already been created by its Producer.
+- Rewrite `event_id` during transport, retry, redelivery, dead-letter processing, or replay.
+- Reuse an `event_id` for a different occurrence.
+- Treat transport metadata as canonical Event identity.
+- Promise exactly-once physical delivery.
+
+When an Event is missing a valid identity or conflicts with an existing Event identity, the Backbone must reject, quarantine, or route the Event for reconciliation according to policy.
 
 Business-level duplicate prevention must be implemented through idempotent Consumers and controlled state transitions.
 
@@ -341,6 +414,9 @@ Responsible for deterministic enforcement of:
 - Prohibited actions.
 - Human Review requirements.
 - Approved automation policies.
+- Event-trigger eligibility.
+- Replay eligibility.
+- Correction and reversal authority.
 
 ### 4.5 Context Assembly and Knowledge Retrieval
 
@@ -354,6 +430,7 @@ Responsible for:
 - Enforcing access restrictions.
 - Marking stale or conflicting information.
 - Avoiding unnecessary exposure of sensitive information.
+- Preserving the record and Event versions used for AI analysis.
 
 ### 4.6 AI Intelligence and Agent Services
 
@@ -374,17 +451,22 @@ The term **AI Brain** describes this logical intelligence capability.
 
 It does not require a single model, provider, service, or centralized executable component.
 
+AI Agents may produce Agent-run, analysis, Recommendation, anomaly, or Derived Intelligence Events only through an approved producing boundary.
+
+They must not impersonate an authoritative Domain Producer.
+
 ### 4.7 Human Review and Approval
 
 Responsible for:
 
-- Presenting evidence and recommendations.
+- Presenting evidence and Recommendations.
 - Identifying the required Human authority.
 - Recording approval, rejection, modification, deferral, or escalation.
-- Capturing reasons and decision evidence.
+- Capturing reasons and Decision evidence.
 - Enforcing approval expiration.
 - Supporting delegation and threshold limits.
 - Preventing approval outside configured authority.
+- Producing governed Human Decision Events through the approved Decision Service boundary.
 
 ### 4.8 Command Orchestration and Execution
 
@@ -400,6 +482,11 @@ Responsible for:
 - Waiting for authoritative External Confirmation.
 - Preventing duplicate execution.
 - Supporting reconciliation.
+- Producing Command lifecycle Events through the approved Command Service boundary.
+
+A Command identifier and an Event identifier are separate.
+
+A Command retry may retain the same Command and idempotency identity while each new material Command lifecycle occurrence receives its own Event record and `event_id`.
 
 ### 4.9 Audit, Observability and Analytics
 
@@ -410,6 +497,9 @@ Responsible for:
 - Distributed tracing.
 - Security monitoring.
 - Integration health.
+- Event publication and delivery health.
+- Event identity conflicts.
+- Consumer deduplication outcomes.
 - Model and Agent evaluation.
 - Workflow metrics.
 - Business KPI measurement.
@@ -433,6 +523,8 @@ This cross-cutting capability governs:
 - Policy versions.
 - Integration configuration.
 - Environment configuration.
+- Event routing authorization.
+- Replay authorization.
 - Emergency suspension.
 
 ---
@@ -447,11 +539,14 @@ Information whose authority remains with an approved external system.
 
 Examples may include:
 
-- Final Inventory availability.
+- Final external Inventory availability.
+- External stock posting.
 - Contract status.
 - Payment status.
-- Finance approval.
+- Finance or funding outcome.
+- Registration.
 - Final Deal posting.
+- Accounting outcome.
 
 ### ASOS Canonical Projection
 
@@ -471,6 +566,8 @@ Examples include:
 - Escalation state.
 - Internal Task state.
 - Command-processing state.
+- Event-publication state.
+- Consumer-processing state.
 - Reconciliation state.
 
 ### Derived Intelligence
@@ -484,13 +581,13 @@ Examples include:
 - Vehicle-match score.
 - Churn risk.
 - Predicted conversion probability.
-- Next-best-action recommendation.
+- Next-best-action Recommendation.
 
 Derived Intelligence must be clearly labeled and versioned.
 
 ### Authoritative Human Decision
 
-A decision recorded from a Human with the required:
+A Decision recorded from a Human with the required:
 
 - Role.
 - Permission.
@@ -502,7 +599,7 @@ A Human Decision does not automatically prove that an external system completed 
 
 ### External Confirmation
 
-Evidence received from the configured authoritative source confirming that an external action was accepted or completed.
+Evidence received from the configured authoritative source confirming that an external action was accepted, rejected, completed, reversed, or otherwise resolved.
 
 External Confirmation must remain separate from:
 
@@ -510,6 +607,7 @@ External Confirmation must remain separate from:
 - Human Approval.
 - Command creation.
 - Command transmission.
+- Provider transport acknowledgement.
 
 ### Data Integrity Requirements
 
@@ -527,8 +625,10 @@ Canonical services must preserve, where applicable:
 - Record version.
 - Conflict status.
 - Data-quality status.
+- `event_id`.
 - Correlation identifier.
 - Causation identifier.
+- Evidence references.
 
 ASOS must not silently overwrite conflicting authoritative values.
 
@@ -548,7 +648,7 @@ ASOS must not use Event, Recommendation, Decision, Command, and Confirmation int
 
 ### Event
 
-An Event is an immutable statement that something material happened.
+An Event is an immutable statement that one material occurrence happened.
 
 Examples:
 
@@ -564,19 +664,97 @@ Events describe past facts.
 
 They do not request future action.
 
-Every Event must have a unique `event_id`.
+Every Event must have one globally unique immutable `event_id`.
 
-Relevant Events should also preserve:
+Relevant Events must preserve the approved Canonical Event envelope, including where applicable:
 
+- `event_id`.
+- `event_type`.
+- `event_version`.
 - `tenant_id`.
-- Event type.
-- Event version.
-- Aggregate or Domain Object identifier.
 - Occurrence timestamp.
-- Producer.
+- Recording timestamp.
+- Producer and Producer version.
+- Aggregate or governed workflow identifier.
+- Aggregate version.
+- Authority category.
+- Source system.
+- Actor identity.
 - Correlation identifier.
 - Causation identifier.
-- Actor identity where applicable.
+- Payload Schema reference.
+- Data classification.
+- Evidence references.
+- Event-specific payload.
+
+### Event Identity Ownership
+
+The approved Event-producing boundary owns creation of the canonical Event record and assignment of its `event_id`.
+
+The producing boundary may be:
+
+- A Canonical Domain Service.
+- A Workflow Service.
+- A Human Decision Service.
+- Command Orchestration.
+- An approved integration adapter producing a normalized external observation or Confirmation Event.
+- An approved AI or analytics service producing a permitted Agent-run or Derived Intelligence Event.
+- Another Producer explicitly approved by the Canonical Event Catalog.
+
+The Producer must assign `event_id`:
+
+- After it has determined that a material occurrence is accepted.
+- Before publication to the Event Backbone.
+- Before any retryable publication attempt.
+- In the same trusted transaction as the accepted state change where technically possible.
+- Otherwise through an approved transactional-outbox mechanism.
+
+The Event Backbone owns transport and delivery, not Event identity creation.
+
+### Event Identifier Rules
+
+`event_id` must:
+
+- Be globally unique.
+- Be immutable.
+- Identify one material occurrence.
+- Never be reused for another occurrence.
+- Remain unchanged during publication retry.
+- Remain unchanged during redelivery.
+- Remain unchanged while stored in a dead-letter mechanism.
+- Remain unchanged during authorized replay of the same Event.
+- Support reliable Consumer deduplication.
+- Be auditable back to the Producer and creation transaction.
+
+A correction, reversal, cancellation, revocation, or supersession is a new occurrence.
+
+It therefore requires a new Event and a new `event_id`.
+
+The new Event must link to the affected Event through approved references such as:
+
+- `original_event_id`.
+- `corrected_event_id`.
+- `reversed_event_id`.
+- `cancelled_event_id`.
+- `revoked_event_id`.
+- `superseded_event_id`.
+
+### External Event Identifiers
+
+An external provider may supply its own Event, message, webhook, transaction, or observation identifier.
+
+The Integration Edge must preserve that value separately, for example:
+
+- `source_event_id`.
+- `external_event_id`.
+- `source_message_id`.
+- `source_transaction_id`.
+
+The normalized ASOS Event must still receive an ASOS canonical `event_id` from the approved integration Producer.
+
+The same external occurrence must not generate multiple normalized Events merely because delivery was retried.
+
+A provider reusing the same identifier for materially different payloads must create a security or reconciliation condition.
 
 ### Event Immutability
 
@@ -596,22 +774,108 @@ AppointmentConfirmed
 AppointmentConfirmationRevoked
 ```
 
-The corrective Event must reference the original Event where applicable.
+```text
+ExternalFundingConfirmed
+FundingReversed
+```
 
-### Event Delivery and Idempotency
+The corrective Event must reference the affected Event where applicable.
+
+### Event Publication
+
+The Producer must persist:
+
+- Event identity.
+- Event type and version.
+- Tenant.
+- Subject and aggregate version.
+- Authority.
+- Occurrence time.
+- Correlation and causation.
+- Payload.
+- Evidence references.
+- Publication state.
+
+The recommended pattern is:
+
+```text
+Authoritative state change accepted
+        ↓
+Event record and event_id created transactionally
+        ↓
+Outbox record committed
+        ↓
+Publisher sends the unchanged Event
+        ↓
+Backbone validates and transports the Event
+        ↓
+Publisher records publication result
+```
+
+A database commit without a corresponding required Event must be detectable and recoverable.
+
+An Event must not be published before the underlying accepted occurrence is durably recorded unless an approved architecture explicitly guarantees equivalent consistency.
+
+### Event Delivery and Consumer Idempotency
 
 The Event Backbone may deliver the same Event more than once.
 
 Every Consumer must:
 
-- Detect previously processed `event_id` values.
+- Validate `tenant_id`.
+- Validate the Event type and version.
+- Detect previously processed `event_id` values before business side effects.
+- Record Consumer-processing status.
 - Prevent duplicate state transitions.
 - Prevent duplicate Commands.
 - Prevent duplicate Customer communication.
-- Prevent duplicate reservations, quotations, or external updates.
-- Record processing outcomes where required.
+- Prevent duplicate Reservations, Allocations, Quotations, Payments, funding requests, Inventory intake, external updates, or other business effects.
+- Preserve failure and retry evidence.
+- Reprocess only under controlled policy.
 
-Commands that may be retried must use an approved `idempotency_key`.
+Consumer deduplication should use a durable inbox or equivalent processing ledger.
+
+A duplicate delivery of the same `event_id` must not create a second business effect.
+
+A different `event_id` with equivalent-looking payload must not automatically be discarded because it may represent a distinct occurrence, correction, or Producer defect.
+
+### Event Replay
+
+Replay means redelivering a previously created Event.
+
+Replay must:
+
+- Use the same `event_id`.
+- Preserve the original Event envelope and payload.
+- Preserve original occurrence and recording times.
+- Add replay metadata outside the immutable canonical Event or in an approved transport envelope.
+- Require authorization.
+- Restrict Tenant and Consumer scope.
+- Prevent duplicate business effects.
+- Record who authorized replay, why, when, and which range or Events were replayed.
+
+Replay must not be implemented by copying an old Event and assigning it a new `event_id`.
+
+Republishing a transformed or corrected occurrence requires a new governed Event, not replay.
+
+### Event Backbone Validation
+
+The Event Backbone must validate at least:
+
+- Required envelope fields.
+- `event_id` format.
+- Tenant routing context.
+- Producer identity.
+- Approved Event type and version where enforced centrally.
+- Payload size and serialization.
+- Security classification.
+- Access and routing authorization.
+- Identity conflict or reuse.
+- Required partition or ordering key where applicable.
+
+An invalid Event must be rejected, quarantined, or sent to a governed dead-letter or reconciliation workflow.
+
+The Backbone must not repair a missing `event_id` by silently generating one.
 
 ### Recommendation
 
@@ -625,6 +889,7 @@ It must include:
 - Required approval.
 - Expected impact.
 - Relevant risks.
+- Expiration where applicable.
 
 A Recommendation is not a Human Decision.
 
@@ -646,6 +911,8 @@ The Decision must record:
 - Approval threshold where applicable.
 - Reason where required.
 - Recommendation or action being reviewed.
+- Snapshot and evidence.
+- Expiration or revocation where applicable.
 
 ### Command
 
@@ -670,31 +937,37 @@ A Command may:
 
 A successfully transmitted Command is not automatically a completed business action.
 
+A Command must have its own stable Command identity.
+
+Retryable Commands must use an approved `idempotency_key`.
+
+A Command identity or idempotency key must not be substituted for `event_id`.
+
 ### External Confirmation
 
-An External Confirmation records authoritative evidence that an external system accepted or completed an action.
+An External Confirmation records authoritative evidence that an external system accepted, rejected, completed, reversed, or otherwise resolved an action.
 
-A Command must remain in a pending state until the required authoritative confirmation is received.
+A Command must remain in a pending state until the required authoritative Confirmation is received.
 
 Possible Command states may include:
 
 ```text
-Created
-Validated
-Awaiting Approval
-Approved
-Queued
-Sent
-Pending Confirmation
-Confirmed
-Rejected
-Failed
-Expired
-Reconciliation Required
-Cancelled
+CREATED
+VALIDATED
+AWAITING_APPROVAL
+APPROVED
+QUEUED
+SENT
+PENDING_CONFIRMATION
+CONFIRMED
+REJECTED
+FAILED
+EXPIRED
+RECONCILIATION_REQUIRED
+CANCELLED
 ```
 
-If confirmation is not received within the configured period, ASOS must not mark the business action as complete.
+If Confirmation is not received within the configured period, ASOS must not mark the business action as complete.
 
 It must initiate one or more of:
 
@@ -712,7 +985,17 @@ External or Internal Change
         ↓
 Canonical Projection or Workflow State Updated
         ↓
-Immutable Domain Event Published
+Producer creates immutable Event and assigns event_id
+        ↓
+Event persisted with accepted state or transactional outbox
+        ↓
+Event published unchanged to the Backbone
+        ↓
+Backbone validates, routes, stores, and delivers
+        ↓
+Consumer validates tenant, version, and event_id
+        ↓
+Consumer deduplicates before business effects
         ↓
 Deterministic Policy Evaluation
         ↓
@@ -738,7 +1021,7 @@ External Confirmation, Rejection, Failure, or Timeout
         ↓
 Canonical State Reconciled
         ↓
-New Outcome Event Published
+Producer creates new outcome Event with a new event_id
         ↓
 Audit and Outcome Measurement
 ```
@@ -802,11 +1085,12 @@ The Context Builder must:
 
 - Retrieve only authorized information.
 - Minimize unnecessary personal data.
-- Apply tenant and role boundaries.
+- Apply Tenant and role boundaries.
 - Provide source references.
 - Mark stale or conflicting evidence.
 - Separate facts from Derived Intelligence.
-- Prevent cross-tenant context leakage.
+- Prevent cross-Tenant context leakage.
+- Preserve the record and Event versions used.
 
 ### Specialized Agents
 
@@ -823,6 +1107,8 @@ Example capabilities may include:
 - Trade-In coordination.
 - Finance coordination.
 - Deal-risk monitoring.
+- Inventory analysis.
+- Delivery support.
 - Sales Manager assistance.
 - Market Intelligence analysis.
 
@@ -838,6 +1124,7 @@ Each Agent Contract must define:
 - Action Class.
 - Failure behavior.
 - Escalation behavior.
+- Event-production permissions.
 - Audit requirements.
 
 ### Structured Outputs
@@ -848,9 +1135,24 @@ Outputs must be validated before they affect workflow state.
 
 Invalid or incomplete output must not bypass deterministic controls.
 
+### AI Event Boundaries
+
+AI Agents may publish only the Event categories explicitly permitted by their Agent Contract and the Event Catalog.
+
+Examples may include:
+
+- Agent run completed.
+- Analysis completed.
+- Recommendation generated.
+- Risk detected.
+- Derived Intelligence generated.
+- Human Review recommended.
+
+AI Agents must not publish authoritative Customer, Inventory, finance, funding, Contract, Payment, delivery, accounting, or Deal outcome Events merely because they predicted or recommended the outcome.
+
 ### Explainability
 
-ASOS must provide evidence summaries and decision explanations appropriate to the User and decision risk.
+ASOS must provide evidence summaries and Decision explanations appropriate to the User and decision risk.
 
 It must not expose:
 
@@ -922,15 +1224,16 @@ The deterministic Policy and Authorization layer must validate that the proposed
 
 Requires an authorized Human Decision.
 
-Where applicable, it also requires authoritative confirmation from the external System of Record.
+Where applicable, it also requires authoritative Confirmation from the external System of Record.
 
 Examples may include:
 
 - Final pricing approval.
 - Discount approval beyond delegated limits.
-- Credit or finance decisions.
+- Credit or finance Decisions.
 - Trade-In valuation approval.
 - Contractual commitments.
+- Funding requests.
 - Legal representations.
 - Final Deal approval.
 - Payment authorization.
@@ -995,6 +1298,8 @@ Each connector must define:
 - Authentication method.
 - Tenant mapping.
 - External identifier mapping.
+- External Event identifier behavior.
+- Normalized Event Producer boundary.
 - Supported Objects and fields.
 - Read permissions.
 - Write permissions.
@@ -1007,6 +1312,22 @@ Each connector must define:
 - Confirmation behavior.
 - Reconciliation process.
 - Security classification.
+
+### Inbound Event Normalization
+
+For inbound Events, webhooks, or messages, the connector must:
+
+- Authenticate the source.
+- Preserve the external source identifier.
+- Validate Tenant mapping.
+- Detect duplicate external delivery.
+- Normalize the external occurrence.
+- Assign one ASOS `event_id` through the approved integration Producer.
+- Persist the mapping from external identifier to ASOS `event_id`.
+- Publish the normalized Event unchanged.
+- Reuse the same ASOS `event_id` when retrying publication of the same normalized occurrence.
+
+The connector must not create a new ASOS Event for every transport retry.
 
 ### Synchronization
 
@@ -1025,7 +1346,7 @@ The connector must distinguish where possible between:
 - Transport success.
 - Request acceptance.
 - Processing completion.
-- Authoritative business confirmation.
+- Authoritative business Confirmation.
 
 ### Failure Handling
 
@@ -1085,11 +1406,43 @@ Tenant isolation must apply to:
 - Vector stores.
 - Caches.
 - Event streams.
+- Outboxes and inboxes.
+- Dead-letter stores.
 - Logs.
 - Analytics.
 - AI context.
 - Backups.
 - Support access.
+
+### Event Security
+
+Event security must enforce:
+
+- Authenticated Producer identity.
+- Producer authorization for the Event type.
+- Trusted Tenant context.
+- Immutable Event identity.
+- Event-envelope integrity.
+- Payload Schema validation.
+- Data classification.
+- Tenant-aware routing.
+- Consumer authorization.
+- Replay authorization.
+- Dead-letter access controls.
+- Audit of Event creation, publication, delivery, and replay.
+
+The platform must detect:
+
+- Missing or malformed `event_id`.
+- Event identity reuse.
+- Event identity rewriting.
+- Producer impersonation.
+- Tenant mismatch.
+- Unauthorized Event type publication.
+- Payload substitution.
+- Replay outside authorized scope.
+- External identifier collision.
+- Duplicate business effects.
 
 ### Privacy
 
@@ -1123,7 +1476,7 @@ Secrets must be managed through approved secret-management services.
 ASOS must detect and record:
 
 - Unauthorized access attempts.
-- Cross-tenant access attempts.
+- Cross-Tenant access attempts.
 - Permission violations.
 - Suspicious Agent activity.
 - Connector abuse.
@@ -1131,6 +1484,9 @@ ASOS must detect and record:
 - Prompt-injection attempts.
 - Policy-bypass attempts.
 - Administrative changes.
+- Event identity conflicts.
+- Event replay anomalies.
+- Consumer deduplication failures.
 
 ---
 
@@ -1146,8 +1502,12 @@ The platform should monitor:
 - Latency.
 - Error rates.
 - Queue depth.
-- Event delivery.
+- Event publication lag.
+- Event delivery lag.
 - Duplicate Event delivery.
+- Event identity conflicts.
+- Outbox backlog.
+- Consumer inbox and deduplication status.
 - Consumer processing failures.
 - Connector health.
 - Database health.
@@ -1170,6 +1530,7 @@ The platform should monitor:
 - Command success.
 - External Confirmation delays.
 - Data-quality exceptions.
+- Reconciliation backlog.
 - Lost-opportunity risk.
 - Inventory and Deal outcomes.
 
@@ -1181,10 +1542,13 @@ Material activity should record:
 - User or service.
 - Role and permission.
 - Domain Object.
-- Event and `event_id`.
-- Event version.
+- Event and Producer-assigned `event_id`.
+- Event type and version.
+- Producer identity and version.
+- Aggregate version.
 - Correlation identifier.
 - Causation identifier.
+- Source Event identifier where applicable.
 - Recommendation.
 - Business Rule version.
 - Prompt version.
@@ -1195,14 +1559,55 @@ Material activity should record:
 - Connector response.
 - External Confirmation.
 - Correction or reversal Event.
+- Replay metadata.
+- Consumer-processing result.
 - Error.
 - Timestamp.
+
+### Transactional Event Publication
+
+Services that update authoritative state and publish Events should use an approved consistency mechanism such as:
+
+- Transactional outbox.
+- Database-supported atomic Event append.
+- Event-sourced aggregate append.
+- Another architecture with equivalent consistency guarantees.
+
+The mechanism must prevent or detect:
+
+- State committed without required Event.
+- Event published without accepted state.
+- Duplicate Event creation during retry.
+- Event identity change during retry.
+- Lost publication.
+- Out-of-order publication where order is required.
+
+### Consumer Processing Ledger
+
+Consumers should preserve a durable processing record containing at least:
+
+- Consumer identity.
+- Tenant.
+- `event_id`.
+- Event type and version.
+- First received time.
+- Latest received time.
+- Processing status.
+- Attempt count.
+- Business-effect reference.
+- Failure details.
+- Completion time.
+
+The same Consumer must not apply the same Event twice.
 
 ### Reliability Controls
 
 ASOS should support:
 
+- Idempotent Event Producers.
+- Transactional Event publication.
 - Idempotent Event Consumers.
+- Durable Consumer deduplication.
 - Idempotent Commands.
 - Safe retries.
 - Circuit breakers.
@@ -1223,8 +1628,29 @@ AI unavailability must not disable:
 - Authorization.
 - Tenant isolation.
 - Deterministic workflow controls.
+- Event identity validation.
+- Consumer deduplication.
 - Audit recording.
 - Emergency suspension.
+
+### Recovery and Replay
+
+Recovery must distinguish between:
+
+- Retrying publication of an Event that was already created.
+- Redelivering an Event that was already published.
+- Replaying historical Events.
+- Publishing a corrective Event.
+- Rebuilding a projection.
+- Re-executing a Command.
+
+These operations are not interchangeable.
+
+Retry, redelivery, and replay of the same Event retain the same `event_id`.
+
+A corrective occurrence receives a new `event_id`.
+
+Re-executing a Command requires Command idempotency and does not authorize recreating prior Events with new identities.
 
 ---
 
@@ -1234,8 +1660,8 @@ AI unavailability must not disable:
 
 ASOS may support:
 
-- Multi-tenant Software-as-a-Service.
-- Dedicated tenant deployment.
+- Multi-Tenant Software-as-a-Service.
+- Dedicated Tenant deployment.
 - Private-cloud deployment.
 - Hybrid deployment.
 - Region-specific deployment.
@@ -1257,7 +1683,7 @@ Configuration may be applied at the following levels:
 9. Workflow or use case.
 10. Pilot or controlled rollout.
 
-Lower-level configuration must not override higher-level legal, constitutional, security, or tenant-isolation requirements.
+Lower-level configuration must not override higher-level legal, constitutional, security, Event-governance, or Tenant-isolation requirements.
 
 ### Feature Controls
 
@@ -1271,6 +1697,9 @@ ASOS should support:
 - Automation limits.
 - Model selection.
 - Approval thresholds.
+- Event Producer enablement.
+- Consumer enablement.
+- Replay suspension.
 - Emergency disablement.
 
 ### Technology Profiles
@@ -1288,12 +1717,13 @@ A deployment profile may document:
 - Monitoring platform.
 - Communication providers.
 - Integration tools.
+- Outbox and Consumer-inbox implementation.
 
-Changing a vendor should not require redefining the ASOS Constitution or Canonical Domain Model.
+Changing a vendor should not require redefining the ASOS Constitution, Canonical Domain Model, or Event identity ownership.
 
 ### Architectural Decisions
 
-Material decisions must be documented through Architectural Decision Records.
+Material Decisions must be documented through Architectural Decision Records.
 
 An ADR should include:
 
@@ -1304,6 +1734,7 @@ An ADR should include:
 - Consequences.
 - Security impact.
 - Data impact.
+- Event and integration impact.
 - Migration impact.
 - Approval.
 - Status.
@@ -1315,7 +1746,8 @@ Breaking architectural changes require:
 - Impact assessment.
 - Constitution review.
 - Domain Model impact review.
-- Event and API impact review.
+- Event Catalog and Event-envelope impact review.
+- API and integration impact review.
 - Security and privacy review.
 - Migration plan.
 - Compatibility plan.
@@ -1323,6 +1755,8 @@ Breaking architectural changes require:
 - Approval.
 - Versioning.
 - Rollback plan.
+
+A change to Event identity generation, format, Producer ownership, replay semantics, or Consumer deduplication is a governed architectural and Event Catalog change.
 
 ### Controlled Build Sequence
 
@@ -1348,6 +1782,7 @@ The recommended build sequence is:
 - [ASOS Constitution](../00_Constitution/Constitution.md)
 - [ASOS Data Ownership and Systems of Record](./Data_Ownership_and_Systems_of_Record.md)
 - [ASOS Canonical Domain Model](../07_Knowledge_Base/docs/01-Domain-Model/)
+- [ASOS Canonical Event Catalog Governance](../07_Knowledge_Base/docs/02-Event-Catalog/README.md)
 - [ASOS MVP Pilot Framework](./MVP_Pilot_Framework.md)
 - [ASOS Repository Structure](../README.md)
 
@@ -1357,4 +1792,14 @@ The recommended build sequence is:
 
 This document is the approved logical architecture baseline for ASOS.
 
-Vendor-specific deployment choices, infrastructure products, AI providers, and dealership-specific configuration must be documented separately.
+The approved Event-producing boundary creates each canonical Event and assigns its immutable `event_id` before publication.
+
+The Event and Messaging Backbone validates, transports, stores, retries, redelivers, and replays Events while preserving the Producer-assigned `event_id` unchanged.
+
+The Backbone must not silently generate, replace, or rewrite the canonical Event identifier.
+
+Consumers must deduplicate before business effects using the preserved `event_id` under validated Tenant context.
+
+Corrections, reversals, cancellations, revocations, and supersessions are new occurrences and require new Events with new identifiers linked to the affected prior Events.
+
+Vendor-specific deployment choices, infrastructure products, AI providers, Event platforms, and dealership-specific configuration must be documented separately.
